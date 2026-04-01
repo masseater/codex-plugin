@@ -1,0 +1,24 @@
+{
+  "name": "use-codex",
+  "version": "0.2.5",
+  "description": "Codex CLI integration",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/use-codex",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Use Codex",
+    "shortDescription": "Codex CLI integration",
+    "longDescription": "Codex CLI integration",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/"
+}

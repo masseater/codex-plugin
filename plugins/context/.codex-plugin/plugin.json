@@ -1,0 +1,25 @@
+{
+  "name": "context",
+  "version": "0.2.4",
+  "description": "プロジェクトコンテキスト管理（AGENTS.md, rules）",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/context",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Context",
+    "shortDescription": "プロジェクトコンテキスト管理（AGENTS.md, rules）",
+    "longDescription": "プロジェクトコンテキスト管理（AGENTS.md, rules）",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}

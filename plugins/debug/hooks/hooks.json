@@ -1,0 +1,19 @@
+{
+  "description": "debug plugin hooks",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun install --production 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "command": "./hooks/entry/session-start.ts"
+          }
+        ]
+      }
+    ]
+  }
+}

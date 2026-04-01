@@ -1,0 +1,41 @@
+{
+  "eslint": {
+    "command": "vscode-eslint-language-server",
+    "args": ["--stdio"],
+    "extensionToLanguage": {
+      ".js": "javascript",
+      ".jsx": "javascriptreact",
+      ".ts": "typescript",
+      ".tsx": "typescriptreact",
+      ".mjs": "javascript",
+      ".cjs": "javascript"
+    },
+    "initializationOptions": {
+      "validate": "on",
+      "experimental": {
+        "useFlatConfig": true
+      },
+      "run": "onType",
+      "codeAction": {
+        "disableRuleComment": {
+          "enable": true,
+          "location": "separateLine"
+        },
+        "showDocumentation": {
+          "enable": true
+        }
+      }
+    },
+    "settings": {
+      "eslint": {
+        "validate": "on",
+        "experimental": {
+          "useFlatConfig": true
+        },
+        "run": "onType"
+      }
+    },
+    "restartOnCrash": true,
+    "maxRestarts": 3
+  }
+}

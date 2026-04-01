@@ -1,0 +1,25 @@
+{
+  "name": "mutils",
+  "version": "0.18.8",
+  "description": "汎用ユーティリティ（フック・スキル）",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/mutils",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Mutils",
+    "shortDescription": "汎用ユーティリティ（フック・スキル）",
+    "longDescription": "汎用ユーティリティ（フック・スキル）",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}

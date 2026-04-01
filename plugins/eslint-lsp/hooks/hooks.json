@@ -1,0 +1,19 @@
+{
+  "description": "eslint-lsp plugin hooks",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun install --production --silent 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "command": "./hooks/entry/check-eslint-server.ts"
+          }
+        ]
+      }
+    ]
+  }
+}

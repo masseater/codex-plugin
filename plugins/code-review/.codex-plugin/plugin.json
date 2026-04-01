@@ -1,0 +1,25 @@
+{
+  "name": "code-review",
+  "version": "0.2.6",
+  "description": "PR・コードレビューワークフロー支援",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/code-review",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Code Review",
+    "shortDescription": "PR・コードレビューワークフロー支援",
+    "longDescription": "PR・コードレビューワークフロー支援",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}

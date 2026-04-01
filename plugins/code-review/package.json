@@ -1,0 +1,23 @@
+{
+  "name": "plugin-code-review",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "oxlint",
+    "check:fix": "oxlint --fix",
+    "typecheck": "tsgo --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "citty": "^0.1.6",
+    "octokit": "^5.0.5",
+    "simple-git": "^3.30.0",
+    "valibot": "^1.2.0"
+  },
+  "devDependencies": {
+    "@repo/ts-config": "*",
+    "@repo/vitest-config": "*",
+    "@vitest/coverage-v8": "^3.2.0",
+    "vitest": "^3.2.0"
+  }
+}

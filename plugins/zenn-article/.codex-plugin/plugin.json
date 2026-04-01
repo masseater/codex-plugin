@@ -1,0 +1,24 @@
+{
+  "name": "zenn-article",
+  "version": "0.0.2",
+  "description": "Zenn技術記事の執筆・投稿支援",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/zenn-article",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Zenn Article",
+    "shortDescription": "Zenn技術記事の執筆・投稿支援",
+    "longDescription": "Zenn技術記事の執筆・投稿支援",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/"
+}

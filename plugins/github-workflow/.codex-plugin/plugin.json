@@ -1,0 +1,24 @@
+{
+  "name": "github-workflow",
+  "version": "0.0.5",
+  "description": "Git/GitHub ワークフロー支援 — Stop 時にブランチ状態とコンフリクトを通知",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/github-workflow",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Github Workflow",
+    "shortDescription": "Git/GitHub ワークフロー支援 — Stop 時にブランチ状態とコンフリクトを通知",
+    "longDescription": "Git/GitHub ワークフロー支援 — Stop 時にブランチ状態とコンフリクトを通知",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "hooks": "./hooks/hooks.json"
+}

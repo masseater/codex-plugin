@@ -1,0 +1,40 @@
+{
+  "description": "github-workflow plugin hooks",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun install --production 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/entry/auto-ci-watch.ts"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/entry/check-branch-status.ts"
+          },
+          {
+            "type": "command",
+            "command": "./hooks/entry/log-git-status.ts"
+          }
+        ]
+      }
+    ]
+  }
+}

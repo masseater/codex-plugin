@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "sdd-webapp": {
+      "command": "bunx",
+      "args": ["@r_masseater/sdd-webapp@latest", "mcp"]
+    }
+  }
+}

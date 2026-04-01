@@ -1,0 +1,25 @@
+{
+  "name": "research",
+  "version": "0.1.10",
+  "description": "調査・分析ツール（画像解析、ライブラリ調査、Figma連携）",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/research",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Research",
+    "shortDescription": "調査・分析ツール（画像解析、ライブラリ調査、Figma連携）",
+    "longDescription": "調査・分析ツール（画像解析、ライブラリ調査、Figma連携）",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}

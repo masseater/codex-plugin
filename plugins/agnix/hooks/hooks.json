@@ -1,0 +1,26 @@
+{
+  "description": "agnix plugin hooks",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun install --production 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/entry/lint-config-file.ts"
+          }
+        ]
+      }
+    ]
+  }
+}

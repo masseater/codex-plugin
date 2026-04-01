@@ -1,0 +1,30 @@
+{
+  "description": "sdd plugin hooks",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun install --production 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/entry/block-archived-edit.ts"
+          },
+          {
+            "type": "command",
+            "command": "./hooks/entry/require-phase-status.ts"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "devkit",
+  "version": "0.3.6",
+  "description": "Development toolkit — tech stack definitions, project setup, and quality automation",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/devkit",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Devkit",
+    "shortDescription": "Development toolkit — tech stack definitions, project setup, and quality automation",
+    "longDescription": "Development toolkit — tech stack definitions, project setup, and quality automation",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "swarm",
+  "version": "0.1.2",
+  "description": "Agent Teams（swarm）支援 - チーム設計・運用・振り返りガイド",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/swarm",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Swarm",
+    "shortDescription": "Agent Teams（swarm）支援 - チーム設計・運用・振り返りガイド",
+    "longDescription": "Agent Teams（swarm）支援 - チーム設計・運用・振り返りガイド",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/"
+}

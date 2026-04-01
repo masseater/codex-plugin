@@ -1,0 +1,24 @@
+{
+  "name": "eslint-lsp",
+  "version": "0.1.10",
+  "description": "ESLint 9 Language Server integration for Claude Code",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/eslint-lsp",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Eslint Lsp",
+    "shortDescription": "ESLint 9 Language Server integration for Claude Code",
+    "longDescription": "ESLint 9 Language Server integration for Claude Code",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "hooks": "./hooks/hooks.json"
+}

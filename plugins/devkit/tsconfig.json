@@ -1,0 +1,7 @@
+{
+  "extends": "@repo/ts-config/plugin.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  }
+}

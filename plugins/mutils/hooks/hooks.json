@@ -1,0 +1,78 @@
+{
+  "description": "mutils plugin hooks",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun install --production 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "command": "./hooks/entry/check-context-version.ts"
+          },
+          {
+            "type": "command",
+            "command": "./hooks/entry/workspace-id-persist.ts"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/entry/suggest-todo.ts"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/entry/block-unsafe-type-assertion.ts"
+          }
+        ]
+      },
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/entry/suggest-plan-enhancer.ts"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "TodoWrite|TaskCreate|TaskUpdate",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/entry/task-history.ts"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/entry/send-notification.ts"
+          },
+          {
+            "type": "command",
+            "command": "./hooks/entry/suggest-todo.ts"
+          }
+        ]
+      }
+    ]
+  }
+}

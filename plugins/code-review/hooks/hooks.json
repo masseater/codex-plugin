@@ -1,0 +1,15 @@
+{
+  "description": "code-review plugin hooks",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun install --production 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}

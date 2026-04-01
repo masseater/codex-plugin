@@ -1,0 +1,26 @@
+{
+  "name": "sdd",
+  "version": "0.5.14",
+  "description": "Spec Driven Development (SDD) ワークフロー支援コマンド集",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/sdd",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Sdd",
+    "shortDescription": "Spec Driven Development (SDD) ワークフロー支援コマンド集",
+    "longDescription": "Spec Driven Development (SDD) ワークフロー支援コマンド集",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json"
+}

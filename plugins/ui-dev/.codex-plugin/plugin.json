@@ -1,0 +1,25 @@
+{
+  "name": "ui-dev",
+  "version": "0.0.19",
+  "description": "Figma x AI UI implementation workflow",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/ui-dev",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Ui Dev",
+    "shortDescription": "Figma x AI UI implementation workflow",
+    "longDescription": "Figma x AI UI implementation workflow",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}

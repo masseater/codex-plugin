@@ -1,0 +1,57 @@
+name: Sync Upstream
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Upstream ref to sync
+        required: false
+        default: auto
+  schedule:
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sync upstream
+        run: |
+          python3 scripts/sync_upstream.py \
+            --source https://github.com/masseater/claude-code-plugin.git \
+            --ref "${{ github.event.inputs.ref || 'auto' }}"
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create pull request
+        if: steps.changes.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/sync-claude-code-plugin
+          delete-branch: true
+          commit-message: "chore: sync claude-code-plugin"
+          title: "chore: sync claude-code-plugin"
+          body: |
+            Sync `masseater/claude-code-plugin` into Codex plugin format.
+
+            - source: `masseater/claude-code-plugin`
+            - ref: `${{ github.event.inputs.ref || 'auto' }}`

@@ -1,0 +1,29 @@
+{
+  "description": "discord-notify plugin hooks",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun install --production 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "command": "./hooks/entry/create-thread.ts"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/entry/send-discord.ts"
+          }
+        ]
+      }
+    ]
+  }
+}

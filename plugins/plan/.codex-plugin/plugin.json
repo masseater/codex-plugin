@@ -1,0 +1,24 @@
+{
+  "name": "plan",
+  "version": "0.0.16",
+  "description": "Plan file review and quality assurance",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/plan",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Plan",
+    "shortDescription": "Plan file review and quality assurance",
+    "longDescription": "Plan file review and quality assurance",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/"
+}

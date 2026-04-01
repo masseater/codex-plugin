@@ -1,0 +1,24 @@
+{
+  "name": "discord-notify",
+  "version": "0.0.2",
+  "description": "Discord通知 — idle時にセッションの最新メッセージをDiscordスレッドに投稿",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/discord-notify",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Discord Notify",
+    "shortDescription": "Discord通知 — idle時にセッションの最新メッセージをDiscordスレッドに投稿",
+    "longDescription": "Discord通知 — idle時にセッションの最新メッセージをDiscordスレッドに投稿",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "hooks": "./hooks/hooks.json"
+}

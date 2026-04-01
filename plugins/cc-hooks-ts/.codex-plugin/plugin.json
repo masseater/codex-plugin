@@ -1,0 +1,24 @@
+{
+  "name": "cc-hooks-ts",
+  "version": "0.1.7",
+  "description": "cc-hooks-ts ライブラリガイド・Hook作成支援",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/cc-hooks-ts",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Cc Hooks Ts",
+    "shortDescription": "cc-hooks-ts ライブラリガイド・Hook作成支援",
+    "longDescription": "cc-hooks-ts ライブラリガイド・Hook作成支援",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/"
+}

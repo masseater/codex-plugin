@@ -1,0 +1,25 @@
+{
+  "name": "progress-tracker",
+  "version": "0.1.11",
+  "description": "セッション進捗ファイルの自動作成・管理",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/progress-tracker",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Progress Tracker",
+    "shortDescription": "セッション進捗ファイルの自動作成・管理",
+    "longDescription": "セッション進捗ファイルの自動作成・管理",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}
