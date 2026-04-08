@@ -9,7 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "citty": "^0.1.6",
+    "citty": "^0.2.0",
     "octokit": "^5.0.5",
     "simple-git": "^3.30.0",
     "valibot": "^1.2.0"

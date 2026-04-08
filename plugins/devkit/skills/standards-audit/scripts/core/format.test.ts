@@ -73,7 +73,7 @@ describe("formatReport", () => {
             makeFinding({
               severity: "warning",
               rule: "config-files",
-              message: "lefthook.yml not found",
+              message: "git hook config not found",
             }),
           ],
         },

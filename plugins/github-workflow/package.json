@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@r_masseater/cc-plugin-lib": "0.0.3",
-    "cc-hooks-ts": "latest"
+    "cc-hooks-ts": "latest",
+    "yaml": "^2.8.3"
   },
   "devDependencies": {
     "@repo/ts-config": "*",

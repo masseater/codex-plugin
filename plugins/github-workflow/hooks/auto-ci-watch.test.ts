@@ -24,8 +24,9 @@ vi.mock("cc-hooks-ts", () => ({
   runHook: vi.fn(),
 }));
 
-import { isGitPushCommand, formatCIResult, waitForRun, watchCI } from "./entry/auto-ci-watch.ts";
+import { formatCIResult, waitForRun, watchCI } from "./entry/auto-ci-watch.ts";
 import type { CIResult } from "./entry/auto-ci-watch.ts";
+import { isGitPushCommand } from "./lib/pr-conflicts.ts";
 
 describe("isGitPushCommand", () => {
   test("matches simple git push", () => {

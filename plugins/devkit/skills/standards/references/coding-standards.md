@@ -53,3 +53,16 @@ export const env = createEnv({
 ```
 
 Why the guard ordering matters: the `!== "production"` check short-circuits first, so production can never receive dummy values regardless of what other conditions evaluate to.
+
+## Don't Direct `process.env` Access
+
+Direct `process.env` access is a standards violation in application and library code. Read environment variables once at a typed module boundary, validate them there, and import that module everywhere else.
+
+Allowed boundaries:
+
+- `env.ts` or equivalent typed env module
+- config entrypoints such as `*.config.ts`
+- test files that explicitly set up process state
+- declaration files (`*.d.ts`)
+
+Everything else must import from the boundary module instead of touching `process.env` directly.

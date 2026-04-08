@@ -103,8 +103,8 @@ describe("run - config/tsconfig", () => {
   });
 });
 
-describe("run - config/lefthook", () => {
-  test("warning when no lefthook config exists", async () => {
+describe("run - config/git-hooks", () => {
+  test("warning when no git hook config exists", async () => {
     const dir = makeTempDir();
     const findings = await run({
       rootDir: dir,
@@ -113,10 +113,26 @@ describe("run - config/lefthook", () => {
       packageJson: null,
     });
     const match = findings.find(
-      (f) => f.rule === "config-files" && f.message.toLowerCase().includes("lefthook"),
+      (f) => f.rule === "config-files" && f.message.toLowerCase().includes("git hook"),
     );
     expect(match).toBeDefined();
     expect(match?.severity).toBe("warning");
+  });
+
+  test("no finding when .husky exists", async () => {
+    const dir = makeTempDir();
+    mkdirSync(join(dir, ".husky"), { recursive: true });
+    writeFileSync(join(dir, ".husky", "pre-commit"), "");
+    const findings = await run({
+      rootDir: dir,
+      label: "(root)",
+      types: [],
+      packageJson: null,
+    });
+    const match = findings.find(
+      (f) => f.rule === "config-files" && f.message.toLowerCase().includes("git hook"),
+    );
+    expect(match).toBeUndefined();
   });
 
   test("no finding when lefthook.yml exists", async () => {
@@ -129,7 +145,7 @@ describe("run - config/lefthook", () => {
       packageJson: null,
     });
     const match = findings.find(
-      (f) => f.rule === "config-files" && f.message.toLowerCase().includes("lefthook"),
+      (f) => f.rule === "config-files" && f.message.toLowerCase().includes("git hook"),
     );
     expect(match).toBeUndefined();
   });
@@ -144,7 +160,7 @@ describe("run - config/lefthook", () => {
       packageJson: null,
     });
     const match = findings.find(
-      (f) => f.rule === "config-files" && f.message.toLowerCase().includes("lefthook"),
+      (f) => f.rule === "config-files" && f.message.toLowerCase().includes("git hook"),
     );
     expect(match).toBeUndefined();
   });
@@ -243,7 +259,8 @@ describe("run - all checks pass", () => {
   test("returns no findings when all config files are present and no lock files exist", async () => {
     const dir = makeTempDir();
     writeFileSync(join(dir, "tsconfig.json"), "{}");
-    writeFileSync(join(dir, "lefthook.yml"), "");
+    mkdirSync(join(dir, ".husky"), { recursive: true });
+    writeFileSync(join(dir, ".husky", "pre-commit"), "");
     mkdirSync(join(dir, ".github"), { recursive: true });
     writeFileSync(join(dir, ".github", "renovate.json5"), "{}");
     writeFileSync(join(dir, ".mise.toml"), '[tools]\nnode = "20.0.0"\n');

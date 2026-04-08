@@ -1,0 +1,24 @@
+{
+  "name": "ops-harbor",
+  "version": "0.1.0",
+  "description": "Ops Harbor integration for cached work item visibility and MCP-first workflows",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/ops-harbor",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Ops Harbor",
+    "shortDescription": "Ops Harbor integration for cached work item visibility and MCP-first workflows",
+    "longDescription": "Ops Harbor integration for cached work item visibility and MCP-first workflows",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/"
+}

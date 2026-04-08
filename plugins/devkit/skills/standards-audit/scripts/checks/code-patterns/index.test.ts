@@ -116,14 +116,14 @@ describe("code/no-direct-process-env", () => {
     expect(envFindings).toHaveLength(0);
   });
 
-  test("regular file with process.env produces a warning", async () => {
+  test("regular file with process.env produces a violation", async () => {
     const { dir, writeFile } = makeTempProject();
     writeFile("src/db.ts", "const url = process.env.DATABASE_URL;\n");
 
     const findings = await run(makeCtx(dir));
     const envFindings = findings.filter((f) => f.rule === "code/no-direct-process-env");
     expect(envFindings.length).toBeGreaterThanOrEqual(1);
-    expect(envFindings[0]?.severity).toBe("warning");
+    expect(envFindings[0]?.severity).toBe("violation");
     expect(envFindings[0]?.file).toContain("db.ts");
     expect(envFindings[0]?.line).toBe(1);
   });
@@ -146,6 +146,15 @@ describe("code/no-direct-process-env", () => {
     expect(envFindings).toHaveLength(0);
   });
 
+  test("comment-only lines mentioning process.env are ignored", async () => {
+    const { dir, writeFile } = makeTempProject();
+    writeFile("src/app.ts", "// process.env must stay inside env.ts\nconst value = 1;\n");
+
+    const findings = await run(makeCtx(dir));
+    const envFindings = findings.filter((f) => f.rule === "code/no-direct-process-env");
+    expect(envFindings).toHaveLength(0);
+  });
+
   test("declaration file with process.env is excluded — no finding", async () => {
     const { dir, writeFile } = makeTempProject();
     writeFile("src/global.d.ts", "declare const env: typeof process.env;\n");
@@ -155,7 +164,7 @@ describe("code/no-direct-process-env", () => {
     expect(envFindings).toHaveLength(0);
   });
 
-  test("warning finding has correct rule field and message", async () => {
+  test("violation finding has correct rule field and message", async () => {
     const { dir, writeFile } = makeTempProject();
     writeFile("src/service.ts", "const secret = process.env.SECRET_KEY;\n");
 

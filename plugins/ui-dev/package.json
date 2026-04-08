@@ -9,8 +9,8 @@
   },
   "dependencies": {
     "@r_masseater/cc-plugin-lib": "0.0.3",
-    "cc-hooks-ts": "2.1.50",
-    "citty": "^0.1.6",
+    "cc-hooks-ts": "2.1.91",
+    "citty": "^0.2.0",
     "valibot": "^1.2.0"
   },
   "devDependencies": {

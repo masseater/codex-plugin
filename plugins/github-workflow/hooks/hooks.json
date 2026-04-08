@@ -17,7 +17,20 @@
         "hooks": [
           {
             "type": "command",
+            "command": "./hooks/entry/check-push-pr-conflicts.ts"
+          },
+          {
+            "type": "command",
             "command": "./hooks/entry/auto-ci-watch.ts"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/entry/suggest-actions-update.ts"
           }
         ]
       }

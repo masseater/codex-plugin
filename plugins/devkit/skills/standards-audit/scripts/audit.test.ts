@@ -59,9 +59,11 @@ describe("audit", () => {
       },
     });
     writeJson(dir, "tsconfig.json", {});
-    writeFileSync(join(dir, "lefthook.yml"), "pre-commit:\n  commands: {}\n");
+    mkdirSync(join(dir, ".husky"), { recursive: true });
+    writeFileSync(join(dir, ".husky", "pre-commit"), "");
+    mkdirSync(join(dir, ".github"), { recursive: true });
+    writeFileSync(join(dir, ".github", "renovate.json5"), "{}");
     writeFileSync(join(dir, ".mise.toml"), '[tools]\nnode = "22.0.0"\npnpm = "10.0.0"\n');
-    writeFileSync(join(dir, "renovate.json"), '{ "extends": ["config:base"] }\n');
 
     const result = await audit(dir);
     const allFindings = result.scopeResults.flatMap((sr) => sr.findings);

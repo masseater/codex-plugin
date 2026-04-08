@@ -125,6 +125,18 @@
       "category": "Productivity"
     },
     {
+      "name": "ops-harbor",
+      "source": {
+        "source": "local",
+        "path": "./plugins/ops-harbor"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
       "name": "plan",
       "source": {
         "source": "local",
