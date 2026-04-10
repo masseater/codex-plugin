@@ -40,12 +40,22 @@ async function run(ctx: ProjectContext): Promise<Finding[]> {
   ]);
 
   for (const match of processEnvMatches) {
+    const trimmed = match.content.trim();
+    if (
+      trimmed.startsWith("//") ||
+      trimmed.startsWith("/*") ||
+      trimmed.startsWith("*") ||
+      trimmed.startsWith("*/")
+    ) {
+      continue;
+    }
+
     findings.push({
-      severity: "warning",
+      severity: "violation",
       rule: "code/no-direct-process-env",
       file: match.file,
       line: match.line,
-      message: `Direct process.env access detected (${match.content.trim()}). Use a typed env module instead (e.g., import { env } from "./env").`,
+      message: `Direct process.env access detected (${match.content.trim()}). Move env reads into env.ts or another typed boundary module.`,
     });
   }
 

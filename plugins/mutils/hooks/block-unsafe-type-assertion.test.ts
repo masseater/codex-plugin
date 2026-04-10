@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-concat -- intentional: split strings to avoid triggering hook self-detection */
 import { describe, expect, test } from "vitest";
 
 /**

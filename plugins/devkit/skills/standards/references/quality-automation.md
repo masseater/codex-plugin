@@ -38,7 +38,7 @@ oxfmt is the formatter for the entire monorepo. **Run at the monorepo root only*
 // package.json (monorepo root)
 {
   "scripts": {
-    "check": "rtk eslint && rtk oxfmt --check . && turbo run check",
+    "check": "eslint && oxfmt --check . && turbo run check",
     "check:fix": "eslint --fix && oxfmt . && turbo run check:fix",
   },
 }
@@ -202,16 +202,16 @@ packages/
 
 When defining hooks (lefthook, Claude Code hooks) or CI scripts, never call node_modules binaries directly. Always wrap them in package.json scripts and call those instead.
 
-**rtk prefix**: All tool invocations in package.json scripts must use `rtk` (CLI output proxy). rtk reduces output size by 60-90%, benefiting AI agents and CI logs alike. No need for separate human-only / AI-only commands — rtk output is human-readable too.
+`package.json` scripts must not depend on globally installed wrappers such as `rtk`. Keep scripts runnable from a fresh checkout using only the project's declared toolchain and the chosen runtime (`pnpm`, `bun`, `tsx`, etc.). If a team wants compressed output, apply that wrapper at the caller layer (local shell alias, CI step wrapper, agent launcher), not inside `package.json`.
 
 ```jsonc
 // package.json (workspace)
 {
   "scripts": {
-    "check": "rtk oxlint",
+    "check": "oxlint",
     "check:fix": "oxlint --fix",
-    "typecheck": "rtk tsgo --noEmit",
-    "test": "rtk vitest run",
+    "typecheck": "tsgo --noEmit",
+    "test": "vitest run",
   },
 }
 ```
@@ -220,7 +220,7 @@ When defining hooks (lefthook, Claude Code hooks) or CI scripts, never call node
 // package.json (monorepo root)
 {
   "scripts": {
-    "check": "rtk eslint && rtk oxfmt --check . && turbo run check",
+    "check": "eslint && oxfmt --check . && turbo run check",
     "check:fix": "eslint --fix && oxfmt . && turbo run check:fix",
     "typecheck": "turbo run typecheck",
   },
@@ -246,7 +246,7 @@ Why:
 - Single source of truth for how each tool is invoked (flags, config paths, order)
 - Discoverable — `pnpm run` lists all available commands
 - Consistent across lefthook, CI, Claude Code hooks, and manual runs
-- rtk prefix ensures all consumers get compressed output automatically
+- Fresh clones can run scripts without undocumented global dependencies
 
 ## CI Pipeline — Required Checks
 

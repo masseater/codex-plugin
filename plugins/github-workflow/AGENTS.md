@@ -20,11 +20,13 @@ bun run typecheck    # type check
 
 <!-- BEGIN:component-list (auto-generated, do not edit) -->
 
-| Type  | Name                | Description                                                                                                    |
-| ----- | ------------------- | -------------------------------------------------------------------------------------------------------------- |
-| agent | ci-watcher          | Monitor CI for pushed branches in the background. Check PR checks if PR exists, otherwise watch workflow runs. |
-| hook  | auto-ci-watch       | PostToolUse (Bash)                                                                                             |
-| hook  | check-branch-status | Stop                                                                                                           |
-| hook  | log-git-status      | Stop                                                                                                           |
+| Type  | Name                    | Description                                                                                                    |
+| ----- | ----------------------- | -------------------------------------------------------------------------------------------------------------- |
+| agent | ci-watcher              | Monitor CI for pushed branches in the background. Check PR checks if PR exists, otherwise watch workflow runs. |
+| hook  | auto-ci-watch           | PostToolUse (Bash)                                                                                             |
+| hook  | check-branch-status     | Stop                                                                                                           |
+| hook  | check-push-pr-conflicts | PostToolUse (Bash)                                                                                             |
+| hook  | log-git-status          | Stop                                                                                                           |
+| hook  | suggest-actions-update  | PostToolUse (Write\|Edit)                                                                                      |
 
 <!-- END:component-list -->

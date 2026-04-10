@@ -1,6 +1,6 @@
 {
   "name": "discord-notify",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Discord通知 — idle時にセッションの最新メッセージをDiscordスレッドに投稿",
   "author": {
     "name": "masseater",

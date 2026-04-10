@@ -46,18 +46,19 @@ async function run(ctx: ProjectContext): Promise<Finding[]> {
     });
   }
 
-  // config/lefthook: lefthook.yml or .lefthook.yml exists
-  const hasLefthook =
-    existsSync(join(ctx.rootDir, "lefthook.yml")) || existsSync(join(ctx.rootDir, ".lefthook.yml"));
+  // config/git-hooks: .husky/ or lefthook config exists
+  const hasGitHooks =
+    existsSync(join(ctx.rootDir, ".husky")) ||
+    existsSync(join(ctx.rootDir, "lefthook.yml")) ||
+    existsSync(join(ctx.rootDir, ".lefthook.yml"));
 
-  if (!hasLefthook) {
+  if (!hasGitHooks) {
     findings.push({
       severity: "warning",
       rule: "config-files",
       file: null,
       line: null,
-      message:
-        "lefthook config not found — add lefthook.yml or .lefthook.yml to manage git hooks (run: brew install lefthook && lefthook install)",
+      message: "git hook config not found — add .husky/ or lefthook.yml to manage repository hooks",
     });
   }
 

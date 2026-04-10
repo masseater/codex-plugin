@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { HookLogger, wrapRun } from "@r_masseater/cc-plugin-lib";
 import { defineHook, runHook } from "cc-hooks-ts";
+import { isGitPushCommand } from "../lib/pr-conflicts.ts";
 
 using logger = HookLogger.fromFile(import.meta.filename);
 
@@ -55,10 +56,6 @@ const hook = defineHook({
     );
   }),
 });
-
-export function isGitPushCommand(command: string): boolean {
-  return /\bgit\s+push\b/.test(command);
-}
 
 function getCurrentBranch(): string | null {
   try {

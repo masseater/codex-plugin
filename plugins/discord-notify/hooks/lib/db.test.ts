@@ -1,13 +1,68 @@
 import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type Database from "better-sqlite3";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("better-sqlite3", () => {
+  return {
+    default: class FakeDatabase {
+      private readonly path: string;
+      private readonly sessions = new Map<string, string>();
+
+      constructor(path: string) {
+        this.path = path;
+      }
+
+      prepare(sql: string) {
+        const normalized = sql.replaceAll(/\s+/g, " ").trim();
+
+        if (normalized.includes("CREATE TABLE IF NOT EXISTS sessions")) {
+          return {
+            run: () => undefined,
+          };
+        }
+
+        if (
+          normalized === "SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'"
+        ) {
+          return {
+            all: () => [{ name: "sessions" }],
+          };
+        }
+
+        if (normalized.startsWith("INSERT INTO sessions (session_id, thread_id)")) {
+          return {
+            run: (sessionId: string, threadId: string) => {
+              this.sessions.set(sessionId, threadId);
+              return undefined;
+            },
+          };
+        }
+
+        if (normalized === "SELECT thread_id FROM sessions WHERE session_id = ?") {
+          return {
+            get: (sessionId: string) => {
+              const threadId = this.sessions.get(sessionId);
+              return threadId ? { thread_id: threadId } : undefined;
+            },
+          };
+        }
+
+        throw new Error(`Unsupported SQL in test fake: ${sql}`);
+      }
+
+      close() {
+        return undefined;
+      }
+    },
+  };
+});
+
 import { ensureTable, getThreadId, openDb, saveSession } from "./db.ts";
 
 describe("db", () => {
   let dbPath: string;
-  let db: Database.Database;
+  let db: ReturnType<typeof openDb>;
 
   beforeEach(() => {
     dbPath = join(
@@ -30,6 +85,7 @@ describe("db", () => {
   describe("openDb", () => {
     it("creates database file at specified path", () => {
       expect(db).toBeDefined();
+      expect((db as unknown as { path: string }).path).toBe(dbPath);
     });
   });
 

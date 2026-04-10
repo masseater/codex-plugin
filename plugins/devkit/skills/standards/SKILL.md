@@ -20,9 +20,16 @@ Technology-agnostic meta principles. All reference files inherit from these.
 - **No implicit fallbacks** — no default values or silent recovery that hide failures
 - **No dummy code or NO-OP implementations** — no empty functions with TODO comments, no validations that always return true
 - **Validate all environment variables at startup** — never use `process.env` directly. Validate and type env vars at the module boundary. Missing or invalid vars must crash immediately, not silently produce undefined. Never skip validation — inject dummy values instead when needed in non-production contexts. See `references/coding-standards.md` for the concrete pattern and stack-specific references for tool choice (t3-env or valibot)
-- **Audit dependencies in CI** — run `pnpm audit` on every push. Never ship known vulnerabilities. Pin major versions and review upgrades
+- **Audit dependencies in CI** — run the audit command that matches the repository's package manager when it provides real signal. Pin major versions and review upgrades, but do not cargo-cult `pnpm audit` into repos that intentionally use a different toolchain
+- **Document intentional deviations in the repo** — if a project intentionally violates a devkit standard, record it in `docs/devkit-intentional-violation.md` with the reason and the review date. Unwritten exceptions do not exist
 - **Functional style** — prefer map/filter over array.push
 - **No unnecessary options or defaults** — YAGNI
+
+## Project-Specific Overrides
+
+Inject any documented intentional deviations from the current repository before applying the base standards:
+
+!`bun ${CLAUDE_SKILL_DIR}/scripts/expand-intentional-violations.ts .`
 
 ## Bundled Resources
 

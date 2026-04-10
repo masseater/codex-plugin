@@ -11,7 +11,7 @@
   "dependencies": {
     "@r_masseater/cc-plugin-lib": "0.0.3",
     "better-sqlite3": "^11.9.1",
-    "cc-hooks-ts": "2.1.50"
+    "cc-hooks-ts": "2.1.91"
   },
   "devDependencies": {
     "@repo/ts-config": "*",

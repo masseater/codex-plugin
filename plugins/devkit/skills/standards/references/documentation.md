@@ -71,3 +71,26 @@ If you reach for prose documentation, first ask: "Can this be a type, a lint rul
 - **ADRs** (see above — structured, timestamped, status-tracked)
 
 Even these must follow the auto-generation principle: derive lists, tables, and inventories from code rather than hand-maintaining them.
+
+## Project-Specific Intentional Violations
+
+When a repository intentionally deviates from devkit standards, record the deviation in `docs/devkit-intentional-violation.md`.
+
+Requirements:
+
+- Keep the file in the repository so the decision travels with the code
+- Record the violated rule, affected scope/file when useful, the reason, and the latest review date in plain Markdown
+- Update or delete the entry when the deviation no longer applies
+
+Example:
+
+```md
+# Devkit Intentional Violations
+
+## ecosystem/bun-runtime
+
+- Scope: `(root)`
+- File: `package.json`
+- Reason: This repository intentionally uses Bun because it ships Claude Code plugins that must stay independent from the target project's toolchain.
+- Reviewed: 2026-04-04
+```
