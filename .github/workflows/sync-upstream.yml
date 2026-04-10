@@ -44,6 +44,7 @@ jobs:
 
       - name: Create pull request
         if: steps.changes.outputs.changed == 'true'
+        id: create_pr
         uses: peter-evans/create-pull-request@v8
         with:
           branch: chore/sync-claude-code-plugin
@@ -55,3 +56,13 @@ jobs:
 
             - source: `masseater/claude-code-plugin`
             - ref: `${{ github.event.inputs.ref || 'auto' }}`
+
+      - name: Merge pull request
+        if: steps.changes.outputs.changed == 'true' && steps.create_pr.outputs.pull-request-number != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge "${{ steps.create_pr.outputs.pull-request-number }}" \
+            --repo "${{ github.repository }}" \
+            --merge \
+            --delete-branch
