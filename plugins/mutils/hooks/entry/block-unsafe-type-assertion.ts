@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { HookLogger, wrapRun } from "@r_masseater/cc-plugin-lib";
 /**
- * ファイル編集時に危険な型アサーション (as unknown, as any, as {}) を検出してブロックするフック
+ * ファイル編集時に危険な型アサーション・型エラー抑制ディレクティブを検出してブロックするフック
  */
 import { defineHook, runHook } from "cc-hooks-ts";
 
@@ -12,19 +12,21 @@ const FORBIDDEN_PATTERNS = [
   { pattern: /\bas\s+any\b/g, name: "as any" },
   { pattern: /\bas\s+\{\s*\}/g, name: "as {}" },
   { pattern: /:\s*any\b/g, name: ": any" },
+  { pattern: new RegExp("@ts-expect" + "-error", "g"), name: "@ts-expect" + "-error" },
 ] as const;
 
 // Build WHY/FIX strings with concatenation to avoid triggering our own pattern detection
 const WHY = [
-  "WHY: Unsafe type assertions (`a",
+  "WHY: Unsafe type assertions and type-error suppression directives (`a",
   "s an",
   "y`, `a",
   "s unknow",
   "n a",
-  "s T`) bypass TypeScript's type safety, hiding bugs that the compiler would otherwise catch.",
+  "s T`, `@ts-expect" +
+    "-error`) bypass TypeScript's type safety, hiding bugs that the compiler would otherwise catch.",
 ].join("");
 const FIX =
-  "FIX: Use proper type guards (`if ('prop' in obj)`), generic type parameters, or `satisfies` instead of type assertions.";
+  "FIX: Use proper type guards, generic type parameters, or `satisfies` instead of type assertions. For type errors, fix the root cause instead of suppressing with directives.";
 
 const isTypeScriptFile = (filePath: string): boolean => {
   return /\.(ts|tsx|mts|cts)$/.test(filePath);

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun install --production 2>/dev/null || true"
+            "command": "node -e 'var f=require(\"fs\"),p=JSON.parse(f.readFileSync(\"package.json\",\"utf8\"));delete p.devDependencies;f.writeFileSync(\"package.json\",JSON.stringify(p,null,2)+\"\\n\")' && bun install 2>/dev/null || true"
           },
           {
             "type": "command",

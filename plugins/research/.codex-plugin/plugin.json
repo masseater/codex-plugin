@@ -1,6 +1,6 @@
 {
   "name": "research",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "調査・分析ツール（画像解析、ライブラリ調査、Figma連携）",
   "author": {
     "name": "masseater",
