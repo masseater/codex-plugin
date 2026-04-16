@@ -1,6 +1,6 @@
 {
   "name": "eslint-lsp",
-  "version": "0.1.11",
+  "version": "0.1.13",
   "description": "ESLint 9 Language Server integration for Claude Code",
   "author": {
     "name": "masseater",

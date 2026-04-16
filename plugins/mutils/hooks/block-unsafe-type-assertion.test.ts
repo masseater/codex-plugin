@@ -16,6 +16,7 @@ const FORBIDDEN_PATTERNS = [
   { pattern: new RegExp("\\b" + "as" + "\\s+" + "an" + "y\\b", "g"), name: "as an" + "y" },
   { pattern: new RegExp("\\b" + "as" + "\\s+\\{\\s*\\}", "g"), name: "as {" + "}" },
   { pattern: new RegExp(":" + "\\s*" + "an" + "y\\b", "g"), name: ": an" + "y" },
+  { pattern: new RegExp("@ts-expect" + "-error", "g"), name: "@ts-expect" + "-error" },
 ];
 
 function isTypeScriptFile(filePath: string): boolean {
@@ -140,6 +141,26 @@ describe("findForbiddenPatterns", () => {
   test("returns empty array for empty content", () => {
     const result = findForbiddenPatterns("");
     expect(result).toStrictEqual([]);
+  });
+
+  test("detects '@ts-expect' + '-error'", () => {
+    const input = "// @ts-expect" + "-error some reason\nconst x = 1;";
+    const result = findForbiddenPatterns(input);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.name).toBe("@ts-expect" + "-error");
+  });
+
+  test("detects '@ts-expect' + '-error' in block comment", () => {
+    const input = "/* @ts-expect" + "-error */\nconst x = 1;";
+    const result = findForbiddenPatterns(input);
+    expect(result).toHaveLength(1);
+  });
+
+  test("detects multiple '@ts-expect' + '-error' occurrences", () => {
+    const input = "// @ts-expect" + "-error\nconst x = 1;\n// @ts-expect" + "-error\nconst y = 2;";
+    const result = findForbiddenPatterns(input);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.matches).toHaveLength(2);
   });
 
   test("does not flag 'as const'", () => {

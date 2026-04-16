@@ -1,6 +1,6 @@
 {
   "name": "progress-tracker",
-  "version": "0.1.12",
+  "version": "0.1.14",
   "description": "セッション進捗ファイルの自動作成・管理",
   "author": {
     "name": "masseater",
