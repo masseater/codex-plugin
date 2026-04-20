@@ -1,6 +1,6 @@
 {
   "name": "agnix",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "AI アシスタント設定ファイルリンター（agnix）統合",
   "author": {
     "name": "masseater",
