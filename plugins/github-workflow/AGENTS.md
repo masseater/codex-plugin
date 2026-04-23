@@ -20,13 +20,14 @@ bun run typecheck    # type check
 
 <!-- BEGIN:component-list (auto-generated, do not edit) -->
 
-| Type  | Name                    | Description                                                                                                    |
-| ----- | ----------------------- | -------------------------------------------------------------------------------------------------------------- |
-| agent | ci-watcher              | Monitor CI for pushed branches in the background. Check PR checks if PR exists, otherwise watch workflow runs. |
-| hook  | auto-ci-watch           | PostToolUse (Bash)                                                                                             |
-| hook  | check-branch-status     | Stop                                                                                                           |
-| hook  | check-push-pr-conflicts | PostToolUse (Bash)                                                                                             |
-| hook  | log-git-status          | Stop                                                                                                           |
-| hook  | suggest-actions-update  | PostToolUse (Write\|Edit)                                                                                      |
+| Type  | Name                    | Description                                                                                                                                                                                                                                                                                                                |
+| ----- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| skill | create-issue            | Create a GitHub issue in the current repository with a drafted title, body, and labels, confirming with the user before submission. Use when the user says "issueを作成", "GitHub issueを立てる", "create issue", "新しいissue", "バグ報告issue", or wants to file a new issue from conversation or investigation context. |
+| agent | ci-watcher              | Monitor CI for pushed branches in the background. Check PR checks if PR exists, otherwise watch workflow runs.                                                                                                                                                                                                             |
+| hook  | auto-ci-watch           | PostToolUse (Bash)                                                                                                                                                                                                                                                                                                         |
+| hook  | check-branch-status     | Stop                                                                                                                                                                                                                                                                                                                       |
+| hook  | check-push-pr-conflicts | PostToolUse (Bash)                                                                                                                                                                                                                                                                                                         |
+| hook  | log-git-status          | Stop                                                                                                                                                                                                                                                                                                                       |
+| hook  | suggest-actions-update  | PostToolUse (Write\|Edit)                                                                                                                                                                                                                                                                                                  |
 
 <!-- END:component-list -->
