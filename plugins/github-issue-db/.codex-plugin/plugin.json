@@ -1,0 +1,24 @@
+{
+  "name": "github-issue-db",
+  "version": "0.1.0",
+  "description": "GitHub issue をローカル SQLite にクローンしオフライン検索・重複検知・状態更新を行うプラグイン",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/github-issue-db",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Github Issue Db",
+    "shortDescription": "GitHub issue をローカル SQLite にクローンしオフライン検索・重複検知・状態更新を行うプラグイン",
+    "longDescription": "GitHub issue をローカル SQLite にクローンしオフライン検索・重複検知・状態更新を行うプラグイン",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/"
+}
