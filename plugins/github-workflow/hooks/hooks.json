@@ -41,10 +41,6 @@
           {
             "type": "command",
             "command": "./hooks/entry/check-branch-status.ts"
-          },
-          {
-            "type": "command",
-            "command": "./hooks/entry/log-git-status.ts"
           }
         ]
       }

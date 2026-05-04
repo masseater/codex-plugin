@@ -7,17 +7,10 @@
     "check:fix": "oxlint --fix",
     "typecheck": "tsgo --noEmit"
   },
-  "dependencies": {
-    "@r_masseater/cc-plugin-lib": "0.0.3",
-    "cc-hooks-ts": "2.1.94"
-  },
   "devDependencies": {
     "@repo/ts-config": "*",
     "@repo/vitest-config": "*",
     "@vitest/coverage-v8": "^3.2.0",
     "vitest": "^3.2.0"
-  },
-  "overrides": {
-    "valibot": "^1.3.1"
   }
 }

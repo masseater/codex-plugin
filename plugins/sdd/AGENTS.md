@@ -52,7 +52,7 @@ Full workflow diagram: see [docs/workflow-diagram.md](docs/workflow-diagram.md)
 | skill | sdd:workflow           | SDDワークフロー全体のガイド。SDD コマンドを実行する時に、全てのコマンドで読み込む必要がある。                                                         |
 | agent | contradiction-checker  | Detect contradictions between spec documents (overview, specification, technical-details, phase files). Reports inconsistencies without making fixes. |
 | agent | steering-reviewer      | Review code and documents for compliance with steering documents. Reports deviations without making fixes.                                            |
-| hook  | block-archived-edit    | PreToolUse (Write\|Edit)                                                                                                                              |
-| hook  | require-phase-status   | PreToolUse (Write\|Edit)                                                                                                                              |
+| hook  | block-archived-edit    | PreToolUse (`Write\|Edit`)                                                                                                                            |
+| hook  | require-phase-status   | PreToolUse (`Write\|Edit`)                                                                                                                            |
 
 <!-- END:component-list -->

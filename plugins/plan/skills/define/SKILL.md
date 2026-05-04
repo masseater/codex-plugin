@@ -15,9 +15,7 @@ Enter Plan mode by calling the `EnterPlanMode` tool before using this skill. If 
 
 1. Create the plan file following the "Plan File Structure Template" below
 2. Verify the content against the Plan File Content Rules
-3. Run the `plan:review` skill to validate the plan
-   - **Important**: During review, the parent MUST read ONLY `review.md` (produced by `plan:review-combiner`). Reading individual reviewer report files is strictly prohibited. The parent MUST always wait for `review-combiner` to complete before reading `review.md`.
-4. Once all review issues are resolved, call `ExitPlanMode`
+3. Call `ExitPlanMode`
 
 ## Plan File Structure Template
 

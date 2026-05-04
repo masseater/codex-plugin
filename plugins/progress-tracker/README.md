@@ -1,6 +1,6 @@
-# progress-tracker - セッション進捗ファイルの自動作成・管理
+# progress-tracker - 過去セッションの進捗ファイル参照スキル
 
-セッション開始時と終了時に進捗ファイルを自動管理するプラグイン。
+`.agents/progress/` 配下に蓄積された進捗ファイルを読み取り、過去セッションの作業コンテキストを継続するためのガイドスキルを提供する。
 
 ## インストール
 
@@ -8,8 +8,3 @@
 /plugin marketplace add masseater/codex-plugin
 /plugin install progress-tracker@masseater-plugins
 ```
-
-## 開発時の注意事項
-
-- SessionStart と Stop の両方で同じスクリプト（progress-hooks.ts）が実行される
-- hooks/lib/config.ts に共通設定を配置

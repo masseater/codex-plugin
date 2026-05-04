@@ -1,7 +1,7 @@
 {
   "name": "progress-tracker",
-  "version": "0.1.15",
-  "description": "セッション進捗ファイルの自動作成・管理",
+  "version": "0.1.16",
+  "description": "過去セッションの進捗ファイル参照スキル",
   "author": {
     "name": "masseater",
     "url": "https://github.com/masseater"
@@ -15,8 +15,8 @@
   ],
   "interface": {
     "displayName": "Progress Tracker",
-    "shortDescription": "セッション進捗ファイルの自動作成・管理",
-    "longDescription": "セッション進捗ファイルの自動作成・管理",
+    "shortDescription": "過去セッションの進捗ファイル参照スキル",
+    "longDescription": "過去セッションの進捗ファイル参照スキル",
     "developerName": "masseater",
     "category": "Productivity"
   },

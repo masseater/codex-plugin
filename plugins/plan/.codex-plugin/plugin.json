@@ -1,7 +1,7 @@
 {
   "name": "plan",
-  "version": "0.0.16",
-  "description": "Plan file review and quality assurance",
+  "version": "0.0.17",
+  "description": "Plan file structure template and content rules",
   "author": {
     "name": "masseater",
     "url": "https://github.com/masseater"
@@ -15,8 +15,8 @@
   ],
   "interface": {
     "displayName": "Plan",
-    "shortDescription": "Plan file review and quality assurance",
-    "longDescription": "Plan file review and quality assurance",
+    "shortDescription": "Plan file structure template and content rules",
+    "longDescription": "Plan file structure template and content rules",
     "developerName": "masseater",
     "category": "Productivity"
   },

@@ -19,10 +19,11 @@
 | ------------ | --------------------------- | ------------------------------------ |
 | SessionStart | bun install --production    | 依存関係の自動インストール           |
 | SessionStart | check-context-version       | コンテキストファイルのバージョン確認 |
+| SessionStart | workspace-id-persist        | 直近 workspace-id の復元             |
 | PreToolUse   | block-unsafe-type-assertion | 危険な型アサーションのブロック       |
-| PreToolUse   | suggest-plan-enhancer       | planファイル完成前の改善提案         |
+| PreToolUse   | block-husky-bypass          | HUSKY=0 による hooks バイパスを阻止  |
+| PostToolUse  | task-history                | TODO/Task 操作履歴を DB に永続化     |
 | Stop         | send-notification           | 完了通知の送信                       |
-| Stop         | check-remaining-todos       | 残TODOの確認                         |
 
 ---
 
@@ -34,7 +35,6 @@
 | recommended              | おすすめの設定・プラグイン・MCPサーバーを紹介 |
 | pls-auq                  | 効果的な質問の仕方ガイド                      |
 | reflection               | 作業振り返り・知見抽出                        |
-| plan-enhancer            | planモードの計画ファイルを改善・拡張          |
 | issue-plan               | GitHub Issueから実装計画を自動生成            |
 | multi-angle-perspectives | 3つの観点から合計6つの提案を生成              |
 | dig                      | 深掘り調査                                    |
