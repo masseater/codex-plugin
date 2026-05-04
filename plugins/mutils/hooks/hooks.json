@@ -19,16 +19,6 @@
         ]
       }
     ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "./hooks/entry/suggest-todo.ts"
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
         "matcher": "Write|Edit",
@@ -45,15 +35,6 @@
           {
             "type": "command",
             "command": "./hooks/entry/block-husky-bypass.ts"
-          }
-        ]
-      },
-      {
-        "matcher": "ExitPlanMode",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "./hooks/entry/suggest-plan-enhancer.ts"
           }
         ]
       }
@@ -75,10 +56,6 @@
           {
             "type": "command",
             "command": "./hooks/entry/send-notification.ts"
-          },
-          {
-            "type": "command",
-            "command": "./hooks/entry/suggest-todo.ts"
           }
         ]
       }

@@ -1,6 +1,6 @@
 {
   "name": "github-workflow",
-  "version": "0.0.16",
+  "version": "0.0.18",
   "description": "Git/GitHub ワークフロー支援 — Stop 時にブランチ状態とコンフリクトを通知",
   "author": {
     "name": "masseater",

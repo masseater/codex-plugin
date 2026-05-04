@@ -17,7 +17,7 @@ The plan file must begin with a `## User Prompts` heading (before `# Purpose`). 
 
 > [Second prompt given during planning]
 
-> [Additional prompt if provided during review process]
+> [Additional prompt if provided during planning]
 ```
 
 **Guidelines:**
@@ -104,7 +104,6 @@ A plan file must NOT contain:
 - **Revision traces or intermediate states**
   - Only the final intended state should remain
   - All intermediate decision-making should be removed
-  - All iteration history must be recorded exclusively in review.md, not in the plan file
 
 - **Things decided not to do or rejected alternatives**
   - Do not document what was considered but ultimately rejected
@@ -114,27 +113,19 @@ A plan file must NOT contain:
   - Examples to avoid: "as discussed above", "per the previous round", "as mentioned earlier"
   - These require external context to understand and violate the self-contained principle
 
-- **Anything that would not make sense without the review conversation context**
+- **Anything that would not make sense without the planning conversation context**
   - If someone reading the plan alone cannot understand a statement, remove it
   - Move clarifications to the TODO descriptions instead
 
 ## Revision Principle
 
-When revising a plan file during review:
+When revising a plan file:
 
 1. **Only the final state must remain in the plan file**
    - Remove all intermediate states, drafts, or earlier versions of decisions
 
-2. **All revision history must be recorded exclusively in review.md**
-   - Do not leave any traces in the plan file itself
-   - Review.md is the appropriate place to document:
-     - What issues were found in each round
-     - How the plan was revised
-     - What feedback was incorporated
-     - Why certain changes were made
-
-3. **The plan file should appear as if it was written in its final form**
-   - A reader should not be able to detect that the plan was revised through multiple rounds
+2. **The plan file should appear as if it was written in its final form**
+   - A reader should not be able to detect that the plan was revised through multiple iterations
    - This preserves the plan's self-contained nature and clarity
 
 ## Quick Verification Checklist
@@ -164,6 +155,4 @@ Before finalizing or approving a plan file, verify all of the following:
 This document is a reference for:
 
 - **plan:define skill** — Use when creating plan files to ensure they comply with these rules
-- **plan:review skill** — Use to validate plan file content against these rules during review
-- **Policy checkers** — Reference these rules when validating plan files
 - **Developers** — Understand the structure and expectations for plan files in this project
