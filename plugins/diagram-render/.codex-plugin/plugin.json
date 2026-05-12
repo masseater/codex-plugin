@@ -1,0 +1,24 @@
+{
+  "name": "diagram-render",
+  "version": "0.0.5",
+  "description": "Markdown + Mermaid を beautiful-mermaid で SVG にレンダリングし自己完結HTMLとして出力するスキル",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/diagram-render",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Diagram Render",
+    "shortDescription": "Markdown + Mermaid を beautiful-mermaid で SVG にレンダリングし自己完結HTMLとして出力するスキル",
+    "longDescription": "Markdown + Mermaid を beautiful-mermaid で SVG にレンダリングし自己完結HTMLとして出力するスキル",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/"
+}

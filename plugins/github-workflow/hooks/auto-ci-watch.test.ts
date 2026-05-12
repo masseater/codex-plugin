@@ -1,3 +1,4 @@
+import type { Endpoints } from "@octokit/types";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 const { capturedHookDefs } = vi.hoisted(() => ({
@@ -24,9 +25,21 @@ vi.mock("cc-hooks-ts", () => ({
   runHook: vi.fn(),
 }));
 
-import { formatCIResult, waitForRun, watchCI } from "./entry/auto-ci-watch.ts";
-import type { CIResult } from "./entry/auto-ci-watch.ts";
+import { formatCIResult, getRepoInfo, waitForRun } from "./entry/auto-ci-watch.ts";
+import type { CIWatchResult } from "./entry/auto-ci-watch.ts";
 import { isGitPushCommand } from "./lib/pr-conflicts.ts";
+
+type WorkflowRun = Endpoints["GET /repos/{owner}/{repo}/actions/runs/{run_id}"]["response"]["data"];
+type Job =
+  Endpoints["GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs"]["response"]["data"]["jobs"][number];
+
+function makeRun(id: number, conclusion: WorkflowRun["conclusion"]): WorkflowRun {
+  return { id, conclusion, status: "completed" } as WorkflowRun;
+}
+
+function makeJob(name: string, conclusion: Job["conclusion"]): Job {
+  return { name, conclusion } as Job;
+}
 
 describe("isGitPushCommand", () => {
   test("matches simple git push", () => {
@@ -61,7 +74,7 @@ describe("isGitPushCommand", () => {
     expect(isGitPushCommand("git commit -m 'test'")).toBe(false);
   });
 
-  test("does not match echo containing git push as substring", () => {
+  test("matches echo containing 'git push'", () => {
     expect(isGitPushCommand("echo 'use git push to deploy'")).toBe(true);
   });
 
@@ -77,85 +90,98 @@ describe("isGitPushCommand", () => {
 describe("formatCIResult", () => {
   const BRANCH = "feature/test-branch";
 
-  test("returns no-runs message when runId is null", () => {
-    const result: CIResult = { runId: null, conclusion: null, jobs: [] };
-    const output = formatCIResult(BRANCH, result);
-    expect(output).toBe("[CI Watch] No workflow runs found for branch `feature/test-branch`.");
+  test("returns no-runs message when run is null", () => {
+    const result: CIWatchResult = { run: null, jobs: [] };
+    expect(formatCIResult(BRANCH, result)).toBe(
+      "[CI Watch] No workflow runs found for branch `feature/test-branch`.",
+    );
   });
 
   test("formats successful CI run with no jobs", () => {
-    const result: CIResult = { runId: 12345, conclusion: "success", jobs: [] };
-    const output = formatCIResult(BRANCH, result);
-    expect(output).toBe("[CI Watch] Branch `feature/test-branch` — CI PASSED (run 12345)");
+    const result: CIWatchResult = { run: makeRun(12345, "success"), jobs: [] };
+    expect(formatCIResult(BRANCH, result)).toBe(
+      "[CI Watch] Branch `feature/test-branch` — CI PASSED (run 12345)",
+    );
   });
 
   test("formats failed CI run with no jobs", () => {
-    const result: CIResult = { runId: 99, conclusion: "failure", jobs: [] };
-    const output = formatCIResult(BRANCH, result);
-    expect(output).toBe("[CI Watch] Branch `feature/test-branch` — CI FAILED (run 99)");
+    const result: CIWatchResult = { run: makeRun(99, "failure"), jobs: [] };
+    expect(formatCIResult(BRANCH, result)).toBe(
+      "[CI Watch] Branch `feature/test-branch` — CI FAILED (run 99)",
+    );
   });
 
-  test("formats unknown conclusion", () => {
-    const result: CIResult = { runId: 42, conclusion: "cancelled", jobs: [] };
-    const output = formatCIResult(BRANCH, result);
-    expect(output).toBe("[CI Watch] Branch `feature/test-branch` — CI UNKNOWN (run 42)");
+  test("treats cancelled as UNKNOWN (not a failure)", () => {
+    const result: CIWatchResult = { run: makeRun(42, "cancelled"), jobs: [] };
+    expect(formatCIResult(BRANCH, result)).toBe(
+      "[CI Watch] Branch `feature/test-branch` — CI UNKNOWN (run 42)",
+    );
+  });
+
+  test("treats timed_out as FAILED", () => {
+    const result: CIWatchResult = { run: makeRun(43, "timed_out"), jobs: [] };
+    expect(formatCIResult(BRANCH, result)).toBe(
+      "[CI Watch] Branch `feature/test-branch` — CI FAILED (run 43)",
+    );
   });
 
   test("formats null conclusion as UNKNOWN", () => {
-    const result: CIResult = { runId: 42, conclusion: null, jobs: [] };
-    const output = formatCIResult(BRANCH, result);
-    expect(output).toBe("[CI Watch] Branch `feature/test-branch` — CI UNKNOWN (run 42)");
+    const result: CIWatchResult = { run: makeRun(42, null), jobs: [] };
+    expect(formatCIResult(BRANCH, result)).toBe(
+      "[CI Watch] Branch `feature/test-branch` — CI UNKNOWN (run 42)",
+    );
   });
 
   test("formats CI run with all passing jobs", () => {
-    const result: CIResult = {
-      runId: 100,
-      conclusion: "success",
-      jobs: [
-        { name: "lint", conclusion: "success" },
-        { name: "test", conclusion: "success" },
-      ],
+    const result: CIWatchResult = {
+      run: makeRun(100, "success"),
+      jobs: [makeJob("lint", "success"), makeJob("test", "success")],
     };
-    const output = formatCIResult(BRANCH, result);
     const expected = [
       "[CI Watch] Branch `feature/test-branch` — CI PASSED (run 100)",
       "",
       "- [pass] lint",
       "- [pass] test",
     ].join("\n");
-    expect(output).toBe(expected);
+    expect(formatCIResult(BRANCH, result)).toBe(expected);
   });
 
-  test("formats CI run with mixed job results", () => {
-    const result: CIResult = {
-      runId: 200,
-      conclusion: "failure",
-      jobs: [
-        { name: "lint", conclusion: "success" },
-        { name: "test", conclusion: "failure" },
-        { name: "deploy", conclusion: "skipped" },
-      ],
+  test("skipped job is shown as [skipped] and not counted as failure", () => {
+    const result: CIWatchResult = {
+      run: makeRun(200, "failure"),
+      jobs: [makeJob("lint", "success"), makeJob("test", "failure"), makeJob("deploy", "skipped")],
     };
-    const output = formatCIResult(BRANCH, result);
     const expected = [
       "[CI Watch] Branch `feature/test-branch` — CI FAILED (run 200)",
       "",
       "- [pass] lint",
       "- [FAIL] test",
-      "- [FAIL] deploy",
+      "- [skipped] deploy",
       "",
-      "Failed jobs: test, deploy. Run `gh run view 200 --log-failed` to see failure logs.",
+      "Failed jobs: test. Run `gh run view 200 --log-failed` to see failure logs.",
     ].join("\n");
-    expect(output).toBe(expected);
+    expect(formatCIResult(BRANCH, result)).toBe(expected);
   });
 
-  test("formats CI run with single failed job", () => {
-    const result: CIResult = {
-      runId: 300,
-      conclusion: "failure",
-      jobs: [{ name: "build", conclusion: "failure" }],
+  test("PASSED run with skipped release-style job stays PASSED", () => {
+    const result: CIWatchResult = {
+      run: makeRun(201, "success"),
+      jobs: [makeJob("alpha", "success"), makeJob("release", "skipped")],
     };
-    const output = formatCIResult(BRANCH, result);
+    const expected = [
+      "[CI Watch] Branch `feature/test-branch` — CI PASSED (run 201)",
+      "",
+      "- [pass] alpha",
+      "- [skipped] release",
+    ].join("\n");
+    expect(formatCIResult(BRANCH, result)).toBe(expected);
+  });
+
+  test("formats single failed job", () => {
+    const result: CIWatchResult = {
+      run: makeRun(300, "failure"),
+      jobs: [makeJob("build", "failure")],
+    };
     const expected = [
       "[CI Watch] Branch `feature/test-branch` — CI FAILED (run 300)",
       "",
@@ -163,7 +189,102 @@ describe("formatCIResult", () => {
       "",
       "Failed jobs: build. Run `gh run view 300 --log-failed` to see failure logs.",
     ].join("\n");
-    expect(output).toBe(expected);
+    expect(formatCIResult(BRANCH, result)).toBe(expected);
+  });
+});
+
+describe("waitForRun", () => {
+  function makeOctokit(workflowRuns: { id: number }[][]) {
+    let call = 0;
+    return {
+      actions: {
+        listWorkflowRunsForRepo: vi.fn(async () => {
+          const runs = workflowRuns[call] ?? [];
+          call += 1;
+          return { data: { workflow_runs: runs } };
+        }),
+      },
+    } as never;
+  }
+
+  test("returns the first run when found on first poll", async () => {
+    if (!globalThis.Bun) (globalThis as Record<string, unknown>).Bun = {};
+    (globalThis.Bun as Record<string, unknown>).sleep = vi.fn(() => Promise.resolve());
+    const octokit = makeOctokit([[{ id: 42 }]]);
+    const result = await waitForRun(octokit, "owner", "repo", "main");
+    expect(result?.id).toBe(42);
+  });
+
+  test("returns null when no runs are ever found", async () => {
+    if (!globalThis.Bun) (globalThis as Record<string, unknown>).Bun = {};
+    (globalThis.Bun as Record<string, unknown>).sleep = vi.fn(() => Promise.resolve());
+    const octokit = makeOctokit([]);
+    const result = await waitForRun(octokit, "owner", "repo", "main");
+    expect(result).toBeNull();
+  });
+
+  test("retries when first poll returns empty then finds run", async () => {
+    if (!globalThis.Bun) (globalThis as Record<string, unknown>).Bun = {};
+    (globalThis.Bun as Record<string, unknown>).sleep = vi.fn(() => Promise.resolve());
+    const octokit = makeOctokit([[], [{ id: 7 }]]);
+    const result = await waitForRun(octokit, "owner", "repo", "main");
+    expect(result?.id).toBe(7);
+  });
+
+  test("ignores API errors and keeps retrying", async () => {
+    if (!globalThis.Bun) (globalThis as Record<string, unknown>).Bun = {};
+    (globalThis.Bun as Record<string, unknown>).sleep = vi.fn(() => Promise.resolve());
+    let call = 0;
+    const octokit = {
+      actions: {
+        listWorkflowRunsForRepo: vi.fn(async () => {
+          call += 1;
+          if (call === 1) throw new Error("rate limited");
+          return { data: { workflow_runs: [{ id: 99 }] } };
+        }),
+      },
+    } as never;
+    const result = await waitForRun(octokit, "owner", "repo", "main");
+    expect(result?.id).toBe(99);
+  });
+});
+
+describe("getRepoInfo", () => {
+  const originalSpawnSync = globalThis.Bun?.spawnSync;
+
+  function mockGitRemote(url: string) {
+    const mockSpawnSync = vi.fn(() => ({
+      stdout: { toString: () => url },
+      stderr: { toString: () => "" },
+    }));
+    if (!globalThis.Bun) (globalThis as Record<string, unknown>).Bun = {};
+    (globalThis.Bun as Record<string, unknown>).spawnSync = mockSpawnSync;
+  }
+
+  afterEach(() => {
+    if (originalSpawnSync) {
+      (globalThis.Bun as Record<string, unknown>).spawnSync = originalSpawnSync;
+    }
+  });
+
+  test("parses https URL", () => {
+    mockGitRemote("https://github.com/masseater/codex-plugin.git\n");
+    expect(getRepoInfo()).toStrictEqual({ owner: "masseater", repo: "claude-code-plugin" });
+  });
+
+  test("parses ssh URL", () => {
+    mockGitRemote("git@github.com:masseater/codex-plugin.git\n");
+    expect(getRepoInfo()).toStrictEqual({ owner: "masseater", repo: "claude-code-plugin" });
+  });
+
+  test("parses URL without .git suffix", () => {
+    mockGitRemote("https://github.com/owner/repo\n");
+    expect(getRepoInfo()).toStrictEqual({ owner: "owner", repo: "repo" });
+  });
+
+  test("returns null for empty output", () => {
+    mockGitRemote("");
+    expect(getRepoInfo()).toBeNull();
   });
 });
 
@@ -188,13 +309,10 @@ describe("hook run", () => {
 
   function mockBunSpawnSync(branch: string | null) {
     const mockSpawnSync = vi.fn(() => ({
-      stdout: {
-        toString: () => branch ?? "",
-      },
+      stdout: { toString: () => branch ?? "" },
+      stderr: { toString: () => "" },
     }));
-    if (!globalThis.Bun) {
-      (globalThis as Record<string, unknown>).Bun = {};
-    }
+    if (!globalThis.Bun) (globalThis as Record<string, unknown>).Bun = {};
     (globalThis.Bun as Record<string, unknown>).spawnSync = mockSpawnSync;
     return mockSpawnSync;
   }
@@ -207,8 +325,7 @@ describe("hook run", () => {
 
   test("returns success for non-push commands", () => {
     const ctx = createMockContext("git pull origin main");
-    const run = getHookRun();
-    const result = run(ctx);
+    const result = getHookRun()(ctx);
     expect(ctx.success).toHaveBeenCalledWith({});
     expect(ctx.defer).not.toHaveBeenCalled();
     expect(result).toStrictEqual({ type: "success" });
@@ -216,130 +333,38 @@ describe("hook run", () => {
 
   test("returns success for git status", () => {
     const ctx = createMockContext("git status");
-    const run = getHookRun();
-    run(ctx);
+    getHookRun()(ctx);
     expect(ctx.success).toHaveBeenCalledWith({});
     expect(ctx.defer).not.toHaveBeenCalled();
   });
 
   test("returns success for git commit", () => {
     const ctx = createMockContext("git commit -m 'fix bug'");
-    const run = getHookRun();
-    run(ctx);
+    getHookRun()(ctx);
     expect(ctx.success).toHaveBeenCalledWith({});
   });
 
-  test("returns success when getCurrentBranch returns null", () => {
+  test("returns success when branch is null", () => {
     mockBunSpawnSync(null);
     const ctx = createMockContext("git push origin main");
-    const run = getHookRun();
-    run(ctx);
+    getHookRun()(ctx);
     expect(ctx.success).toHaveBeenCalledWith({});
     expect(ctx.defer).not.toHaveBeenCalled();
   });
 
-  test("returns success when getCurrentBranch returns HEAD (detached)", () => {
+  test("returns success on detached HEAD", () => {
     mockBunSpawnSync("HEAD");
     const ctx = createMockContext("git push origin main");
-    const run = getHookRun();
-    run(ctx);
+    getHookRun()(ctx);
     expect(ctx.success).toHaveBeenCalledWith({});
     expect(ctx.defer).not.toHaveBeenCalled();
   });
 
-  test("calls defer when git push detected on a valid branch", () => {
+  test("defers when git push detected on a valid branch", () => {
     mockBunSpawnSync("feature/my-branch");
     const ctx = createMockContext("git push origin main");
-    const run = getHookRun();
-    run(ctx);
+    getHookRun()(ctx);
     expect(ctx.defer).toHaveBeenCalled();
     expect(ctx.success).not.toHaveBeenCalled();
-  });
-});
-
-describe("waitForRun", () => {
-  function mockBunSpawn(stdout: string) {
-    const mockSpawn = vi.fn(() => ({
-      exited: Promise.resolve(0),
-      stdout: new Blob([stdout]).stream(),
-    }));
-    if (!globalThis.Bun) {
-      (globalThis as Record<string, unknown>).Bun = {};
-    }
-    (globalThis.Bun as Record<string, unknown>).spawn = mockSpawn;
-    (globalThis.Bun as Record<string, unknown>).sleep = vi.fn(() => Promise.resolve());
-    return mockSpawn;
-  }
-
-  test("returns run ID when gh run list finds a run", async () => {
-    mockBunSpawn(JSON.stringify([{ databaseId: 12345 }]));
-    const result = await waitForRun("main");
-    expect(result).toBe(12345);
-  });
-
-  test("returns null when no runs found after retries", async () => {
-    mockBunSpawn(JSON.stringify([]));
-    const result = await waitForRun("main");
-    expect(result).toBeNull();
-  });
-
-  test("returns null when gh output is invalid JSON", async () => {
-    mockBunSpawn("not json");
-    const result = await waitForRun("main");
-    expect(result).toBeNull();
-  });
-});
-
-describe("watchCI", () => {
-  function setupBunMocks(runListOutput: string, viewOutput: string) {
-    let callCount = 0;
-    const mockSpawn = vi.fn(() => {
-      callCount++;
-      // First call: waitForRun's gh run list
-      // Second call: gh run watch
-      // Third call: gh run view
-      const output = callCount === 1 ? runListOutput : callCount === 3 ? viewOutput : "";
-      return {
-        exited: Promise.resolve(0),
-        stdout: callCount === 2 ? "ignore" : new Blob([output]).stream(),
-        stderr: new Blob([""]).stream(),
-      };
-    });
-    if (!globalThis.Bun) {
-      (globalThis as Record<string, unknown>).Bun = {};
-    }
-    (globalThis.Bun as Record<string, unknown>).spawn = mockSpawn;
-    (globalThis.Bun as Record<string, unknown>).sleep = vi.fn(() => Promise.resolve());
-    return mockSpawn;
-  }
-
-  test("returns full CI result with jobs", async () => {
-    setupBunMocks(
-      JSON.stringify([{ databaseId: 42 }]),
-      JSON.stringify({
-        conclusion: "success",
-        jobs: [{ name: "lint", conclusion: "success" }],
-      }),
-    );
-    const result = await watchCI("main");
-    expect(result.runId).toBe(42);
-    expect(result.conclusion).toBe("success");
-    expect(result.jobs).toStrictEqual([{ name: "lint", conclusion: "success" }]);
-  });
-
-  test("returns null conclusion when view output is invalid", async () => {
-    setupBunMocks(JSON.stringify([{ databaseId: 42 }]), "not json");
-    const result = await watchCI("main");
-    expect(result.runId).toBe(42);
-    expect(result.conclusion).toBeNull();
-    expect(result.jobs).toStrictEqual([]);
-  });
-
-  test("returns empty result when no runs found", async () => {
-    setupBunMocks(JSON.stringify([]), "");
-    const result = await watchCI("main");
-    expect(result.runId).toBeNull();
-    expect(result.conclusion).toBeNull();
-    expect(result.jobs).toStrictEqual([]);
   });
 });
