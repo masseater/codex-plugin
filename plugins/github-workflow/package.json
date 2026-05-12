@@ -9,6 +9,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@octokit/rest": "^22.0.1",
+    "@octokit/types": "^16.0.0",
     "@r_masseater/cc-plugin-lib": "0.0.3",
     "cc-hooks-ts": "2.1.94",
     "yaml": "^2.8.3"
