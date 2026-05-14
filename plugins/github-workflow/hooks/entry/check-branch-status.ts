@@ -40,86 +40,77 @@ const hook = defineHook({
       return context.success({});
     }
 
-    const blockMessages: string[] = [];
-    const systemMessages: string[] = [];
+    return context.defer(async () => {
+      const messages: string[] = [];
 
-    // 1. Check remote integration status
-    const upstream = getRemoteTrackingBranch(branch);
-    if (upstream === undefined) {
-      blockMessages.push(
-        `[git] Branch "${branch}" has no remote tracking branch. Consider pushing with: git push -u origin ${branch}`,
-      );
-    } else {
-      const status = getUnpushedStatus(branch, upstream);
-      if (status !== undefined) {
-        if (status.behind > 0) {
-          const pull = tryFastForwardPull(status.behind);
-          if (pull.ok) {
-            const message = `[git] Auto-pulled ${pull.pulled} commit(s) from ${upstream} into "${branch}".`;
-            systemMessages.push(message);
-            logger.info(message);
-          } else {
-            const message = formatPullFailureMessage(branch, upstream, status.behind, pull.reason);
-            blockMessages.push(message);
-            logger.warn(`Auto-pull failed: ${pull.reason}`);
-          }
-        }
-        if (status.ahead > 0) {
-          const push = tryAutoPush();
-          if (push.ok) {
-            const message = `[git] Auto-pushed ${status.ahead} commit(s) from "${branch}" to ${upstream}.`;
-            systemMessages.push(message);
-            logger.info(message);
-          } else {
-            const message = formatPushFailureMessage(branch, upstream, status.ahead, push.reason);
-            blockMessages.push(message);
-            logger.warn(`Auto-push failed: ${push.reason}`);
-          }
-        }
-        if (status.ahead === 0 && status.behind === 0) {
-          logger.debug(`Branch "${branch}" is up to date with ${upstream}`);
-        }
-      }
-    }
-
-    // 2. Check PR base branch conflicts
-    const baseBranch = getPrBaseBranch(branch);
-    if (baseBranch !== undefined) {
-      logger.debug(`PR base branch: ${baseBranch}`);
-      const { hasConflicts, conflictFiles } = checkConflictsWithBase(baseBranch);
-      if (hasConflicts) {
-        blockMessages.push(formatConflictResolutionMessage(branch, baseBranch, conflictFiles));
+      // 1. Check remote integration status
+      const upstream = getRemoteTrackingBranch(branch);
+      if (upstream === undefined) {
+        messages.push(
+          `[git] Branch "${branch}" has no remote tracking branch. Consider pushing with: git push -u origin ${branch}`,
+        );
       } else {
-        logger.debug(`No conflicts with base branch "${baseBranch}"`);
+        const status = getUnpushedStatus(branch, upstream);
+        if (status !== undefined) {
+          if (status.behind > 0) {
+            const pull = tryFastForwardPull(status.behind);
+            if (pull.ok) {
+              const message = `[git] Auto-pulled ${pull.pulled} commit(s) from ${upstream} into "${branch}".`;
+              messages.push(message);
+              logger.info(message);
+            } else {
+              const message = formatPullFailureMessage(
+                branch,
+                upstream,
+                status.behind,
+                pull.reason,
+              );
+              messages.push(message);
+              logger.warn(`Auto-pull failed: ${pull.reason}`);
+            }
+          }
+          if (status.ahead > 0) {
+            const push = tryAutoPush();
+            if (push.ok) {
+              const message = `[git] Auto-pushed ${status.ahead} commit(s) from "${branch}" to ${upstream}.`;
+              messages.push(message);
+              logger.info(message);
+            } else {
+              const message = formatPushFailureMessage(branch, upstream, status.ahead, push.reason);
+              messages.push(message);
+              logger.warn(`Auto-push failed: ${push.reason}`);
+            }
+          }
+          if (status.ahead === 0 && status.behind === 0) {
+            logger.debug(`Branch "${branch}" is up to date with ${upstream}`);
+          }
+        }
       }
-    } else {
-      logger.debug("No PR found for current branch");
-    }
 
-    if (blockMessages.length === 0 && systemMessages.length === 0) {
-      logger.info("Branch status: all clear");
-      return context.success({});
-    }
+      // 2. Check PR base branch conflicts
+      const baseBranch = getPrBaseBranch(branch);
+      if (baseBranch !== undefined) {
+        logger.debug(`PR base branch: ${baseBranch}`);
+        const { hasConflicts, conflictFiles } = checkConflictsWithBase(baseBranch);
+        if (hasConflicts) {
+          messages.push(formatConflictResolutionMessage(branch, baseBranch, conflictFiles));
+        } else {
+          logger.debug(`No conflicts with base branch "${baseBranch}"`);
+        }
+      } else {
+        logger.debug("No PR found for current branch");
+      }
 
-    if (blockMessages.length === 0) {
-      return context.json({
-        event: "Stop",
+      if (messages.length === 0) {
+        logger.info("Branch status: all clear");
+      }
+
+      return {
+        event: "Stop" as const,
         output: {
-          systemMessage: systemMessages.join("\n"),
+          ...(messages.length > 0 && { systemMessage: messages.join("\n") }),
         },
-      });
-    }
-
-    const reason = blockMessages.join("\n");
-    logger.info(`Branch status notifications:\n${reason}`);
-
-    return context.json({
-      event: "Stop",
-      output: {
-        decision: "block",
-        reason,
-        ...(systemMessages.length > 0 && { systemMessage: systemMessages.join("\n") }),
-      },
+      };
     });
   }),
 });
