@@ -25,7 +25,12 @@ vi.mock("cc-hooks-ts", () => ({
   runHook: vi.fn(),
 }));
 
-import { formatCIResult, getRepoInfo, waitForRun } from "./entry/auto-ci-watch.ts";
+import {
+  formatCIResult,
+  formatConflictSkipMessage,
+  getRepoInfo,
+  waitForRun,
+} from "./entry/auto-ci-watch.ts";
 import type { CIWatchResult } from "./entry/auto-ci-watch.ts";
 import { isGitPushCommand } from "./lib/pr-conflicts.ts";
 
@@ -190,6 +195,33 @@ describe("formatCIResult", () => {
       "Failed jobs: build. Run `gh run view 300 --log-failed` to see failure logs.",
     ].join("\n");
     expect(formatCIResult(BRANCH, result)).toBe(expected);
+  });
+});
+
+describe("formatConflictSkipMessage", () => {
+  test("states CI will not run and gives resolution steps with conflicted files", () => {
+    const expected = [
+      "[CI Watch] Branch `feature/test-branch` has merge conflicts with base `main`, so CI will NOT run until they are resolved.",
+      "[CI Watch] Conflicted files: src/a.ts, src/b.ts",
+      "[CI Watch] How to resolve:",
+      "[CI Watch]   1. git fetch origin main && git merge origin/main",
+      "[CI Watch]   2. Fix the conflicts, then: git add <files> && git merge --continue",
+      "[CI Watch]   3. git push — CI runs on that push once the conflicts are gone.",
+    ].join("\n");
+    expect(formatConflictSkipMessage("feature/test-branch", "main", ["src/a.ts", "src/b.ts"])).toBe(
+      expected,
+    );
+  });
+
+  test("omits the conflicted-files line when none are known", () => {
+    const expected = [
+      "[CI Watch] Branch `feature/test-branch` has merge conflicts with base `main`, so CI will NOT run until they are resolved.",
+      "[CI Watch] How to resolve:",
+      "[CI Watch]   1. git fetch origin main && git merge origin/main",
+      "[CI Watch]   2. Fix the conflicts, then: git add <files> && git merge --continue",
+      "[CI Watch]   3. git push — CI runs on that push once the conflicts are gone.",
+    ].join("\n");
+    expect(formatConflictSkipMessage("feature/test-branch", "main", [])).toBe(expected);
   });
 });
 

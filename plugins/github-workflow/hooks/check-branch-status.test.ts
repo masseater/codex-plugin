@@ -125,21 +125,26 @@ describe("parseMergeTreeOutput", () => {
 });
 
 describe("hook run", () => {
-  type StopOutput = {
-    output: {
-      decision?: string;
-      reason?: string;
-      systemMessage?: string;
-    };
+  type DeferredResult = {
+    event: string;
+    output: { systemMessage?: string };
   };
 
   function createMockContext() {
-    const successResult = { type: "success" };
-    const jsonResult = { type: "json" };
+    const successResult = { type: "success" as const };
+    let capturedHandler: (() => Promise<DeferredResult>) | null = null;
+
     return {
       input: { stop_hook_active: false },
       success: vi.fn(() => successResult),
-      json: vi.fn<(arg: StopOutput) => typeof jsonResult>(() => jsonResult),
+      defer: vi.fn((handler: () => Promise<DeferredResult>) => {
+        capturedHandler = handler;
+        return { type: "deferred" as const };
+      }),
+      runDeferred: async (): Promise<DeferredResult> => {
+        if (!capturedHandler) throw new Error("No deferred handler captured");
+        return capturedHandler();
+      },
     };
   }
 
@@ -155,7 +160,7 @@ describe("hook run", () => {
     const run = getHookRun();
     run(ctx);
     expect(ctx.success).toHaveBeenCalledWith({});
-    expect(ctx.json).not.toHaveBeenCalled();
+    expect(ctx.defer).not.toHaveBeenCalled();
   });
 
   test("skips when not a git repository", () => {
@@ -166,7 +171,7 @@ describe("hook run", () => {
     const run = getHookRun();
     run(ctx);
     expect(ctx.success).toHaveBeenCalledWith({});
-    expect(ctx.json).not.toHaveBeenCalled();
+    expect(ctx.defer).not.toHaveBeenCalled();
   });
 
   test("skips on detached HEAD", () => {
@@ -182,7 +187,7 @@ describe("hook run", () => {
     expect(ctx.success).toHaveBeenCalledWith({});
   });
 
-  test("reports no remote tracking branch", () => {
+  test("reports no remote tracking branch", async () => {
     mockExecFileSync.mockImplementation((..._args) => {
       const args = _args[1] as string[];
       if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
@@ -195,12 +200,12 @@ describe("hook run", () => {
     const ctx = createMockContext();
     const run = getHookRun();
     run(ctx);
-    expect(ctx.json).toHaveBeenCalled();
-    const jsonArg = ctx.json.mock.calls[0]![0] as { output: { reason: string } };
-    expect(jsonArg.output.reason).toContain("no remote tracking branch");
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toContain("no remote tracking branch");
   });
 
-  test("returns success when branch is up to date", () => {
+  test("defers with no systemMessage when branch is up to date", async () => {
     mockExecFileSync.mockImplementation((..._args) => {
       const args = _args[1] as string[];
       if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
@@ -214,11 +219,12 @@ describe("hook run", () => {
     const ctx = createMockContext();
     const run = getHookRun();
     run(ctx);
-    expect(ctx.success).toHaveBeenCalledWith({});
-    expect(ctx.json).not.toHaveBeenCalled();
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toBeUndefined();
   });
 
-  test("auto-pushes when no PR exists and branch is ahead", () => {
+  test("auto-pushes when no PR exists and branch is ahead", async () => {
     mockExecFileSync.mockImplementation((..._args) => {
       const args = _args[1] as string[];
       if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
@@ -236,14 +242,12 @@ describe("hook run", () => {
     const ctx = createMockContext();
     const run = getHookRun();
     run(ctx);
-    expect(ctx.json).toHaveBeenCalled();
-    const jsonArg = ctx.json.mock.calls[0]![0] as StopOutput;
-    expect(jsonArg.output.decision).toBeUndefined();
-    expect(jsonArg.output.reason).toBeUndefined();
-    expect(jsonArg.output.systemMessage).toContain("Auto-pushed 3 commit(s)");
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toContain("Auto-pushed 3 commit(s)");
   });
 
-  test("auto-pushes when PR exists and branch is ahead", () => {
+  test("auto-pushes when PR exists and branch is ahead", async () => {
     mockExecFileSync.mockImplementation((..._args) => {
       const cmd = _args[0];
       const args = _args[1] as string[];
@@ -267,14 +271,12 @@ describe("hook run", () => {
     const ctx = createMockContext();
     const run = getHookRun();
     run(ctx);
-    expect(ctx.json).toHaveBeenCalled();
-    const jsonArg = ctx.json.mock.calls[0]![0] as StopOutput;
-    expect(jsonArg.output.decision).toBeUndefined();
-    expect(jsonArg.output.reason).toBeUndefined();
-    expect(jsonArg.output.systemMessage).toContain("Auto-pushed 3 commit(s)");
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toContain("Auto-pushed 3 commit(s)");
   });
 
-  test("reports push failure when auto-push fails", () => {
+  test("reports push failure via systemMessage when auto-push fails", async () => {
     mockExecFileSync.mockImplementation((..._args) => {
       const cmd = _args[0];
       const args = _args[1] as string[];
@@ -300,16 +302,14 @@ describe("hook run", () => {
     const ctx = createMockContext();
     const run = getHookRun();
     run(ctx);
-    expect(ctx.json).toHaveBeenCalled();
-    const jsonArg = ctx.json.mock.calls[0]![0] as StopOutput;
-    expect(jsonArg.output.decision).toBe("block");
-    expect(jsonArg.output.reason).toContain("Auto-push failed");
-    expect(jsonArg.output.reason).toContain("3 commit(s) ahead");
-    expect(jsonArg.output.reason).toContain("remote rejected");
-    expect(jsonArg.output.reason).toContain("Resolve it.");
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toContain("Auto-push failed");
+    expect(result.output.systemMessage).toContain("3 commit(s) ahead");
+    expect(result.output.systemMessage).toContain("remote rejected");
   });
 
-  test("auto-pulls when behind and notifies via systemMessage", () => {
+  test("auto-pulls when behind and notifies via systemMessage", async () => {
     mockExecFileSync.mockImplementation((..._args) => {
       const args = _args[1] as string[];
       if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
@@ -327,15 +327,13 @@ describe("hook run", () => {
     const ctx = createMockContext();
     const run = getHookRun();
     run(ctx);
-    expect(ctx.json).toHaveBeenCalled();
-    const jsonArg = ctx.json.mock.calls[0]![0] as StopOutput;
-    expect(jsonArg.output.decision).toBeUndefined();
-    expect(jsonArg.output.reason).toBeUndefined();
-    expect(jsonArg.output.systemMessage).toContain("Auto-pulled 2 commit(s)");
-    expect(jsonArg.output.systemMessage).toContain("origin/feature/x");
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toContain("Auto-pulled 2 commit(s)");
+    expect(result.output.systemMessage).toContain("origin/feature/x");
   });
 
-  test("reports pull failure when fast-forward is not possible", () => {
+  test("reports pull failure via systemMessage when fast-forward is not possible", async () => {
     mockExecFileSync.mockImplementation((..._args) => {
       const args = _args[1] as string[];
       if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
@@ -359,16 +357,14 @@ describe("hook run", () => {
     const ctx = createMockContext();
     const run = getHookRun();
     run(ctx);
-    expect(ctx.json).toHaveBeenCalled();
-    const jsonArg = ctx.json.mock.calls[0]![0] as StopOutput;
-    expect(jsonArg.output.decision).toBe("block");
-    expect(jsonArg.output.reason).toContain("Auto-pull failed");
-    expect(jsonArg.output.reason).toContain("2 commit(s) behind");
-    expect(jsonArg.output.reason).toContain("Not possible to fast-forward");
-    expect(jsonArg.output.reason).toContain("Resolve it.");
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toContain("Auto-pull failed");
+    expect(result.output.systemMessage).toContain("2 commit(s) behind");
+    expect(result.output.systemMessage).toContain("Not possible to fast-forward");
   });
 
-  test("reports merge conflicts with PR base branch", () => {
+  test("reports merge conflicts with PR base branch", async () => {
     const conflictMergeTree = [
       "changed in both",
       "  base   100644 abc1234 src/index.ts",
@@ -397,13 +393,13 @@ describe("hook run", () => {
     const ctx = createMockContext();
     const run = getHookRun();
     run(ctx);
-    expect(ctx.json).toHaveBeenCalled();
-    const jsonArg = ctx.json.mock.calls[0]![0] as { output: { reason: string } };
-    expect(jsonArg.output.reason).toContain("merge conflicts");
-    expect(jsonArg.output.reason).toContain("src/index.ts");
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toContain("merge conflicts");
+    expect(result.output.systemMessage).toContain("src/index.ts");
   });
 
-  test("reports no conflicts with PR base branch", () => {
+  test("defers with no systemMessage when no conflicts with PR base branch", async () => {
     mockExecFileSync.mockImplementation((..._args) => {
       const cmd = _args[0];
       const args = _args[1] as string[];
@@ -422,7 +418,8 @@ describe("hook run", () => {
     const ctx = createMockContext();
     const run = getHookRun();
     run(ctx);
-    expect(ctx.success).toHaveBeenCalledWith({});
-    expect(ctx.json).not.toHaveBeenCalled();
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toBeUndefined();
   });
 });

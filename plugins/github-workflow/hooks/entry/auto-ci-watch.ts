@@ -3,7 +3,7 @@ import { Octokit } from "@octokit/rest";
 import type { Endpoints } from "@octokit/types";
 import { HookLogger, wrapRun } from "@r_masseater/cc-plugin-lib";
 import { defineHook, runHook } from "cc-hooks-ts";
-import { isGitPushCommand } from "../lib/pr-conflicts.ts";
+import { getPrConflictStatus, isGitPushCommand } from "../lib/pr-conflicts.ts";
 
 using logger = HookLogger.fromFile(import.meta.filename);
 
@@ -41,6 +41,26 @@ const hook = defineHook({
 
     return context.defer(
       async () => {
+        const conflictStatus = getPrConflictStatus(currentBranch);
+        if (conflictStatus?.hasConflicts) {
+          logger.info(
+            `CI watch skipped: PR for ${currentBranch} has conflicts with ${conflictStatus.baseBranch}`,
+          );
+          return {
+            event: "PostToolUse" as const,
+            output: {
+              hookSpecificOutput: {
+                hookEventName: "PostToolUse" as const,
+                additionalContext: formatConflictSkipMessage(
+                  currentBranch,
+                  conflictStatus.baseBranch,
+                  conflictStatus.conflictFiles,
+                ),
+              },
+            },
+          };
+        }
+
         const result = await watchCI(currentBranch);
         const additionalContext = formatCIResult(currentBranch, result);
 
@@ -224,6 +244,27 @@ export function formatCIResult(branch: string, result: CIWatchResult): string {
       `Failed jobs: ${failedJobNames.join(", ")}. Run \`gh run view ${result.run.id} --log-failed\` to see failure logs.`,
     );
   }
+
+  return lines.join("\n");
+}
+
+export function formatConflictSkipMessage(
+  branch: string,
+  baseBranch: string,
+  conflictFiles: string[],
+): string {
+  const lines = [
+    `[CI Watch] Branch \`${branch}\` has merge conflicts with base \`${baseBranch}\`, so CI will NOT run until they are resolved.`,
+  ];
+
+  if (conflictFiles.length > 0) {
+    lines.push(`[CI Watch] Conflicted files: ${conflictFiles.join(", ")}`);
+  }
+
+  lines.push("[CI Watch] How to resolve:");
+  lines.push(`[CI Watch]   1. git fetch origin ${baseBranch} && git merge origin/${baseBranch}`);
+  lines.push("[CI Watch]   2. Fix the conflicts, then: git add <files> && git merge --continue");
+  lines.push("[CI Watch]   3. git push — CI runs on that push once the conflicts are gone.");
 
   return lines.join("\n");
 }
