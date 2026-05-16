@@ -1,0 +1,24 @@
+{
+  "name": "gh-projects",
+  "version": "0.0.1",
+  "description": "GitHub Projects を EPIC - Story - Task の階層と依存関係で運用するための汎用パターン集",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/gh-projects",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Gh Projects",
+    "shortDescription": "GitHub Projects を EPIC - Story - Task の階層と依存関係で運用するための汎用パターン集",
+    "longDescription": "GitHub Projects を EPIC - Story - Task の階層と依存関係で運用するための汎用パターン集",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/"
+}

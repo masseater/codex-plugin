@@ -1,0 +1,13 @@
+{
+  "name": "plugin-gh-projects",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "oxlint",
+    "check:fix": "oxlint --fix",
+    "typecheck": "tsgo --noEmit"
+  },
+  "devDependencies": {
+    "@repo/ts-config": "*"
+  }
+}
