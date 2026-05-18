@@ -8,7 +8,66 @@ import { readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 import { parseMermaid, renderMermaidSVG, type RenderOptions } from "beautiful-mermaid";
 import { defineCommand, runMain } from "citty";
-import { marked } from "marked";
+import { Marked, type Tokens } from "marked";
+import { createHighlighter, type Highlighter } from "shiki";
+
+const HIGHLIGHT_LANGS = [
+  "typescript",
+  "javascript",
+  "tsx",
+  "jsx",
+  "json",
+  "jsonc",
+  "bash",
+  "shell",
+  "fish",
+  "zsh",
+  "markdown",
+  "html",
+  "css",
+  "scss",
+  "yaml",
+  "toml",
+  "python",
+  "go",
+  "rust",
+  "sql",
+  "dockerfile",
+  "diff",
+  "ini",
+  "xml",
+] as const;
+
+const LANG_ALIASES: Record<string, string> = {
+  sh: "bash",
+  shellscript: "bash",
+  yml: "yaml",
+  md: "markdown",
+  py: "python",
+  rs: "rust",
+  ts: "typescript",
+  js: "javascript",
+  docker: "dockerfile",
+};
+
+let highlighterPromise: Promise<Highlighter> | undefined;
+function getHighlighter(): Promise<Highlighter> {
+  if (!highlighterPromise) {
+    highlighterPromise = createHighlighter({
+      themes: ["github-light", "github-dark"],
+      langs: HIGHLIGHT_LANGS as readonly string[] as string[],
+    });
+  }
+  return highlighterPromise;
+}
+
+function resolveLang(highlighter: Highlighter, lang: string | undefined): string {
+  const raw = (lang ?? "").toLowerCase().trim();
+  if (!raw) return "text";
+  const aliased = LANG_ALIASES[raw] ?? raw;
+  const loaded = new Set<string>(highlighter.getLoadedLanguages());
+  return loaded.has(aliased) ? aliased : "text";
+}
 
 interface RenderConfig {
   title: string;
@@ -336,7 +395,33 @@ const main = defineCommand({
 
     const { replaced, errors } = renderMermaidBlocks(markdown, blocks, theme, args.transparent);
 
-    const htmlBody = await marked.parse(replaced, { async: true });
+    const highlighter = await getHighlighter();
+    const shikiTheme = theme === "dark" ? "github-dark" : "github-light";
+    const m = new Marked();
+    m.use({
+      async: true,
+      async walkTokens(token) {
+        if (token.type !== "code") return;
+        const tk = token as Tokens.Code & { highlighted?: string };
+        const effectiveLang = resolveLang(highlighter, tk.lang);
+        try {
+          tk.highlighted = highlighter.codeToHtml(tk.text, {
+            lang: effectiveLang,
+            theme: shikiTheme,
+          });
+        } catch {
+          tk.highlighted = `<pre><code>${escapeHtml(tk.text)}</code></pre>`;
+        }
+      },
+      renderer: {
+        code(token: Tokens.Code) {
+          const tk = token as Tokens.Code & { highlighted?: string };
+          if (tk.highlighted) return tk.highlighted;
+          return `<pre><code>${escapeHtml(tk.text)}</code></pre>`;
+        },
+      },
+    });
+    const htmlBody = await m.parse(replaced);
     const html = wrapHtml(htmlBody, {
       title: args.title ?? basename(inputPath),
       theme,

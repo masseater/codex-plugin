@@ -24,4 +24,5 @@ Markdown + Mermaid を [beautiful-mermaid](https://github.com/lukilabs/beautiful
 
 - `beautiful-mermaid` — Mermaid → SVG レンダラ (同期, DOM 非依存)
 - `marked` — Markdown → HTML
+- `shiki` — コードブロックのシンタックスハイライト (インラインスタイル埋め込み)
 - `citty` — CLI 引数パース
