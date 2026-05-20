@@ -1,6 +1,6 @@
 {
   "name": "code-review",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "PR・コードレビューワークフロー支援",
   "author": {
     "name": "masseater",
@@ -20,6 +20,5 @@
     "developerName": "masseater",
     "category": "Productivity"
   },
-  "skills": "./skills/",
-  "hooks": "./hooks/hooks.json"
+  "skills": "./skills/"
 }
