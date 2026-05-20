@@ -26,6 +26,10 @@ mutilsプラグインの推奨設定をユーザー環境に適用します。
 ### 追加作業
 
 - Bun がインストールされているか確認する。
+- 依存パッケージをインストールする:
+  - `../..` から `bun.lock` が見つかるディレクトリまで上っていき、そこで `bun install` を実行する。
+  - これにより workspace 全体（mutils を含む全プラグイン）の依存関係が一括でインストールされる。
+  - SessionStart hook の `check-install` がインストール不足を警告した場合も同じ手順で復旧する。
 - mutils が生成する `*.mutils_knowledge.md` ファイルがglobalのgitignoreに入っているか確認する。入っていなかったらユーザーの許可を得た上で追記すること。
   - `~/.gitignore` が必ず global ignore になるわけではない。必ず `git config --global core.excludesfile` を行い、実際のファイルを特定すること。
 - 環境変数 `ENABLE_TOOL_SEARCH=true` が設定されてツール検索ツール機能が有効になっていることを確認する。
