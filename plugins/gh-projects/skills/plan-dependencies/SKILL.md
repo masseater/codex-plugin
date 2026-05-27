@@ -16,6 +16,7 @@ description: Story / Task 間の blocked-by 依存関係を設計・登録する
 
 入れるべき:
 
+- 機能別 検証 Story は全体リリース Story を前提とする（通常 `decompose-epic` で設定済み。未設定なら張る）
 - 同じ EPIC 内の Story B が、Story A の出力を前提とする
 - Task が、別 Story の Task の完成を前提とする
 - 別 repo / 別 EPIC の Issue に依存する場合（CLI も owner/repo を取れる）
@@ -48,9 +49,11 @@ description: Story / Task 間の blocked-by 依存関係を設計・登録する
 
 ### Step 2: Detect candidates
 
-子 Issue の本文から「Blocked by」「depends on」「after #N」などの記述を抽出し、明示されている依存をリスト化する。
+依存は body ではなく Issue の関係（sub-issue / blocked-by）が SSoT。body のテキストからは推定しない。`deps:show` で既存の blocked-by / blocking と sub-issue 構造を取得し、そこから候補を洗い出す。
 
-unstated dependencies（本文には書かれてないが構造上必要なもの）はユーザーに提案して確認を取る:
+`decompose-epic` で張った「検証 Story → 全体リリース Story」の blocked-by は設定済みの前提。ここでは追加・横断の依存を扱う。
+
+構造上必要だがまだ張られていない依存はユーザーに提案して確認を取る:
 
 ```
 提案: #102 (Add API client) は #101 (Define API schema) に blocked-by すべき。

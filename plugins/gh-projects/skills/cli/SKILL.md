@@ -37,11 +37,14 @@ shell から呼ぶ場合は `gh-project.ts` を実行可能にして PATH を通
 
 ### Project Items
 
-| Command      | Args                                         | Description                                                   |
-| ------------ | -------------------------------------------- | ------------------------------------------------------------- |
-| `item:list`  | `<owner> <project-number>`                   | Project に登録された Issue/PR/Draft を一覧                    |
-| `item:add`   | `<owner> <project-number> <issue-or-pr-url>` | 既存 Issue/PR を Project に追加                               |
-| `field:list` | `<owner> <project-number>`                   | Project の Field 定義（Status、Iteration、Custom など）を表示 |
+| Command      | Args                                                  | Description                                                   |
+| ------------ | ----------------------------------------------------- | ------------------------------------------------------------- |
+| `item:list`  | `<owner> <project-number>`                            | Project に登録された Issue/PR/Draft を一覧                    |
+| `item:add`   | `<owner> <project-number> <issue-or-pr-url>`          | 既存 Issue/PR を Project に追加                               |
+| `field:list` | `<owner> <project-number>`                            | Project の Field 定義（Status、Iteration、Custom など）を表示 |
+| `status:set` | `<owner> <project-number> <issue-url> <status-value>` | Issue の Project item の Status（single-select）を設定        |
+
+`status:set` は `<status-value>`（例: `Need Review`）が Project の Status Field の option として存在する必要がある。無い場合は利用可能な option 名を列挙してエラーになる。
 
 ### Sub-Issues
 
@@ -107,6 +110,6 @@ GitHub の Issue Dependencies は「この Issue は他の Issue に blocked-by/
 
 - `epic-story-task` — EPIC / Story / Task の階層・運用方針
 - `create-epic` — 新規 EPIC を作成する対話フロー
-- `decompose-epic` — EPIC を Story / Task に分解する対話フロー
+- `decompose-epic` — EPIC を全体リリース Story / 機能別 検証 Story に分解する対話フロー
 - `plan-dependencies` — blocked-by 関係を設計する対話フロー
 - `review-progress` — EPIC の進捗を棚卸しする対話フロー

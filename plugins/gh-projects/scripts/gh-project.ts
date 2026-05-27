@@ -175,6 +175,46 @@ const commands: Record<string, Command> = {
     },
   },
 
+  "status:set": {
+    description: "Set an issue's Status (single-select) field in a project",
+    usage: "<owner> <project-number> <issue-url> <status-value>",
+    run: async (args) => {
+      const owner = need(args[0], "owner");
+      const projectNumber = need(args[1], "project-number");
+      const issueUrl = need(args[2], "issue-url");
+      const statusValue = need(args[3], "status-value");
+
+      type ProjectField = {
+        id: string;
+        name: string;
+        options?: { id: string; name: string }[];
+      };
+      type ProjectItem = { id: string; content?: { url?: string } };
+
+      const project =
+        await $`gh project view ${projectNumber} --owner ${owner} --format json`.json();
+      const projectId = project.id as string;
+
+      const fieldList =
+        await $`gh project field-list ${projectNumber} --owner ${owner} --format json`.json();
+      const statusField = (fieldList.fields as ProjectField[]).find((f) => f.name === "Status");
+      if (!statusField) throw new Error('Project has no "Status" field');
+      const option = statusField.options?.find((o) => o.name === statusValue);
+      if (!option) {
+        const names = statusField.options?.map((o) => o.name).join(", ") ?? "(none)";
+        throw new Error(`No Status option "${statusValue}". Available: ${names}`);
+      }
+
+      const itemList =
+        await $`gh project item-list ${projectNumber} --owner ${owner} --format json --limit 200`.json();
+      const item = (itemList.items as ProjectItem[]).find((i) => i.content?.url === issueUrl);
+      if (!item) throw new Error(`Issue not found in project: ${issueUrl}`);
+
+      await $`gh project item-edit --id ${item.id} --project-id ${projectId} --field-id ${statusField.id} --single-select-option-id ${option.id}`;
+      console.log(`Set Status="${statusValue}" for ${issueUrl}`);
+    },
+  },
+
   // --- Sub-Issues (GraphQL) ---
   "sub-issue:add": {
     description: "Add a sub-issue to a parent issue",
