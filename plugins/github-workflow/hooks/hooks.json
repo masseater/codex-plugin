@@ -12,6 +12,10 @@
           {
             "type": "command",
             "command": "./hooks/entry/auto-ci-watch.ts"
+          },
+          {
+            "type": "command",
+            "command": "./hooks/entry/auto-create-pr.ts"
           }
         ]
       },
@@ -31,6 +35,16 @@
           {
             "type": "command",
             "command": "./hooks/entry/check-branch-status.ts"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/install-deps.sh"
           }
         ]
       }

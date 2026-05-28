@@ -1,5 +1,5 @@
 ---
-name: feedback
+name: mutils:feedback
 description: Send feedback about this plugin repository as a GitHub issue. Use when the user says "feedback", "send feedback", "report issue", "bug report", "feature request", "フィードバック", "バグ報告", "機能リクエスト", or wants to create an issue for the plugin repository.
 ---
 
@@ -24,7 +24,7 @@ Present the draft to the user before creating. The draft must include:
 
 **Title**: A concise, descriptive title in English
 
-**Labels**: Always include `claude` label (triggers Claude Code Action for automated implementation). Additionally choose:
+**Labels**: MUST include the `claude` label (triggers Claude Code Action for automated implementation). Additionally choose:
 
 - `bug` for bugs
 - `enhancement` for feature requests
@@ -85,9 +85,9 @@ Show the created issue URL to the user.
 
 ## Rules
 
-- Always draft and confirm before creating — never create an issue without user approval
-- Write issue title and body in English (repository language)
-- Communicate with the user in Japanese (per AGENTS.md)
-- Include relevant context from the conversation (plugin name, file paths, error messages)
-- Do not include sensitive information (API keys, personal data, internal URLs)
-- Strip conversation-specific details that are not relevant to the issue
+- IF: creating the issue; THEN MUST: draft and confirm with the user first; MUST NOT: create an issue without user approval
+- MUST: write the issue title and body in English (repository language)
+- MUST: communicate with the user in Japanese (per AGENTS.md)
+- MUST: include relevant context from the conversation (plugin name, file paths, error messages)
+- MUST NOT: include sensitive information (API keys, personal data, internal URLs) — strip it before creating
+- MUST: strip conversation-specific details that are not relevant to the issue

@@ -19,7 +19,6 @@
 | ------------ | --------------------------- | ------------------------------------ |
 | SessionStart | bun install --production    | 依存関係の自動インストール           |
 | SessionStart | check-context-version       | コンテキストファイルのバージョン確認 |
-| SessionStart | workspace-id-persist        | 直近 workspace-id の復元             |
 | PreToolUse   | block-unsafe-type-assertion | 危険な型アサーションのブロック       |
 | PreToolUse   | block-husky-bypass          | HUSKY=0 による hooks バイパスを阻止  |
 | PostToolUse  | task-history                | TODO/Task 操作履歴を DB に永続化     |

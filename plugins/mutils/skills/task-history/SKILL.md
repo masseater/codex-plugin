@@ -1,5 +1,5 @@
 ---
-name: task-history
+name: mutils:task-history
 description: "Review past task and TODO history from previous sessions. Use when asked to review past work, check what was done, or reflect on completed tasks."
 allowed-tools: Bash(./query.ts *), Read
 ---

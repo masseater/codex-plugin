@@ -6,6 +6,14 @@
         "hooks": [
           {
             "type": "command",
+            "command": "./hooks/install-deps.sh"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "./hooks/entry/session-start.ts"
           }
         ]

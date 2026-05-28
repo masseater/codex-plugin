@@ -1,5 +1,5 @@
 ---
-name: create-issue
+name: github-workflow:create-issue
 description: Create a GitHub issue in the current repository with a drafted title, body, and labels, confirming with the user before submission. Use when the user says "issueを作成", "GitHub issueを立てる", "create issue", "新しいissue", "バグ報告issue", or wants to file a new issue from conversation or investigation context.
 ---
 

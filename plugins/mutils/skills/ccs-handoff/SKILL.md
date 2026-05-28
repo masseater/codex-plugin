@@ -19,7 +19,7 @@ Resume interrupted work from another CCS profile session. Use when a profile hit
 
 Parse `$ARGUMENTS` by splitting on whitespace: the first token is `<profile>` and the second token is `<sessionId>`.
 
-- If arguments are missing, ask the user for the profile name and session ID.
+- IF: arguments are missing; THEN MUST: ask the user for the profile name and session ID
 
 ### 2. Run Handoff Script
 
@@ -34,7 +34,9 @@ Read the Markdown output from the script carefully.
 From the script output, perform the following:
 
 1. **Change directory**: `cd` to the Project Path shown in Session Info
-2. **Check Git Branch**: Compare the branch in Session Info with the current branch. **DO NOT checkout or switch branches** (prohibited by AGENTS.md). If branches differ, report the discrepancy to the user.
+2. **Check Git Branch**: Compare the branch in Session Info with the current branch.
+   - MUST NOT: checkout or switch branches (prohibited by AGENTS.md; leave the branch as-is instead)
+   - IF: the branches differ; THEN MUST: report the discrepancy to the user
 3. **Re-register pending items**: From the "Pending Tasks" and "Pending TODOs" sections, re-register all items into the current session using TodoWrite.
 4. **Understand interrupted work**: Read and internalize the Session Summary, First Prompt, and Recent Messages sections to understand what was being worked on.
 5. **Gather additional context**: Check the following for supplementary information:

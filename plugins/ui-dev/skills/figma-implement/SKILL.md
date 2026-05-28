@@ -1,5 +1,5 @@
 ---
-name: figma-implement
+name: ui-dev:figma-implement
 description: 'This skill should be used when the user asks to "implement Figma screens", "implement this design", "implement the whole flow", "batch implement from Figma", "implement all screens", or provides a Figma prototype URL and wants to build the UI. Traces the prototype graph, plans all screens, then implements one screen at a time with subagent-driven review.'
 argument-hint: "[flowName] [Figma URL]"
 hooks:

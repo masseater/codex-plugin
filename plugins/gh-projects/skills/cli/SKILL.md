@@ -1,5 +1,5 @@
 ---
-name: cli
+name: gh-projects:cli
 description: GitHub Projects CLI コマンドリファレンス。gh-project.ts スクリプトで Project CRUD、sub-issue、blocked-by などを操作する。Use when the user asks to "run a gh-project command", "list project items", "add a sub-issue", "set blocked-by", "show issue dependencies", "プロジェクトに追加", "sub-issue を作成", "依存関係を設定", or wants to invoke the gh-projects CLI directly.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: standards-audit
+name: devkit:standards-audit
 description: This skill should be used when the user asks to "audit project standards", "check standards compliance", "devkit audit", "find standards violations", "are we following devkit standards", "what's not following standards", "compliance report", "規約チェック", "スタンダード監査", or "規約違反を探して". It actively scans code and reports violations. Do NOT use for project scaffolding (use init-project), single-CLI-tool checks (use cli-compliance), or looking up what the standards are (use standards).
 argument-hint: "[path to project or monorepo root (default: cwd) — auto-detects type; audits each workspace independently for monorepos]"
 ---

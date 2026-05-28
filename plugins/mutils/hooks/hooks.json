@@ -6,15 +6,19 @@
         "hooks": [
           {
             "type": "command",
+            "command": "./hooks/install-deps.sh"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "./hooks/entry/check-install.ts"
           },
           {
             "type": "command",
             "command": "./hooks/entry/check-context-version.ts"
-          },
-          {
-            "type": "command",
-            "command": "./hooks/entry/workspace-id-persist.ts"
           }
         ]
       }
@@ -26,6 +30,10 @@
           {
             "type": "command",
             "command": "./hooks/entry/block-unsafe-type-assertion.ts"
+          },
+          {
+            "type": "command",
+            "command": "./hooks/entry/block-cross-worktree-edit.ts"
           }
         ]
       },

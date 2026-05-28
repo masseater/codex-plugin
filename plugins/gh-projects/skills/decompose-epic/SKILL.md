@@ -1,5 +1,5 @@
 ---
-name: decompose-epic
+name: gh-projects:decompose-epic
 description: EPIC を「全体リリース Story」と「機能別 検証 Story」に分解し、sub-issue でリンク・blocked-by を張って Project に追加するワークフロー。Use when the user asks to "break down an EPIC", "decompose into stories", "EPIC を分解", "Story に切り分けたい", or has an EPIC that needs decomposition.
 ---
 

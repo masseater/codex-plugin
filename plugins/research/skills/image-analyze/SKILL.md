@@ -14,6 +14,8 @@ Analyze or compare images and PDF documents. Two scripts available:
 
 Located at `./scripts`.
 
+Run every script with `bun <path> ...` (e.g. `bun ./scripts/image-process.ts info --image x.png`).
+
 | Script             | Description                                   | Requires API |
 | ------------------ | --------------------------------------------- | :----------: |
 | `image-analyze.ts` | AI analysis / comparison (images + PDF)       | Yes (Gemini) |
@@ -23,44 +25,46 @@ Located at `./scripts`.
 
 ### image-analyze.ts
 
-AI-powered image analysis using Gemini API.
+AI-powered image analysis using Gemini API. Requires `GEMINI_API_KEY` (or `GOOGLE_API_KEY`).
 
 Supported formats: PNG, JPEG, GIF, WebP, PDF
 
+Arguments are **named flags** (not positional):
+
 | Argument         | Required | Description                                     |
 | ---------------- | -------- | ----------------------------------------------- |
-| `image1`         | ✓        | First image/PDF path                            |
-| `image2`         |          | Second image/PDF path (enables comparison mode) |
+| `--input`        | ✓        | First image/PDF path                            |
+| `--compare`      |          | Second image/PDF path (enables comparison mode) |
 | `--prompt`, `-p` |          | Custom prompt for analysis/comparison           |
 
 **Analyze single image:**
 
 ```bash
-./scripts/image-analyze.ts ./screenshot.png
+bun ./scripts/image-analyze.ts --input ./screenshot.png
 ```
 
 **Analyze PDF document:**
 
 ```bash
-./scripts/image-analyze.ts ./document.pdf
+bun ./scripts/image-analyze.ts --input ./document.pdf
 ```
 
 **Compare two images:**
 
 ```bash
-./scripts/image-analyze.ts ./before.png ./after.png
+bun ./scripts/image-analyze.ts --input ./before.png --compare ./after.png
 ```
 
 **Compare two PDFs:**
 
 ```bash
-./scripts/image-analyze.ts ./v1.pdf ./v2.pdf
+bun ./scripts/image-analyze.ts --input ./v1.pdf --compare ./v2.pdf
 ```
 
 **With custom prompt:**
 
 ```bash
-./scripts/image-analyze.ts ./design.png -p "Check if this follows Material Design guidelines"
+bun ./scripts/image-analyze.ts --input ./design.png -p "Check if this follows Material Design guidelines"
 ```
 
 ---
@@ -81,7 +85,7 @@ Local image processing tool. No API key required.
 
 #### diff
 
-Compare two same-size images pixel by pixel. Outputs a diff image and match rate.
+Compare two **same-size** images pixel by pixel. Outputs a diff image and match rate. Different-size inputs hard-fail with an error (unlike `overlay` / `side-by-side`, which auto-resize).
 
 | Option        | Required | Default             | Description                           |
 | ------------- | :------: | ------------------- | ------------------------------------- |
@@ -91,7 +95,7 @@ Compare two same-size images pixel by pixel. Outputs a diff image and match rate
 | `--threshold` |          | `0.1`               | Sensitivity (0-1, smaller = stricter) |
 
 ```bash
-./scripts/image-process.ts diff --image1 before.png --image2 after.png --threshold 0.05
+bun ./scripts/image-process.ts diff --image1 before.png --image2 after.png --threshold 0.05
 ```
 
 #### edge
@@ -104,7 +108,7 @@ Extract edges using Sobel filter. Useful for comparing layout structure.
 | `--output` |          | `{image}_edge.png` | Output path |
 
 ```bash
-./scripts/image-process.ts edge --image screenshot.png
+bun ./scripts/image-process.ts edge --image screenshot.png
 ```
 
 #### overlay
@@ -119,7 +123,7 @@ Overlay two images with adjustable opacity to visually spot differences.
 | `--opacity` |          | `0.5`                  | Overlay opacity (0-1) |
 
 ```bash
-./scripts/image-process.ts overlay --image1 before.png --image2 after.png --opacity 0.3
+bun ./scripts/image-process.ts overlay --image1 before.png --image2 after.png --opacity 0.3
 ```
 
 #### side-by-side
@@ -134,7 +138,7 @@ Place two images side by side for visual comparison.
 | `--gap`    |          | `4`                       | Gap between images (px) |
 
 ```bash
-./scripts/image-process.ts side-by-side --image1 before.png --image2 after.png --gap 8
+bun ./scripts/image-process.ts side-by-side --image1 before.png --image2 after.png --gap 8
 ```
 
 #### info
@@ -146,7 +150,7 @@ Display image metadata (dimensions, format, color space, file size, DPI, alpha).
 | `--image` |    ✓     |         | Input image |
 
 ```bash
-./scripts/image-process.ts info --image screenshot.png
+bun ./scripts/image-process.ts info --image screenshot.png
 ```
 
 ---

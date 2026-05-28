@@ -1,5 +1,5 @@
 ---
-name: plan-dependencies
+name: gh-projects:plan-dependencies
 description: Story / Task 間の blocked-by 依存関係を設計・登録するワークフロー。Use when the user asks to "set blocked-by", "add dependency", "issue の前後関係を設定", "依存関係を整理", "blocking 関係", or wants to model ordering constraints between issues.
 ---
 

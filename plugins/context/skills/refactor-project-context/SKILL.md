@@ -1,5 +1,5 @@
 ---
-name: refactor-project-context
+name: context:refactor-project-context
 description: Use when scanning and reorganizing all project context files (AGENTS.md, README.md, gotchas.md, .claude/rules/) for consistency, accuracy, and structural alignment.
 allowed-tools: Read, Write(.claude/**), Write(AGENTS.md), Write(README.md), Write(**/AGENTS.md), Write(**/README.md), Bash(ls), Bash(mkdir), Glob, Grep, TodoWrite, AskUserQuestion, Skill(context:should-be-project-context), Skill(research:semtools), Skill(context:refactor-context-file), Skill(context:verify-context)
 ---

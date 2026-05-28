@@ -1,5 +1,5 @@
 ---
-name: cli-compliance
+name: devkit:cli-compliance
 description: This skill should be used when the user asks to "check CLI compliance", "validate CLI tool", "audit CLI code", "review CLI conventions", or wants to verify a CLI tool follows tech stack standards. Also use when the user says "check if this script follows our standards" or "lint this CLI tool".
 argument-hint: "[path to CLI tool]"
 ---

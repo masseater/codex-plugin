@@ -1,5 +1,5 @@
 ---
-name: search-similar-issues
+name: github-issue-db:search-similar-issues
 description: Search GitHub issues from a locally-cached SQLite DB (FTS5 trigram + BM25 + label/recency boost, no ML model) for duplicates or near-duplicates of a proposed issue. Use when the user says "似たissueを探す", "duplicate issue check", "search similar issues", "類似issueを調べる", "既存issueを検索", or before creating a new issue to avoid duplicates.
 ---
 

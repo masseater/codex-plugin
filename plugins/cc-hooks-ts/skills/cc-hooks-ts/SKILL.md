@@ -1,5 +1,5 @@
 ---
-name: cc-hooks-ts
+name: cc-hooks-ts:cc-hooks-ts
 description: This skill is the mandatory reference for all Claude Code hook creation. Use cc-hooks-ts for every hook. This skill should be used when the user asks to "create a hook", "add a hook", "write a hook", "implement a hook", "rewrite hooks in TypeScript", "use cc-hooks-ts", or needs to build any Claude Code hook — cc-hooks-ts is always required regardless of whether explicitly mentioned.
 ---
 

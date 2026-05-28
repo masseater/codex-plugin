@@ -15,6 +15,16 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/install-deps.sh"
+          }
+        ]
+      }
     ]
   }
 }

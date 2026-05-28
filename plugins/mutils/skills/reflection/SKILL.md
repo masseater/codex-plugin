@@ -12,15 +12,15 @@ Pause and reflect on the work you have been doing up until now in this session. 
 
 ## Important Guidelines
 
-- **Be brutally honest**: The point is improvement, not self-congratulation
-- **Be specific**: Vague reflections are useless—cite specific examples
-- **Focus on controllable factors**: Don't blame external factors; focus on what you could have done differently
-- **No excuses**: "I didn't have enough time" is not a valid reflection—the question is what you would prioritize differently
-- **Forward-looking**: Every issue identified should have a corresponding lesson or action item
+- MUST: be brutally honest — the point is improvement, not self-congratulation
+- MUST: be specific and cite specific examples (vague reflections are useless)
+- MUST: focus on controllable factors; MUST NOT: blame external factors (focus on what you could have done differently)
+- MUST NOT: make excuses ("I didn't have enough time" is not valid — instead state what you would prioritize differently)
+- MUST: make every identified issue forward-looking — pair it with a lesson or action item
 
 ### Unforgivable Anti-patterns
 
-If you did any of the following, you must write a 50+ word self-reflection explaining why it was wrong:
+IF: you did any of the following; THEN MUST: write a 50+ word self-reflection explaining why it was wrong:
 
 - Used `any` or `unknown` type without explicit justification
 - Commented out failing tests instead of fixing them

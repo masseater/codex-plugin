@@ -1,5 +1,5 @@
 ---
-name: report-repo-issues
+name: github-issue-db:report-repo-issues
 description: End-to-end triage — investigate the repo, dedupe against the local issue DB, and for each finding either comment on an existing issue or create a new one. Use when the user says "課題を洗い出してissue化", "リポジトリを調査してissueにする", "report repo issues", "investigate and file issues", "問題を見つけてGitHubに上げる", or wants an end-to-end flow from code to GitHub.
 ---
 
