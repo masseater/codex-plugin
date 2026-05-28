@@ -1,5 +1,5 @@
 ---
-name: create-epic
+name: gh-projects:create-epic
 description: 新しい EPIC issue を起票し、GitHub Project に登録するワークフロー。Use when the user asks to "create an EPIC", "start a new EPIC", "EPIC を作成", "新しい EPIC を起票", "プロジェクトに EPIC を立てたい", or wants to bootstrap a top-level initiative.
 ---
 

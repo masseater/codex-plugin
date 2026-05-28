@@ -1,5 +1,5 @@
 ---
-name: team-design
+name: swarm:team-design
 description: Design Agent Teams composition for a task.
 disable-model-invocation: true
 ---

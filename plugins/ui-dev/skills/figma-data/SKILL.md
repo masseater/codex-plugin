@@ -1,5 +1,5 @@
 ---
-name: figma-data
+name: ui-dev:figma-data
 description: 'This skill should be used when the user asks to "extract Figma design data", "get CSS properties from Figma", "trace prototype chain", "export assets from Figma", "get component variants", or needs exact design values (colors, spacing, typography, interactions) from Figma nodes via API.'
 ---
 

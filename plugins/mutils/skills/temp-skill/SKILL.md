@@ -1,5 +1,5 @@
 ---
-name: temp-skill
+name: mutils:temp-skill
 description: Save and manage temporary notes across sessions. Triggered by phrases like "save temp", "add temp", "list temp", "search temp", "read temp", "show temp", or their Japanese equivalents ("一時メモ", "temp に保存", "temp 一覧", "temp 検索", "temp 読む", etc.). Saves as Markdown files in ~/.claude/skills/temp/ with index management.
 tools:
   - Bash(./scripts/update-index.ts *)
@@ -13,7 +13,7 @@ tools:
 
 Save and manage temporary notes across sessions. Notes are stored in `~/.claude/skills/temp/` as Markdown files and cataloged in the Index section below.
 
-**IMPORTANT**: After updating SKILL.md, always reload `temp-skill` via the Skill tool to reflect the latest index.
+IF: SKILL.md was updated; THEN MUST: reload `temp-skill` via the Skill tool to reflect the latest index.
 
 ---
 

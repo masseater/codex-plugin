@@ -1,5 +1,5 @@
 ---
-name: dev-command
+name: ui-dev:dev-command
 description: 'This skill should be used when the user asks to "generate design feedback", "create QA checklist", "scaffold screen map", "update screen map", "run ui-dev check", or needs manual utility commands for UI implementation workflows.'
 argument-hint: "[subcommand]"
 ---

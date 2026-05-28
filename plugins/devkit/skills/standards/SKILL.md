@@ -1,5 +1,5 @@
 ---
-name: standards
+name: devkit:standards
 description: This skill should be used when the user asks to "set up a project", "choose a tech stack", "establish coding standards", "configure linting", "set up tests", "pick a framework", "review code quality", "set up logging", "configure observability", "choose an ORM", "set up auth", "set up Storybook", "write stories", "visual testing", "CSF", "coverage threshold", or discusses any technology choices for a TypeScript project. Also use when starting a new project, setting up CI/CD, choosing between tools (oxlint vs ESLint, pnpm vs npm), configuring environment variables, or when any other devkit skill needs to reference project conventions. This is the central reference for all devkit technology decisions and coding principles.
 ---
 

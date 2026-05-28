@@ -3,7 +3,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { parseWorkspaceId } from "../workspace-id/patterns.js";
+import { parseWorkspaceId } from "@r_masseater/cc-plugin-lib";
 
 // --- Constants ---
 

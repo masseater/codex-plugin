@@ -1,5 +1,5 @@
 ---
-name: init-project
+name: devkit:init-project
 description: This skill should be used when the user asks to "set up a project", "initialize a new app", "create a new project", "bootstrap a project", "set up my dev environment", or wants to start a new personal web application. Also use when the user says "init project", "new project", or wants to complement an existing project with missing tooling and configuration.
 ---
 

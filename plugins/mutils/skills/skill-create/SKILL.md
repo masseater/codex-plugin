@@ -1,5 +1,5 @@
 ---
-name: skill-create
+name: mutils:skill-create
 description: "This skill should be used when the user asks to 'create a skill', 'add a new skill', 'make a skill', 'scaffold a skill', 'new skill', 'スキル化して', 'スキルを作成', 'スキルを追加', or wants to create a new Claude Code skill for a plugin or project. Provides a guided workflow with automated scaffolding, validation, and dynamic context injection."
 disable-model-invocation: true
 tools:
@@ -66,11 +66,11 @@ Fill in the scaffolded SKILL.md. Follow these rules:
 
 **Body writing rules:**
 
-- Write SKILL.md and all bundled documents (references, examples) in English for token efficiency
-- Use imperative form ("Run X", "Create Y"), not second person ("You should X")
-- Target 1000-2000 words. Move detailed content to `references/`
-- Reference all bundled files explicitly so Claude knows they exist
-- If the skill has a deterministic pre-processing step, use `!`​`cmd` syntax for dynamic context injection
+- MUST: write SKILL.md and all bundled documents (references, examples) in English for token efficiency
+- MUST: use imperative form ("Run X", "Create Y"); MUST NOT: use second person ("You should X")
+- SHOULD: target 1000-2000 words; move detailed content to `references/`
+- MUST: reference all bundled files explicitly so Claude knows they exist
+- IF: the skill has a deterministic pre-processing step; THEN SHOULD: use the dynamic context injection syntax described below
 
 **Dynamic context injection:**
 
@@ -84,7 +84,7 @@ The `## Current Context` section above demonstrates this: `detect-context.ts` ru
 
 For syntax details, refer to: https://code.claude.com/docs/en/skills#inject-dynamic-context
 
-**Caution:** This syntax executes everywhere in SKILL.md — including code fences and indented blocks. Never include literal examples of this syntax in SKILL.md itself, as they will be executed. Put examples in references or external docs.
+**Caution:** This syntax executes everywhere in SKILL.md — including code fences and indented blocks. MUST NOT: include literal examples of this syntax in SKILL.md itself (they will be executed); put examples in references or external docs instead.
 
 ### Step 4: Create Support Scripts
 
@@ -100,14 +100,14 @@ Extract deterministic logic into scripts. This prevents Claude from reinventing 
 
 **Script conventions:**
 
-- Write as standalone TypeScript files with shebang `#!/usr/bin/env bun`
-- Execute via `./script.ts` (not `bun run script.ts`)
-- Set executable permission: `chmod +x scripts/*.ts`
-- Output structured JSON to stdout; write human-readable errors to stderr
-- Register in the frontmatter `tools` field: `Bash(${CLAUDE_SKILL_DIR}/scripts/foo.ts *)`
-- Create a co-located test file `[name].test.ts` for each script
-- Use `cc-hooks-ts` for hook scripts; `@r_masseater/cc-plugin-lib` for shared utilities
-- When calling GitHub API, follow `references/github-api.md` (Octokit first, gh CLI last)
+- MUST: write scripts as standalone TypeScript files with shebang `#!/usr/bin/env bun`
+- MUST: execute via `./script.ts` (not `bun run script.ts`)
+- MUST: set executable permission with `chmod +x scripts/*.ts`
+- MUST: output structured JSON to stdout; write human-readable errors to stderr
+- MUST: register the script in the frontmatter `tools` field: `Bash(${CLAUDE_SKILL_DIR}/scripts/foo.ts *)`
+- SHOULD: create a co-located test file `[name].test.ts` for each script
+- MUST: use `cc-hooks-ts` for hook scripts; `@r_masseater/cc-plugin-lib` for shared utilities
+- IF: calling the GitHub API; THEN MUST: follow `references/github-api.md` (Octokit first, gh CLI last)
 
 ### Step 5: Inject References
 
@@ -117,7 +117,9 @@ After writing SKILL.md and creating support files, run the references injection 
 ${CLAUDE_SKILL_DIR}/scripts/inject-references.ts <skill-dir>
 ```
 
-**Always use this script to update the Bundled Resources section** — never hand-edit between `REFERENCES_START` and `REFERENCES_END` markers. Re-run immediately after adding, removing, or renaming files to prevent stale references.
+- MUST: use this script to update the Bundled Resources section
+- MUST NOT: hand-edit between `REFERENCES_START` and `REFERENCES_END` markers (run the script instead)
+- IF: files were added, removed, or renamed; THEN MUST: re-run the script immediately to prevent stale references
 
 ### Step 6: Validate
 
@@ -127,18 +129,18 @@ Run the validation script to catch structural issues before manual review:
 ${CLAUDE_SKILL_DIR}/scripts/validate.ts <skill-dir>
 ```
 
-Fix all errors and warnings, then re-run until clean. The script validates frontmatter, description format, word count, writing style, file references, and executable permissions.
+MUST: fix all errors and warnings, then re-run until clean. The script validates frontmatter, description format, word count, writing style, file references, and executable permissions.
 
 ### Step 7: Evaluate with Subagent (Score 10/10 Loop)
 
-Iterate until a `plugin-dev:skill-reviewer` subagent scores the skill 10/10. This catches quality issues that mechanical validation misses (intent clarity, trigger coverage, workflow completeness):
+MUST: iterate until a `plugin-dev:skill-reviewer` subagent scores the skill 10/10. This catches quality issues that mechanical validation misses (intent clarity, trigger coverage, workflow completeness):
 
 1. Spawn `plugin-dev:skill-reviewer` with the skill directory path
 2. Fix issues from the feedback
-3. Re-run `inject-references.ts` and `validate.ts` if files changed
+3. IF: files changed; THEN MUST: re-run `inject-references.ts` and `validate.ts`
 4. Re-evaluate — repeat until 10/10
 
-If the subagent is unavailable, self-evaluate using the same criteria. Still iterate until 10/10.
+IF: the subagent is unavailable; THEN MUST: self-evaluate using the same criteria and still iterate until 10/10.
 
 ### Step 8: Verify End-to-End
 

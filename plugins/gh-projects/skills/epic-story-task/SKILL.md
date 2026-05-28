@@ -1,5 +1,5 @@
 ---
-name: epic-story-task
+name: gh-projects:epic-story-task
 description: EPIC - Story - Task の3階層と依存関係で GitHub Projects を運用するための方法論。Use when the user asks to "set up EPIC story task workflow", "design issue hierarchy", "configure project for EPIC story task", "EPIC Story Task で運用したい", "issue 階層を設計", "GitHub Project を立ち上げ", or wants conceptual guidance on this issue-management pattern.
 ---
 

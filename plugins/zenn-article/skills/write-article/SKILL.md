@@ -1,5 +1,5 @@
 ---
-name: write-article
+name: zenn-article:write-article
 description: Write and publish Zenn tech articles. Use when the user asks to write a Zenn article, publish a tech blog post, or turn conversation context into a Zenn article.
 ---
 

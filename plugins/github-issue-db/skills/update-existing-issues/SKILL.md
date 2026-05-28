@@ -1,5 +1,5 @@
 ---
-name: update-existing-issues
+name: github-issue-db:update-existing-issues
 description: Verify selected GitHub issues against the current repository state using the local issue DB, post status comments, and — with explicit approval — close resolved ones. Use when the user says "既存issueを更新", "issueの状態を確認", "update existing issues", "issue triage", "古いissueをcloseする", or wants to refresh stale issues with the latest repo reality.
 ---
 

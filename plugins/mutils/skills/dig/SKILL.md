@@ -11,25 +11,25 @@ Read the current plan file and interview me in detail using the AskUserQuestionT
 - UI/UX
 - and anything
 
-You will follow the phases
+MUST: follow these phases in order:
 
 1. Clarify unclear point
-2. Ask user question for make decision
+2. Ask user question to make a decision
 3. Apply decision to plan
-4. Show the summary for user
+4. Show the summary to the user
 
-Should be very in-depth and continue digging me until complete all of unclear point, then you will write the spec to the plan file.
-After phase 3, you revisit to the plan file, and analyze them, you must to rise the unclear point with moving to phase 2.
+- MUST: keep digging in-depth until every unclear point is resolved, then write the spec to the plan file
+- IF: phase 3 is complete; THEN MUST: revisit the plan file, analyze it, and if any unclear point remains, return to phase 2
 
 ### Phase 2: Generate Questions
 
 <rules>
-- Question count: **2-4** (adjust based on ambiguity level)
-- Each question has **2-4 concrete options**
-- Each option includes **pros/cons** briefly
-- Avoid open-ended questions
-- "Other" option is auto-added - don't include it
-- Align options with existing patterns from CLAUDE.md (if available)
+- MUST: ask 2-4 questions (adjust based on ambiguity level)
+- MUST: give each question 2-4 concrete options
+- MUST: include brief pros/cons in each option
+- MUST NOT: ask open-ended questions (use concrete options instead)
+- MUST NOT: include an "Other" option (it is auto-added)
+- IF: CLAUDE.md is available; THEN MUST: align options with its existing patterns
 </rules>
 
 ### Phase 3: Post-Answer Processing
@@ -55,10 +55,10 @@ After receiving user answers, output:
 
 ## Important Notes
 
-- **Must use AskUserQuestion tool** - Not conversational questions
+- MUST: use the AskUserQuestion tool; MUST NOT: ask conversational questions instead
 - **Language selection**:
-  1. Check CLAUDE.md for language preference (e.g., "respond in Japanese")
-  2. Fallback: Use English if no preference found
-- Each option must include **pros/cons**
-- Use multiSelect sparingly (default: false)
-- Read CLAUDE.md before generating questions to align with project patterns
+  1. IF: CLAUDE.md states a language preference (e.g., "respond in Japanese"); THEN MUST: use that language
+  2. IF: no preference is found; THEN MUST: use English
+- MUST: include pros/cons in each option
+- SHOULD NOT: use multiSelect (default: false; use it only when answers are genuinely non-exclusive)
+- IF: generating questions; THEN MUST: read CLAUDE.md first to align with project patterns

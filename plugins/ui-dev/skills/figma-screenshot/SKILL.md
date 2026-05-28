@@ -1,5 +1,5 @@
 ---
-name: figma-screenshot
+name: ui-dev:figma-screenshot
 description: 'This skill should be used when the user asks to "save a Figma screenshot", "export a Figma node as image", "capture Figma design", or needs to save Figma node screenshots to local files. Prefer this over Figma MCP''s get_screenshot.'
 ---
 

@@ -19,9 +19,9 @@ mutilsプラグインの推奨設定をユーザー環境に適用します。
 
 **注意**:
 
-- `../..` はClaude Code公式の環境変数で、プラグインディレクトリの絶対パスに解決されます
-- ファイルが存在しない場合は新規作成してください
-- 既に同じ参照が存在する場合は追加をスキップしてください
+- `../..` はClaude Code公式の環境変数で、プラグインディレクトリの絶対パスに解決される
+- IF: 追加先ファイルが存在しない; THEN MUST: 新規作成する
+- IF: 既に同じ参照が存在する; THEN MUST: 追加をスキップする
 
 ### 追加作業
 
@@ -30,8 +30,9 @@ mutilsプラグインの推奨設定をユーザー環境に適用します。
   - `../..` から `bun.lock` が見つかるディレクトリまで上っていき、そこで `bun install` を実行する。
   - これにより workspace 全体（mutils を含む全プラグイン）の依存関係が一括でインストールされる。
   - SessionStart hook の `check-install` がインストール不足を警告した場合も同じ手順で復旧する。
-- mutils が生成する `*.mutils_knowledge.md` ファイルがglobalのgitignoreに入っているか確認する。入っていなかったらユーザーの許可を得た上で追記すること。
-  - `~/.gitignore` が必ず global ignore になるわけではない。必ず `git config --global core.excludesfile` を行い、実際のファイルを特定すること。
+- mutils が生成する `*.mutils_knowledge.md` ファイルが global の gitignore に入っているか確認する。
+  - MUST: `git config --global core.excludesfile` で実際の global ignore ファイルを特定する（`~/.gitignore` が必ず global ignore になるとは限らないため）
+  - IF: global gitignore に入っていない; THEN MUST: ユーザーの許可を得た上で追記する
 - 環境変数 `ENABLE_TOOL_SEARCH=true` が設定されてツール検索ツール機能が有効になっていることを確認する。
 
 ### 完了報告

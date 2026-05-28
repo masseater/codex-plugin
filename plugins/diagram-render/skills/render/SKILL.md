@@ -1,5 +1,5 @@
 ---
-name: render
+name: diagram-render:render
 description: Markdown + Mermaid を beautiful-mermaid で SVG にレンダリングし、自己完結 HTML として出力する。Use when the user asks to render a Markdown file with mermaid diagrams to HTML, "markdown を HTML に変換", "mermaid を SVG で埋め込んだ HTML を作って", or wants to produce a shareable HTML report with embedded diagrams.
 ---
 

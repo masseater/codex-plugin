@@ -16,8 +16,8 @@ Zenn技術記事の執筆・投稿支援プラグイン。
 
 <!-- BEGIN:component-list (auto-generated, do not edit) -->
 
-| Type  | Name          | Description                                                                                                                                                       |
-| ----- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| skill | write-article | Write and publish Zenn tech articles. Use when the user asks to write a Zenn article, publish a tech blog post, or turn conversation context into a Zenn article. |
+| Type  | Name                       | Description                                                                                                                                                       |
+| ----- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| skill | zenn-article:write-article | Write and publish Zenn tech articles. Use when the user asks to write a Zenn article, publish a tech blog post, or turn conversation context into a Zenn article. |
 
 <!-- END:component-list -->

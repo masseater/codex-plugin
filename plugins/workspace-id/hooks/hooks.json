@@ -1,0 +1,23 @@
+{
+  "description": "workspace-id plugin hooks",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/install-deps.sh"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/entry/workspace-id-persist.ts"
+          }
+        ]
+      }
+    ]
+  }
+}

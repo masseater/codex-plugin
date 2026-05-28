@@ -1,5 +1,5 @@
 ---
-name: draw-diagram
+name: diagram-render:draw-diagram
 description: Markdown + Mermaid でアーキテクチャ図・システム構成図・フローチャート・依存関係図・シーケンス図・ER図などを作成し、`render` スキル経由で HTML 化する。Use when the user asks to "アーキテクチャ図を書いて", "システム構成図", "フローチャート作成", "依存関係を図に", "draw an architecture diagram", "make a flowchart", "diagram", or wants any visual diagram delivered as a viewable HTML.
 ---
 
@@ -18,7 +18,7 @@ description: Markdown + Mermaid でアーキテクチャ図・システム構成
 
 ## 出力先
 
-- Markdown: `.agents/workspaces/[workspace-id]/diagram.md` （`mutils:workspace-id` スキルで workspace を作る）
+- Markdown: `.agents/workspaces/[workspace-id]/diagram.md` （`workspace-id` スキルで workspace を作る）
 - HTML: 同階層に `diagram.html` を生成
 
 ## フロー図とアーキテクチャ図は絶対に混ぜない

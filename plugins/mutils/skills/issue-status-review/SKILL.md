@@ -1,5 +1,5 @@
 ---
-name: issue-status-review
+name: mutils:issue-status-review
 description: "Review whether the current code satisfies a GitHub issue, then update the issue status to match. Use when the user asks to 'review an issue', 'check if an issue is done', 'is this issue resolved', 'update issue status', 'issueの対応状況を確認', 'issueが完了しているかレビュー', or 'issueのステータスを更新'."
 tools:
   - Bash(${CLAUDE_SKILL_DIR}/scripts/fetch-issue.ts *)
@@ -41,7 +41,7 @@ For each criterion, note whether it is a hard requirement or optional, and what 
 
 ### Step 4: Review the Current Code
 
-Investigate the repository to decide, per criterion, whether the current code satisfies it. Do not guess — find evidence:
+Investigate the repository to decide, per criterion, whether the current code satisfies it. MUST NOT: guess — find concrete evidence instead:
 
 - Use `indexion` to map the relevant code and locate where the issue's concern lives
 - Use `serena`, `Grep`, `Glob`, and `Read` to inspect the actual implementation
@@ -73,7 +73,7 @@ Present the review in 日本語:
 
 ### Step 7: Confirm the Status Update
 
-Never modify the issue without explicit approval. Use `AskUserQuestion` to confirm what to apply, proposing defaults based on the verdict:
+MUST NOT: modify the issue without explicit approval. MUST: use `AskUserQuestion` to confirm what to apply, proposing defaults based on the verdict:
 
 | Verdict              | Proposed status update                                                               |
 | -------------------- | ------------------------------------------------------------------------------------ |
@@ -106,11 +106,11 @@ Confirm to the user what was applied — the new state, labels, and the URL of t
 
 ## Rules
 
-- Never modify the issue (comment, labels, state) without explicit user approval in Step 7
-- Every criterion verdict needs concrete evidence; no "probably done"
-- Treat later comments as authoritative over the original body when they conflict
-- Investigate before asking — only ask the user to pick the issue or to approve the update
-- Communicate with the user in 日本語; write the posted issue comment in the issue's own language
+- MUST NOT: modify the issue (comment, labels, state) without explicit user approval in Step 7
+- MUST: back every criterion verdict with concrete evidence; MUST NOT: report "probably done"
+- IF: later comments conflict with the original body; THEN MUST: treat the later comments as authoritative
+- MUST: investigate before asking; MUST NOT: ask the user anything beyond picking the issue or approving the update
+- MUST: communicate with the user in 日本語; write the posted issue comment in the issue's own language
 - Both scripts require a `GITHUB_TOKEN` in the environment (the harness provides it)
 
 ## Bundled Resources

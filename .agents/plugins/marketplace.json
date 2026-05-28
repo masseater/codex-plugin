@@ -101,18 +101,6 @@
       "category": "Productivity"
     },
     {
-      "name": "eslint-lsp",
-      "source": {
-        "source": "local",
-        "path": "./plugins/eslint-lsp"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    },
-    {
       "name": "gh-projects",
       "source": {
         "source": "local",
@@ -257,10 +245,10 @@
       "category": "Productivity"
     },
     {
-      "name": "use-codex",
+      "name": "workspace-id",
       "source": {
         "source": "local",
-        "path": "./plugins/use-codex"
+        "path": "./plugins/workspace-id"
       },
       "policy": {
         "installation": "AVAILABLE",

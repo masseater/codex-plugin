@@ -1,5 +1,5 @@
 ---
-name: verify-context
+name: context:verify-context
 description: Use when someone says "verify context file", "check if AGENTS.md is correct", "validate context accuracy", "audit CLAUDE.md", "check documentation truth", "are the docs accurate", or mentions "context verification" or "documentation audit". Treats all existing content as potentially incorrect, extracts every technical claim, and verifies each against the actual codebase and web sources.
 argument-hint: "[file-path]"
 ---

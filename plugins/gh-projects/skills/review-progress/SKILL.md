@@ -1,5 +1,5 @@
 ---
-name: review-progress
+name: gh-projects:review-progress
 description: EPIC 単位で sub-issue / blocked-by / Project status を棚卸しし、進捗・滞留・次に着手すべき Task をレポートするワークフロー。Use when the user asks to "review progress", "EPIC の進捗を確認", "棚卸し", "what's next", "次に何をやる", "blockers を確認", or wants a status snapshot of an EPIC.
 ---
 

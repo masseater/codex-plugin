@@ -1,5 +1,5 @@
 ---
-name: swarm
+name: swarm:swarm
 description: Interactively design optimal Agent Teams composition for a task.
 argument-hint: "[task description]"
 disable-model-invocation: true

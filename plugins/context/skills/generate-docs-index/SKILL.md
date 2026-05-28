@@ -1,5 +1,5 @@
 ---
-name: generate-docs-index
+name: context:generate-docs-index
 description: Auto-generate docs/index.md from docs/ directory contents. Use when adding, removing, or reorganizing documentation files, or when asked to generate a docs index.
 ---
 
