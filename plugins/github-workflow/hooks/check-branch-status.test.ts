@@ -224,7 +224,7 @@ describe("hook run", () => {
     expect(result.output.systemMessage).toBeUndefined();
   });
 
-  test("auto-pushes when no PR exists and branch is ahead", async () => {
+  test("notifies when no PR exists and branch is ahead without auto-pushing", async () => {
     mockExecFileSync.mockImplementation((..._args) => {
       const args = _args[1] as string[];
       if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
@@ -234,79 +234,42 @@ describe("hook run", () => {
       if (args[0] === "pr") throw new Error("no PR");
       return "";
     });
-    mockSpawnSync.mockImplementation((..._args) => {
-      const args = _args[1] as string[];
-      if (args[0] === "push") return { status: 0, stdout: "", stderr: "" };
-      return { status: 0, stdout: "", stderr: "" };
-    });
     const ctx = createMockContext();
     const run = getHookRun();
     run(ctx);
     expect(ctx.defer).toHaveBeenCalled();
     const result = await ctx.runDeferred();
-    expect(result.output.systemMessage).toContain("Auto-pushed 3 commit(s)");
-  });
-
-  test("auto-pushes when PR exists and branch is ahead", async () => {
-    mockExecFileSync.mockImplementation((..._args) => {
-      const cmd = _args[0];
-      const args = _args[1] as string[];
-      if (cmd === "git") {
-        if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
-        if (args[0] === "symbolic-ref") return "feature/x";
-        if (args[0] === "rev-parse" && args[1] === "--abbrev-ref") return "origin/feature/x";
-        if (args[0] === "rev-list") return "0\t3";
-        if (args[0] === "fetch") return "";
-        if (args[0] === "merge-base") return "abc123";
-        if (args[0] === "merge-tree") return "clean merge output";
-      }
-      if (cmd === "gh") return "main";
-      return "";
-    });
-    mockSpawnSync.mockImplementation((..._args) => {
-      const args = _args[1] as string[];
-      if (args[0] === "push") return { status: 0, stdout: "", stderr: "" };
-      return { status: 0, stdout: "", stderr: "" };
-    });
-    const ctx = createMockContext();
-    const run = getHookRun();
-    run(ctx);
-    expect(ctx.defer).toHaveBeenCalled();
-    const result = await ctx.runDeferred();
-    expect(result.output.systemMessage).toContain("Auto-pushed 3 commit(s)");
-  });
-
-  test("reports push failure via systemMessage when auto-push fails", async () => {
-    mockExecFileSync.mockImplementation((..._args) => {
-      const cmd = _args[0];
-      const args = _args[1] as string[];
-      if (cmd === "git") {
-        if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
-        if (args[0] === "symbolic-ref") return "feature/x";
-        if (args[0] === "rev-parse" && args[1] === "--abbrev-ref") return "origin/feature/x";
-        if (args[0] === "rev-list") return "0\t3";
-        if (args[0] === "fetch") return "";
-        if (args[0] === "merge-base") return "abc123";
-        if (args[0] === "merge-tree") return "clean merge output";
-      }
-      if (cmd === "gh") return "main";
-      return "";
-    });
-    mockSpawnSync.mockImplementation((..._args) => {
-      const args = _args[1] as string[];
-      if (args[0] === "push") {
-        return { status: 1, stdout: "", stderr: "remote rejected" };
-      }
-      return { status: 0, stdout: "", stderr: "" };
-    });
-    const ctx = createMockContext();
-    const run = getHookRun();
-    run(ctx);
-    expect(ctx.defer).toHaveBeenCalled();
-    const result = await ctx.runDeferred();
-    expect(result.output.systemMessage).toContain("Auto-push failed");
     expect(result.output.systemMessage).toContain("3 commit(s) ahead");
-    expect(result.output.systemMessage).toContain("remote rejected");
+    expect(result.output.systemMessage).toContain("Consider pushing");
+  });
+
+  test("notifies when branch is ahead without auto-pushing", async () => {
+    mockExecFileSync.mockImplementation((..._args) => {
+      const cmd = _args[0];
+      const args = _args[1] as string[];
+      if (cmd === "git") {
+        if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
+        if (args[0] === "symbolic-ref") return "feature/x";
+        if (args[0] === "rev-parse" && args[1] === "--abbrev-ref") return "origin/feature/x";
+        if (args[0] === "rev-list") return "0\t3";
+        if (args[0] === "fetch") return "";
+        if (args[0] === "merge-base") return "abc123";
+        if (args[0] === "merge-tree") return "clean merge output";
+      }
+      if (cmd === "gh") return "main";
+      return "";
+    });
+    const ctx = createMockContext();
+    const run = getHookRun();
+    run(ctx);
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toContain("3 commit(s) ahead");
+    expect(result.output.systemMessage).toContain("Consider pushing");
+    expect(mockSpawnSync).not.toHaveBeenCalledWith(
+      expect.arrayContaining(["push"]),
+      expect.anything(),
+    );
   });
 
   test("auto-pulls when behind and notifies via systemMessage", async () => {
