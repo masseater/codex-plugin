@@ -5,7 +5,6 @@ import {
   checkConflictsWithBase,
   formatConflictResolutionMessage,
   formatPullFailureMessage,
-  formatPushFailureMessage,
   getCurrentBranch,
   getPrBaseBranch,
   getRemoteTrackingBranch,
@@ -13,7 +12,6 @@ import {
   isGitRepo,
   parseMergeTreeOutput,
   parseRevListCount,
-  tryAutoPush,
   tryFastForwardPull,
 } from "../lib/pr-conflicts.ts";
 
@@ -70,16 +68,9 @@ const hook = defineHook({
             }
           }
           if (status.ahead > 0) {
-            const push = tryAutoPush();
-            if (push.ok) {
-              const message = `[git] Auto-pushed ${status.ahead} commit(s) from "${branch}" to ${upstream}.`;
-              messages.push(message);
-              logger.info(message);
-            } else {
-              const message = formatPushFailureMessage(branch, upstream, status.ahead, push.reason);
-              messages.push(message);
-              logger.warn(`Auto-push failed: ${push.reason}`);
-            }
+            messages.push(
+              `[git] Branch "${branch}" is ${status.ahead} commit(s) ahead of ${upstream}. Consider pushing.`,
+            );
           }
           if (status.ahead === 0 && status.behind === 0) {
             logger.debug(`Branch "${branch}" is up to date with ${upstream}`);

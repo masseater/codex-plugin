@@ -3,7 +3,11 @@ import { Octokit } from "@octokit/rest";
 import type { Endpoints } from "@octokit/types";
 import { HookLogger, wrapRun } from "@r_masseater/cc-plugin-lib";
 import { defineHook, runHook } from "cc-hooks-ts";
-import { getPrConflictStatus, isGitPushCommand } from "../lib/pr-conflicts.ts";
+import {
+  type PrConflictStatus,
+  getPrConflictStatus,
+  isGitPushCommand,
+} from "../lib/pr-conflicts.ts";
 
 using logger = HookLogger.fromFile(import.meta.filename);
 
@@ -41,10 +45,10 @@ const hook = defineHook({
 
     return context.defer(
       async () => {
-        const conflictStatus = getPrConflictStatus(currentBranch);
-        if (conflictStatus?.hasConflicts) {
+        const preConflictStatus = getPrConflictStatus(currentBranch);
+        if (preConflictStatus?.hasConflicts) {
           logger.info(
-            `CI watch skipped: PR for ${currentBranch} has conflicts with ${conflictStatus.baseBranch}`,
+            `CI watch skipped: PR for ${currentBranch} has conflicts with ${preConflictStatus.baseBranch}`,
           );
           return {
             event: "PostToolUse" as const,
@@ -53,8 +57,8 @@ const hook = defineHook({
                 hookEventName: "PostToolUse" as const,
                 additionalContext: formatConflictSkipMessage(
                   currentBranch,
-                  conflictStatus.baseBranch,
-                  conflictStatus.conflictFiles,
+                  preConflictStatus.baseBranch,
+                  preConflictStatus.conflictFiles,
                 ),
               },
             },
@@ -62,7 +66,8 @@ const hook = defineHook({
         }
 
         const result = await watchCI(currentBranch);
-        const additionalContext = formatCIResult(currentBranch, result);
+        const conflictStatus = getPrConflictStatus(currentBranch);
+        const additionalContext = formatCIResult(currentBranch, result, conflictStatus);
 
         logger.info(`CI watch complete: ${result.run?.conclusion ?? "unknown"}`);
 
@@ -209,7 +214,11 @@ export async function watchCI(branch: string): Promise<CIWatchResult> {
   return { run, jobs };
 }
 
-export function formatCIResult(branch: string, result: CIWatchResult): string {
+export function formatCIResult(
+  branch: string,
+  result: CIWatchResult,
+  conflictStatus?: PrConflictStatus,
+): string {
   if (!result.run) {
     return `[CI Watch] No workflow runs found for branch \`${branch}\`.`;
   }
@@ -243,6 +252,23 @@ export function formatCIResult(branch: string, result: CIWatchResult): string {
     lines.push(
       `Failed jobs: ${failedJobNames.join(", ")}. Run \`gh run view ${result.run.id} --log-failed\` to see failure logs.`,
     );
+  }
+
+  if (conflictStatus) {
+    lines.push("");
+    if (conflictStatus.hasConflicts) {
+      lines.push(
+        `[CI Watch] PR merge status: CONFLICTING with base \`${conflictStatus.baseBranch}\``,
+      );
+      if (conflictStatus.conflictFiles.length > 0) {
+        lines.push(`[CI Watch] Conflicted files: ${conflictStatus.conflictFiles.join(", ")}`);
+      }
+      lines.push(
+        `[CI Watch] Resolve: git fetch origin ${conflictStatus.baseBranch} && git merge origin/${conflictStatus.baseBranch}`,
+      );
+    } else {
+      lines.push(`[CI Watch] PR merge status: clean (base \`${conflictStatus.baseBranch}\`)`);
+    }
   }
 
   return lines.join("\n");

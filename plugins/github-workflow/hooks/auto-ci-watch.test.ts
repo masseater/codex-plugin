@@ -196,6 +196,64 @@ describe("formatCIResult", () => {
     ].join("\n");
     expect(formatCIResult(BRANCH, result)).toBe(expected);
   });
+
+  test("appends clean merge status when no conflicts", () => {
+    const result: CIWatchResult = { run: makeRun(400, "success"), jobs: [] };
+    const expected = [
+      "[CI Watch] Branch `feature/test-branch` — CI PASSED (run 400)",
+      "",
+      "[CI Watch] PR merge status: clean (base `main`)",
+    ].join("\n");
+    expect(
+      formatCIResult(BRANCH, result, {
+        baseBranch: "main",
+        hasConflicts: false,
+        conflictFiles: [],
+      }),
+    ).toBe(expected);
+  });
+
+  test("appends conflict details when PR has conflicts", () => {
+    const result: CIWatchResult = { run: makeRun(401, "success"), jobs: [] };
+    const expected = [
+      "[CI Watch] Branch `feature/test-branch` — CI PASSED (run 401)",
+      "",
+      "[CI Watch] PR merge status: CONFLICTING with base `main`",
+      "[CI Watch] Conflicted files: src/a.ts, src/b.ts",
+      "[CI Watch] Resolve: git fetch origin main && git merge origin/main",
+    ].join("\n");
+    expect(
+      formatCIResult(BRANCH, result, {
+        baseBranch: "main",
+        hasConflicts: true,
+        conflictFiles: ["src/a.ts", "src/b.ts"],
+      }),
+    ).toBe(expected);
+  });
+
+  test("appends conflict without file list when files are unknown", () => {
+    const result: CIWatchResult = { run: makeRun(402, "failure"), jobs: [] };
+    const expected = [
+      "[CI Watch] Branch `feature/test-branch` — CI FAILED (run 402)",
+      "",
+      "[CI Watch] PR merge status: CONFLICTING with base `develop`",
+      "[CI Watch] Resolve: git fetch origin develop && git merge origin/develop",
+    ].join("\n");
+    expect(
+      formatCIResult(BRANCH, result, {
+        baseBranch: "develop",
+        hasConflicts: true,
+        conflictFiles: [],
+      }),
+    ).toBe(expected);
+  });
+
+  test("omits merge status when conflictStatus is undefined", () => {
+    const result: CIWatchResult = { run: makeRun(403, "success"), jobs: [] };
+    expect(formatCIResult(BRANCH, result, undefined)).toBe(
+      "[CI Watch] Branch `feature/test-branch` — CI PASSED (run 403)",
+    );
+  });
 });
 
 describe("formatConflictSkipMessage", () => {

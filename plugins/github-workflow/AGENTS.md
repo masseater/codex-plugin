@@ -6,6 +6,8 @@ Git/GitHub workflow support — branch status notification and CI watch hooks.
 
 Stop 時にブランチ状態とコンフリクトを通知し、git push 後に非同期で CI を監視するプラグイン。
 
+Version 更新は master への plugin 変更 merge 後に Auto Version Bump workflow が担当する。
+
 ## Development Commands
 
 ```bash
@@ -23,9 +25,8 @@ bun run typecheck    # type check
 | Type  | Name                         | Description                                                                                                                                                                                                                                                                                                                |
 | ----- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | skill | github-workflow:create-issue | Create a GitHub issue in the current repository with a drafted title, body, and labels, confirming with the user before submission. Use when the user says "issueを作成", "GitHub issueを立てる", "create issue", "新しいissue", "バグ報告issue", or wants to file a new issue from conversation or investigation context. |
-| agent | ci-watcher                   | Monitor CI for pushed branches in the background. Check PR checks if PR exists, otherwise watch workflow runs.                                                                                                                                                                                                             |
+| agent | ci-watcher                   | Monitor CI and PR merge conflict status for pushed branches in the background.                                                                                                                                                                                                                                             |
 | hook  | auto-ci-watch                | PostToolUse (`Bash`)                                                                                                                                                                                                                                                                                                       |
-| hook  | auto-create-pr               | PostToolUse (`Bash`)                                                                                                                                                                                                                                                                                                       |
 | hook  | check-branch-status          | Stop                                                                                                                                                                                                                                                                                                                       |
 | hook  | check-push-pr-conflicts      | PostToolUse (`Bash`)                                                                                                                                                                                                                                                                                                       |
 | hook  | suggest-actions-update       | PostToolUse (`Write\|Edit`)                                                                                                                                                                                                                                                                                                |

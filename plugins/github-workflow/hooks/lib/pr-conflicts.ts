@@ -134,34 +134,6 @@ export function tryFastForwardPull(behind: number): PullResult {
   return { ok: false, reason: stderr || stdout || "git pull --ff-only failed" };
 }
 
-export function tryAutoPush(): PullResult {
-  const result = spawnSync("git", ["push"], {
-    encoding: "utf-8",
-    timeout: 60_000,
-  });
-
-  if (result.status === 0) {
-    return { ok: true, pulled: 0 };
-  }
-
-  const stderr = (result.stderr ?? "").trim();
-  const stdout = (result.stdout ?? "").trim();
-  return { ok: false, reason: stderr || stdout || "git push failed" };
-}
-
-export function formatPushFailureMessage(
-  branch: string,
-  upstream: string,
-  ahead: number,
-  reason: string,
-): string {
-  return [
-    `[git] Auto-push failed: branch "${branch}" is ${ahead} commit(s) ahead of ${upstream}.`,
-    `[git] Reason: ${reason}`,
-    `[git] Resolve it.`,
-  ].join("\n");
-}
-
 export function formatPullFailureMessage(
   branch: string,
   upstream: string,

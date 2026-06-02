@@ -12,10 +12,6 @@
           {
             "type": "command",
             "command": "./hooks/entry/auto-ci-watch.ts"
-          },
-          {
-            "type": "command",
-            "command": "./hooks/entry/auto-create-pr.ts"
           }
         ]
       },
