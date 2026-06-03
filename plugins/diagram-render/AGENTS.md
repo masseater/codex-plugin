@@ -1,5 +1,6 @@
 # diagram-render Plugin Development Guide
 
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 Markdown + Mermaid を [beautiful-mermaid](https://github.com/lukilabs/beautiful-mermaid) で SVG に変換し、CSS 埋め込みの自己完結 HTML を出力するプラグイン。
 
 ## Overview

@@ -1,5 +1,6 @@
 # plan
 
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 Plan file structure template and content rules
 
 ## Components

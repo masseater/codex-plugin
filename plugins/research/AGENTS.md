@@ -1,5 +1,6 @@
 # research プラグイン開発ガイド
 
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 調査・分析ツールを提供する Claude Code プラグイン。
 
 ## 開発コマンド

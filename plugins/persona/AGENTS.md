@@ -1,5 +1,6 @@
 # persona
 
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 planner / worker カスタムペルソナを切り替えるプラグイン。
 
 Claude の built-in モード（plan / acceptEdits 等）は権限制御のためのものでClaude本体の「振る舞い」は変えない。

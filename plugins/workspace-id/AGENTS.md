@@ -1,5 +1,6 @@
 # workspace-id プラグイン開発ガイド
 
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 エージェント作業ディレクトリの命名規約（workspace-id）を定義し、Auto Compact / resume 時に直近の workspace-id を復元するプラグイン。
 
 ## 開発コマンド

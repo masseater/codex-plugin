@@ -1,5 +1,6 @@
 # discord-notify
 
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 Discord通知 — idle時にセッションの最新メッセージをDiscordスレッドに投稿。
 
 ## 環境変数

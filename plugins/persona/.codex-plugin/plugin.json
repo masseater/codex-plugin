@@ -1,6 +1,6 @@
 {
   "name": "persona",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "planner / worker カスタムペルソナの切替プラグイン。UserPromptSubmit で最小プロンプトを注入し、詳細指針は skill で参照",
   "author": {
     "name": "masseater",

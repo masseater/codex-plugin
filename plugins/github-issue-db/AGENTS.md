@@ -1,5 +1,6 @@
 # github-issue-db Plugin Development Guide
 
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 GitHub issue をローカル SQLite にクローンし、オフラインで重複検知・類似検索・状態同期を行うプラグイン。
 
 ## Overview
