@@ -1,5 +1,6 @@
 # progress-tracker
 
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 過去セッションの進捗ファイル参照スキル
 
 ## Components

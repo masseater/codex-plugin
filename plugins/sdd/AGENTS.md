@@ -1,5 +1,6 @@
 # sdd プラグイン開発ガイド
 
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 SDD（Spec-Driven Development）ワークフロー支援プラグイン。仕様書に基づいた段階的な実装を支援する。
 
 ## ディレクトリ構造

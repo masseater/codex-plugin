@@ -1,5 +1,6 @@
 # ops-harbor
 
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 Ops Harbor integration for cached work item visibility and MCP-first workflows.
 
 ## Components

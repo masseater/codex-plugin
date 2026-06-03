@@ -1,5 +1,6 @@
 # context プラグイン開発ガイド
 
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 プロジェクトコンテキスト（CLAUDE.md, AGENTS.md, .claude/rules/）の管理・整理を支援するプラグイン。
 
 ## 概要

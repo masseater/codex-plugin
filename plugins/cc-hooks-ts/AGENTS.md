@@ -1,5 +1,6 @@
 # cc-hooks-ts
 
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 TypeScript で型安全な Claude Code Hooks を作成するためのガイドとエージェントを提供するプラグイン。
 
 ## Components

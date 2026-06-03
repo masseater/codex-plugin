@@ -1,5 +1,6 @@
 # zenn-article Plugin Development Guide
 
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 Zenn技術記事の執筆・投稿支援プラグイン。
 
 ## Overview

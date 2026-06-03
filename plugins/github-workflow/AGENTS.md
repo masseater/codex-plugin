@@ -1,5 +1,6 @@
 # github-workflow Plugin Development Guide
 
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 Git/GitHub workflow support — branch status notification and CI watch hooks.
 
 ## Overview
