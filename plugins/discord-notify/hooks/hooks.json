@@ -14,7 +14,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/create-thread.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/create-thread.ts"
           }
         ]
       }
@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/send-discord.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/send-discord.ts"
           }
         ]
       }

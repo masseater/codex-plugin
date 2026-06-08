@@ -7,11 +7,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/block-archived-edit.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/block-archived-edit.ts"
           },
           {
             "type": "command",
-            "command": "./hooks/entry/require-phase-status.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/require-phase-status.ts"
           }
         ]
       }

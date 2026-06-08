@@ -14,7 +14,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/session-start.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/session-start.ts"
           }
         ]
       }

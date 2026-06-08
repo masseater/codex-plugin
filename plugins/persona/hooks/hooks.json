@@ -14,7 +14,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/announce-persona.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/announce-persona.ts"
           }
         ]
       }
@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/inject-persona.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/inject-persona.ts"
           }
         ]
       }
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/on-exit-plan.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/on-exit-plan.ts"
           }
         ]
       }
@@ -45,7 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/cleanup-persona.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/cleanup-persona.ts"
           }
         ]
       }

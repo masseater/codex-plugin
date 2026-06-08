@@ -7,11 +7,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/check-push-pr-conflicts.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/check-push-pr-conflicts.ts"
           },
           {
             "type": "command",
-            "command": "./hooks/entry/auto-ci-watch.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/auto-ci-watch.ts"
           }
         ]
       },
@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/suggest-actions-update.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/suggest-actions-update.ts"
           }
         ]
       }
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/check-branch-status.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/check-branch-status.ts"
           }
         ]
       }

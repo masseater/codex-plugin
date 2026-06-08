@@ -14,7 +14,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/workspace-id-persist.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/workspace-id-persist.ts"
           }
         ]
       }

@@ -14,11 +14,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/check-install.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/check-install.ts"
           },
           {
             "type": "command",
-            "command": "./hooks/entry/check-context-version.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/check-context-version.ts"
           }
         ]
       }
@@ -29,11 +29,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/block-unsafe-type-assertion.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/block-unsafe-type-assertion.ts"
           },
           {
             "type": "command",
-            "command": "./hooks/entry/block-cross-worktree-edit.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/block-cross-worktree-edit.ts"
           }
         ]
       },
@@ -42,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/block-husky-bypass.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/block-husky-bypass.ts"
           }
         ]
       }
@@ -53,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/task-history.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/task-history.ts"
           }
         ]
       }
@@ -63,7 +63,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/send-notification.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/send-notification.ts"
           }
         ]
       }

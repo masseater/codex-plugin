@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/redirect-claude-md-edit.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/redirect-claude-md-edit.ts"
           }
         ]
       }

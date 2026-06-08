@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/block-deny-command.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/block-deny-command.ts"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/standards-audit.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/standards-audit.ts"
           }
         ]
       }

@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import re
+import stat
 import shutil
 import subprocess
 import sys
@@ -47,6 +48,75 @@ COPY_IGNORE_FILES = {
     "plugin.json",
     "CLAUDE.md",
 }
+CODEX_HOOK_RUNNER = "./hooks/codex-hook-runner.sh"
+CODEX_HOOK_RUNNER_CONTENT = """#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$#" -lt 1 ]; then
+  echo "usage: codex-hook-runner.sh <hook.ts> [args...]" >&2
+  exit 64
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+HOOK_PATH="$1"
+shift
+STDIN_FILE="$(mktemp "${TMPDIR:-/tmp}/codex-hook-stdin.XXXXXX")"
+trap 'rm -f "$STDIN_FILE"' EXIT
+cat > "$STDIN_FILE"
+
+case "$HOOK_PATH" in
+  /*) ;;
+  *) HOOK_PATH="$PLUGIN_ROOT/${HOOK_PATH#./}" ;;
+esac
+
+export CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}"
+export PATH="$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+if command -v bun >/dev/null 2>&1; then
+  BUN_BIN="$(command -v bun)"
+else
+  echo "error: bun is required to run Codex plugin hooks but was not found in PATH" >&2
+  exit 127
+fi
+
+cd "$PLUGIN_ROOT"
+
+if [ -f package.json ] && [ ! -f node_modules/.codex-installed ]; then
+  PACKAGE_JSON_BACKUP="$(mktemp "${TMPDIR:-/tmp}/codex-hook-package.XXXXXX")"
+  cp package.json "$PACKAGE_JSON_BACKUP"
+  BUN_LOCK_BACKUP=""
+  BUN_LOCK_EXISTED=0
+  if [ -f bun.lock ]; then
+    BUN_LOCK_BACKUP="$(mktemp "${TMPDIR:-/tmp}/codex-hook-bun-lock.XXXXXX")"
+    cp bun.lock "$BUN_LOCK_BACKUP"
+    BUN_LOCK_EXISTED=1
+  fi
+
+  "$BUN_BIN" -e 'const fs = require("fs"); const p = JSON.parse(fs.readFileSync("package.json", "utf8")); delete p.devDependencies; fs.writeFileSync("package.json", JSON.stringify(p, null, 2) + "\\n");'
+  rm -f bun.lock
+  if "$BUN_BIN" install --production >/dev/null 2>&1; then
+    INSTALL_STATUS=0
+  else
+    INSTALL_STATUS=$?
+  fi
+  cp "$PACKAGE_JSON_BACKUP" package.json
+  if [ "$BUN_LOCK_EXISTED" -eq 1 ]; then
+    cp "$BUN_LOCK_BACKUP" bun.lock
+  else
+    rm -f bun.lock
+  fi
+  rm -f "$PACKAGE_JSON_BACKUP" "$BUN_LOCK_BACKUP"
+  if [ "$INSTALL_STATUS" -ne 0 ]; then
+    echo "error: failed to install Codex plugin hook dependencies" >&2
+    exit "$INSTALL_STATUS"
+  fi
+  mkdir -p node_modules
+  touch node_modules/.codex-installed
+fi
+
+cat "$STDIN_FILE" | "$BUN_BIN" "$HOOK_PATH" "$@"
+"""
 
 
 @dataclass(frozen=True)
@@ -174,6 +244,44 @@ def replace_plugin_root_refs_for_hooks_json(text: str) -> str:
     return text.replace("${CLAUDE_PLUGIN_ROOT}", ".")
 
 
+def wrap_codex_hook_command(command: str) -> str:
+    stripped = command.strip()
+    if stripped.startswith(f"{CODEX_HOOK_RUNNER} "):
+        return command
+    if re.match(r"^\S+\.ts(?:\s|$)", stripped):
+        return f"{CODEX_HOOK_RUNNER} {stripped}"
+    return command
+
+
+def rewrite_hooks_json_commands(text: str) -> str:
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return text
+
+    changed = False
+
+    def visit(value: Any) -> None:
+        nonlocal changed
+        if isinstance(value, dict):
+            command = value.get("command")
+            if isinstance(command, str):
+                wrapped = wrap_codex_hook_command(command)
+                if wrapped != command:
+                    value["command"] = wrapped
+                    changed = True
+            for child in value.values():
+                visit(child)
+        elif isinstance(value, list):
+            for child in value:
+                visit(child)
+
+    visit(payload)
+    if not changed:
+        return text
+    return f"{json.dumps(payload, ensure_ascii=False, indent=2)}\n"
+
+
 def rewrite_file_contents(file_path: Path, plugin_root: Path) -> None:
     if file_path.suffix not in TEXT_EXTENSIONS and file_path.name != "hooks.json":
         return
@@ -188,6 +296,7 @@ def rewrite_file_contents(file_path: Path, plugin_root: Path) -> None:
 
     if file_path.name == "hooks.json":
         updated = replace_plugin_root_refs_for_hooks_json(updated)
+        updated = rewrite_hooks_json_commands(updated)
     else:
         updated = replace_plugin_root_refs_for_text(updated, file_path, plugin_root)
 
@@ -206,6 +315,17 @@ def rewrite_plugin_files(plugin_root: Path) -> None:
         if path.is_dir():
             continue
         rewrite_file_contents(path, plugin_root)
+    write_codex_hook_runner_if_needed(plugin_root)
+
+
+def write_codex_hook_runner_if_needed(plugin_root: Path) -> None:
+    hooks_json = plugin_root / "hooks" / "hooks.json"
+    if not hooks_json.is_file() or CODEX_HOOK_RUNNER not in hooks_json.read_text():
+        return
+
+    runner = plugin_root / "hooks" / "codex-hook-runner.sh"
+    runner.write_text(CODEX_HOOK_RUNNER_CONTENT)
+    runner.chmod(runner.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
 def build_manifest(plugin: UpstreamPlugin, plugin_root: Path) -> dict[str, Any]:

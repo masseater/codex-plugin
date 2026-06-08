@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/entry/lint-config-file.ts"
+            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/lint-config-file.ts"
           }
         ]
       }
