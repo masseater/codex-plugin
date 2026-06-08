@@ -116,6 +116,8 @@ if [ -f package.json ] && [ ! -f node_modules/.codex-installed ]; then
   touch node_modules/.codex-installed
 fi
 
+"$BUN_BIN" -e 'const fs = require("fs"); const file = process.argv[1]; try { const input = fs.readFileSync(file, "utf8"); const payload = JSON.parse(input || "{}"); if (payload && payload.hook_event_name === "PostToolUse" && payload.tool_response === undefined) { payload.tool_response = {}; fs.writeFileSync(file, JSON.stringify(payload)); } } catch {}' "$STDIN_FILE"
+
 cat "$STDIN_FILE" | "$BUN_BIN" "$HOOK_PATH" "$@"
 """
 
