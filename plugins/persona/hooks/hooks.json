@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/install-deps.sh"
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/persona/0.0.3; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for persona@0.0.3: $rel_target\" >&2; exit 127' sh hooks/install-deps.sh"
           }
         ]
       },
@@ -14,7 +14,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/announce-persona.ts"
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/persona/0.0.3; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for persona@0.0.3: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/announce-persona.ts"
           }
         ]
       }
@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/inject-persona.ts"
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/persona/0.0.3; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for persona@0.0.3: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/inject-persona.ts"
           }
         ]
       }
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/on-exit-plan.ts"
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/persona/0.0.3; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for persona@0.0.3: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/on-exit-plan.ts"
           }
         ]
       }
@@ -45,7 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/cleanup-persona.ts"
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/persona/0.0.3; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for persona@0.0.3: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/cleanup-persona.ts"
           }
         ]
       }

@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import stat
 import shutil
 import subprocess
@@ -48,7 +49,7 @@ COPY_IGNORE_FILES = {
     "plugin.json",
     "CLAUDE.md",
 }
-CODEX_HOOK_RUNNER = "./hooks/codex-hook-runner.sh"
+CODEX_HOOK_RUNNER = "hooks/codex-hook-runner.sh"
 CODEX_HOOK_RUNNER_CONTENT = """#!/usr/bin/env bash
 set -euo pipefail
 
@@ -244,16 +245,53 @@ def replace_plugin_root_refs_for_hooks_json(text: str) -> str:
     return text.replace("${CLAUDE_PLUGIN_ROOT}", ".")
 
 
-def wrap_codex_hook_command(command: str) -> str:
+def codex_hook_dispatch_command(plugin: UpstreamPlugin, target_args: list[str]) -> str:
+    target_args = [arg.removeprefix("./") for arg in target_args]
+    script = (
+        "set -eu; "
+        'rel_target="$1"; shift; '
+        'cache_root="${CODEX_HOME:-$HOME/.config/codex}/plugins/cache"; '
+        'export PATH="$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"; '
+        f"for plugin_root in \"$cache_root\"/*/{shlex.quote(plugin.name)}/{shlex.quote(plugin.version)}; do "
+        '[ -d "$plugin_root" ] || continue; '
+        'target="$plugin_root/$rel_target"; '
+        'if [ -f "$target" ]; then '
+        'export CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$plugin_root}"; '
+        'cd "$(dirname "$target")"; '
+        'exec "$target" "$@"; '
+        "fi; "
+        'echo "error: Codex plugin hook target not found: $target" >&2; '
+        "exit 127; "
+        "done; "
+        f'echo "error: Codex plugin cache not found for {plugin.name}@{plugin.version}: $rel_target" >&2; '
+        "exit 127"
+    )
+    return " ".join(["sh", "-c", shlex.quote(script), "sh", *(shlex.quote(arg) for arg in target_args)])
+
+
+def wrap_codex_hook_command(command: str, plugin: UpstreamPlugin) -> str:
     stripped = command.strip()
-    if stripped.startswith(f"{CODEX_HOOK_RUNNER} "):
+    if "Codex plugin cache not found" in stripped:
         return command
-    if re.match(r"^\S+\.ts(?:\s|$)", stripped):
-        return f"{CODEX_HOOK_RUNNER} {stripped}"
+
+    try:
+        parts = shlex.split(stripped)
+    except ValueError:
+        return command
+    if not parts:
+        return command
+
+    executable = parts[0].removeprefix("./")
+    if executable == CODEX_HOOK_RUNNER:
+        return codex_hook_dispatch_command(plugin, [CODEX_HOOK_RUNNER, *parts[1:]])
+    if executable.endswith(".ts"):
+        return codex_hook_dispatch_command(plugin, [CODEX_HOOK_RUNNER, executable, *parts[1:]])
+    if executable.startswith("hooks/"):
+        return codex_hook_dispatch_command(plugin, [executable, *parts[1:]])
     return command
 
 
-def rewrite_hooks_json_commands(text: str) -> str:
+def rewrite_hooks_json_commands(text: str, plugin: UpstreamPlugin) -> str:
     try:
         payload = json.loads(text)
     except json.JSONDecodeError:
@@ -266,7 +304,7 @@ def rewrite_hooks_json_commands(text: str) -> str:
         if isinstance(value, dict):
             command = value.get("command")
             if isinstance(command, str):
-                wrapped = wrap_codex_hook_command(command)
+                wrapped = wrap_codex_hook_command(command, plugin)
                 if wrapped != command:
                     value["command"] = wrapped
                     changed = True
@@ -282,7 +320,7 @@ def rewrite_hooks_json_commands(text: str) -> str:
     return f"{json.dumps(payload, ensure_ascii=False, indent=2)}\n"
 
 
-def rewrite_file_contents(file_path: Path, plugin_root: Path) -> None:
+def rewrite_file_contents(file_path: Path, plugin_root: Path, plugin: UpstreamPlugin) -> None:
     if file_path.suffix not in TEXT_EXTENSIONS and file_path.name != "hooks.json":
         return
 
@@ -296,7 +334,7 @@ def rewrite_file_contents(file_path: Path, plugin_root: Path) -> None:
 
     if file_path.name == "hooks.json":
         updated = replace_plugin_root_refs_for_hooks_json(updated)
-        updated = rewrite_hooks_json_commands(updated)
+        updated = rewrite_hooks_json_commands(updated, plugin)
     else:
         updated = replace_plugin_root_refs_for_text(updated, file_path, plugin_root)
 
@@ -310,17 +348,17 @@ def rewrite_file_contents(file_path: Path, plugin_root: Path) -> None:
         file_path.write_text(updated)
 
 
-def rewrite_plugin_files(plugin_root: Path) -> None:
+def rewrite_plugin_files(plugin_root: Path, plugin: UpstreamPlugin) -> None:
     for path in plugin_root.rglob("*"):
         if path.is_dir():
             continue
-        rewrite_file_contents(path, plugin_root)
+        rewrite_file_contents(path, plugin_root, plugin)
     write_codex_hook_runner_if_needed(plugin_root)
 
 
 def write_codex_hook_runner_if_needed(plugin_root: Path) -> None:
     hooks_json = plugin_root / "hooks" / "hooks.json"
-    if not hooks_json.is_file() or CODEX_HOOK_RUNNER not in hooks_json.read_text():
+    if not hooks_json.is_file() or "codex-hook-runner.sh" not in hooks_json.read_text():
         return
 
     runner = plugin_root / "hooks" / "codex-hook-runner.sh"
@@ -410,7 +448,7 @@ def sync_plugins(
         src_root = upstream_root / plugin.source.removeprefix("./")
         dst_root = repo_root / "plugins" / plugin.name
         copy_plugin_tree(src_root, dst_root)
-        rewrite_plugin_files(dst_root)
+        rewrite_plugin_files(dst_root, plugin)
         write_json(dst_root / ".codex-plugin" / "plugin.json", build_manifest(plugin, dst_root))
 
     write_json(repo_root / ".agents" / "plugins" / "marketplace.json", render_marketplace(plugins))

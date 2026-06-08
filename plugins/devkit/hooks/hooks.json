@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/block-deny-command.ts"
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/devkit/0.3.16; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for devkit@0.3.16: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/block-deny-command.ts"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/codex-hook-runner.sh ./hooks/entry/standards-audit.ts"
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/devkit/0.3.16; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for devkit@0.3.16: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/standards-audit.ts"
           }
         ]
       }
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./hooks/install-deps.sh"
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/devkit/0.3.16; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for devkit@0.3.16: $rel_target\" >&2; exit 127' sh hooks/install-deps.sh"
           }
         ]
       }
