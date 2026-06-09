@@ -1,6 +1,6 @@
 ---
 name: ops-harbor:use-ops-harbor
-description: Use Ops Harbor's read-only MCP tools to inspect cached work items, alerts, and activity before taking action.
+description: 'This skill should be used when the user asks about "Ops Harbor", "work items", "alerts", "cached activity", or wants to inspect Ops Harbor read-only MCP data before taking action.'
 ---
 
 # Use Ops Harbor

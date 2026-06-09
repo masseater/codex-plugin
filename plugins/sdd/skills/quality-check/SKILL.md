@@ -1,6 +1,6 @@
 ---
 name: sdd:quality-check
-description: 仕様書の品質チェック（矛盾検出・ステアリング準拠確認）
+description: 'This skill should be used when the user asks to "quality check a spec", "仕様書の品質チェック", "矛盾検出", "ステアリング準拠確認", or wants SDD documents checked for contradictions and steering compliance.'
 argument-hint: <spec>
 allowed-tools: Task, Read, Glob
 ---

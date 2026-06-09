@@ -1,5 +1,6 @@
 ---
 name: sdd:workflow
+disable-model-invocation: true
 description: SDDワークフロー全体のガイド。SDD コマンドを実行する時に、全てのコマンドで読み込む必要がある。
 hooks:
   Stop:

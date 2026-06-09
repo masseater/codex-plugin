@@ -1,6 +1,6 @@
 ---
 name: mutils:issue-plan
-description: GitHub IssueのURLまたは番号から内容を取得し、実装計画を立案します
+description: 'This skill should be used when the user asks to "make a plan from this issue", "issueから実装計画", "GitHub Issueを計画化", "plan issue #123", or provides a GitHub Issue URL/number and wants an implementation plan.'
 ---
 
 # GitHub IssueのURLまたは番号から内容を取得し、実装計画を立案します

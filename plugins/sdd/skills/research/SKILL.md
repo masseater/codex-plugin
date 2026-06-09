@@ -1,6 +1,6 @@
 ---
 name: sdd:research
-description: SDD調査・明確化。conduct（技術調査の実施）、clarify（不明箇所のユーザー質問）
+description: 'This skill should be used when the user asks to "conduct SDD research", "調査を実施", "不明点を明確化", "research clarify", or wants technical investigation or clarification for an SDD spec.'
 argument-hint: <conduct|clarify> [spec-name] [args]
 ---
 

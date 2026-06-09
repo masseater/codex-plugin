@@ -1,6 +1,6 @@
 ---
 name: agnix:agnix
-description: AI コーディングアシスタント設定ファイルのリンター。CLAUDE.md, AGENTS.md, SKILL.md, hooks.json, MCP設定等を検証し、ベストプラクティス違反を検出・自動修正する。
+description: 'This skill should be used when the user asks to "lint AI assistant config", "check AGENTS.md", "validate SKILL.md", "agnix lint", or wants to detect and fix best-practice violations in Claude Code / agent configuration files.'
 ---
 
 # agnix

@@ -1,6 +1,6 @@
 {
   "name": "progress-tracker",
-  "version": "0.1.18",
+  "version": "0.1.20",
   "description": "過去セッションの進捗ファイル参照スキル",
   "author": {
     "name": "masseater",

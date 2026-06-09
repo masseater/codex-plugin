@@ -1,6 +1,6 @@
 ---
 name: sdd:next
-description: 次に実行すべきコマンドを提案
+description: 'This skill should be used when the user asks "what should I do next", "次に何をすればいい", "SDD next", "次のSDDステップ", or wants the next action inferred from the current specs state.'
 argument-hint: "[spec]"
 ---
 

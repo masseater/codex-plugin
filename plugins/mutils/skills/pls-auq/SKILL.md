@@ -1,5 +1,6 @@
 ---
 name: mutils:pls-auq
+disable-model-invocation: true
 description: AskUserQuestionの制約内で個別に同時に質問するよう指示
 ---
 

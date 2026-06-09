@@ -1,11 +1,6 @@
 ---
 name: sdd:steering
-description: |
-  プロジェクトのステアリングドキュメント（永続的コンテキスト）の初期化・移行ガイド。以下の状況で使用:
-  (1) ユーザーが「プロジェクト方針を定義したい」「技術スタックを整理したい」と言った時
-  (2) `.claude/skills/steering/` の初期化方法を知りたい時
-  (3) 既存の `specs/_steering/` から移行したい時
-  (4) ステアリングテンプレートの書き方を確認したい時
+description: 'This skill should be used when the user asks to "define project steering", "プロジェクト方針を定義", "技術スタックを整理", "steering", or wants persistent SDD project context initialized or migrated.'
 ---
 
 # ステアリングドキュメント初期化ガイド

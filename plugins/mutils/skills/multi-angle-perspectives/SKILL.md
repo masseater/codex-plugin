@@ -1,6 +1,6 @@
 ---
 name: mutils:multi-angle-perspectives
-description: 一般的・保守的・独創的な3つの観点からそれぞれ2つずつ提案を生成します
+description: 'This skill should be used when the user asks for "multiple perspectives", "一般的・保守的・独創的", "複数観点で提案", "3つの観点", or wants standard, conservative, and creative proposals for a theme.'
 ---
 
 # 一般的・保守的・独創的な3つの観点からそれぞれ2つずつ提案を生成します

@@ -36,17 +36,34 @@ gh auth refresh -s project
 - **GitHub 標準機能のみ**: Sub-issue / Issue Dependencies / Projects (v2) を使う。サードパーティ拡張に依存しない
 - **方法論と道具の分離**: skill は「何をどう判断するか」、CLI は「どう実行するか」を担当する
 
+## Model Invocation Policy
+
+<!-- BEGIN:model-invocation-policy -->
+
+以下の skill は `disable-model-invocation: true` を付与しない。設計判断: ユーザーが自然文で依頼する主要ワークフロー、または AI がタスク遂行中に自律参照すべき実行リファレンスである。これらの `description` には自然文 trigger、または実行リファレンスとしての参照理由を定義する。
+
+- `gh-projects:cli`
+- `gh-projects:create-epic`
+- `gh-projects:decompose-epic`
+- `gh-projects:epic-story-task`
+- `gh-projects:plan-dependencies`
+- `gh-projects:review-progress`
+
+上記以外の skill は、明示呼び出し・内部参照・手動操作・低レベルユーティリティとして扱い、`disable-model-invocation: true` を維持する。disabled skill の `description` には広い自然文 trigger を定義しない。
+
+<!-- END:model-invocation-policy -->
+
 ## Components
 
 <!-- BEGIN:component-list (auto-generated, do not edit) -->
 
-| Type  | Name                          | Description                                                                                                                                                                                                                                                                                                                                                                       |
-| ----- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| skill | gh-projects:cli               | GitHub Projects CLI コマンドリファレンス。gh-project.ts スクリプトで Project CRUD、sub-issue、blocked-by などを操作する。Use when the user asks to "run a gh-project command", "list project items", "add a sub-issue", "set blocked-by", "show issue dependencies", "プロジェクトに追加", "sub-issue を作成", "依存関係を設定", or wants to invoke the gh-projects CLI directly. |
-| skill | gh-projects:create-epic       | 新しい EPIC issue を起票し、GitHub Project に登録するワークフロー。Use when the user asks to "create an EPIC", "start a new EPIC", "EPIC を作成", "新しい EPIC を起票", "プロジェクトに EPIC を立てたい", or wants to bootstrap a top-level initiative.                                                                                                                           |
-| skill | gh-projects:decompose-epic    | EPIC を「全体リリース Story」と「機能別 検証 Story」に分解し、sub-issue でリンク・blocked-by を張って Project に追加するワークフロー。Use when the user asks to "break down an EPIC", "decompose into stories", "EPIC を分解", "Story に切り分けたい", or has an EPIC that needs decomposition.                                                                                   |
-| skill | gh-projects:epic-story-task   | EPIC - Story - Task の3階層と依存関係で GitHub Projects を運用するための方法論。Use when the user asks to "set up EPIC story task workflow", "design issue hierarchy", "configure project for EPIC story task", "EPIC Story Task で運用したい", "issue 階層を設計", "GitHub Project を立ち上げ", or wants conceptual guidance on this issue-management pattern.                   |
-| skill | gh-projects:plan-dependencies | Story / Task 間の blocked-by 依存関係を設計・登録するワークフロー。Use when the user asks to "set blocked-by", "add dependency", "issue の前後関係を設定", "依存関係を整理", "blocking 関係", or wants to model ordering constraints between issues.                                                                                                                              |
-| skill | gh-projects:review-progress   | EPIC 単位で sub-issue / blocked-by / Project status を棚卸しし、進捗・滞留・次に着手すべき Task をレポートするワークフロー。Use when the user asks to "review progress", "EPIC の進捗を確認", "棚卸し", "what's next", "次に何をやる", "blockers を確認", or wants a status snapshot of an EPIC.                                                                                  |
+| Type  | Name                          | Description                                                                                                                                                                                                                                                                                                                                                     |
+| ----- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| skill | gh-projects:cli               | This skill should be used when the user asks to operate GitHub Projects through the plugin CLI, "GitHub Projects CLI", "Project CRUD", "sub-issue を操作", "blocked-by を設定", or needs the gh-project.ts execution reference for Project, sub-issue, and dependency operations.                                                                               |
+| skill | gh-projects:create-epic       | 新しい EPIC issue を起票し、GitHub Project に登録するワークフロー。Use when the user asks to "create an EPIC", "start a new EPIC", "EPIC を作成", "新しい EPIC を起票", "プロジェクトに EPIC を立てたい", or wants to bootstrap a top-level initiative.                                                                                                         |
+| skill | gh-projects:decompose-epic    | EPIC を「全体リリース Story」と「機能別 検証 Story」に分解し、sub-issue でリンク・blocked-by を張って Project に追加するワークフロー。Use when the user asks to "break down an EPIC", "decompose into stories", "EPIC を分解", "Story に切り分けたい", or has an EPIC that needs decomposition.                                                                 |
+| skill | gh-projects:epic-story-task   | EPIC - Story - Task の3階層と依存関係で GitHub Projects を運用するための方法論。Use when the user asks to "set up EPIC story task workflow", "design issue hierarchy", "configure project for EPIC story task", "EPIC Story Task で運用したい", "issue 階層を設計", "GitHub Project を立ち上げ", or wants conceptual guidance on this issue-management pattern. |
+| skill | gh-projects:plan-dependencies | Story / Task 間の blocked-by 依存関係を設計・登録するワークフロー。Use when the user asks to "set blocked-by", "add dependency", "issue の前後関係を設定", "依存関係を整理", "blocking 関係", or wants to model ordering constraints between issues.                                                                                                            |
+| skill | gh-projects:review-progress   | EPIC 単位で sub-issue / blocked-by / Project status を棚卸しし、進捗・滞留・次に着手すべき Task をレポートするワークフロー。Use when the user asks to "review progress", "EPIC の進捗を確認", "棚卸し", "what's next", "次に何をやる", "blockers を確認", or wants a status snapshot of an EPIC.                                                                |
 
 <!-- END:component-list -->

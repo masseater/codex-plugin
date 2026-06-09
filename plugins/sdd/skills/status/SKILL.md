@@ -1,6 +1,6 @@
 ---
 name: sdd:status
-description: 全タスクのステータス表示
+description: 'This skill should be used when the user asks for "SDD status", "タスクのステータス", "進捗を見せて", "spec一覧", or wants all SDD task statuses displayed.'
 ---
 
 # status - タスクステータス表示

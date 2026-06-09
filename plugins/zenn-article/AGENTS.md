@@ -13,12 +13,24 @@ Zenn技術記事の執筆・投稿支援プラグイン。
 - ローカルパス: `config/repo-path.txt` に保存（初回はユーザーに確認）
 - 記事パス: `articles/{slug}.md`
 
+## Model Invocation Policy
+
+<!-- BEGIN:model-invocation-policy -->
+
+以下の skill は `disable-model-invocation: true` を付与しない。設計判断: ユーザーが自然文で依頼する主要ワークフロー、または AI がタスク遂行中に自律参照すべき実行リファレンスである。これらの `description` には自然文 trigger、または実行リファレンスとしての参照理由を定義する。
+
+- `zenn-article:write-article`
+
+上記以外の skill は、明示呼び出し・内部参照・手動操作・低レベルユーティリティとして扱い、`disable-model-invocation: true` を維持する。disabled skill の `description` には広い自然文 trigger を定義しない。
+
+<!-- END:model-invocation-policy -->
+
 ## Components
 
 <!-- BEGIN:component-list (auto-generated, do not edit) -->
 
-| Type  | Name                       | Description                                                                                                                                                       |
-| ----- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| skill | zenn-article:write-article | Write and publish Zenn tech articles. Use when the user asks to write a Zenn article, publish a tech blog post, or turn conversation context into a Zenn article. |
+| Type  | Name                       | Description                                                                                                                                                                                          |
+| ----- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| skill | zenn-article:write-article | This skill should be used when the user asks to "write a Zenn article", "Zenn記事を書いて", "publish tech blog", "会話を記事化", or wants conversation context turned into a Zenn technical article. |
 
 <!-- END:component-list -->

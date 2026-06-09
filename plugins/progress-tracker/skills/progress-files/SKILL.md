@@ -1,6 +1,6 @@
 ---
 name: progress-tracker:progress-files
-description: 過去のセッションの進捗ファイルを参照して作業コンテキストを継続するためのガイド。(1) 新しいセッションを開始して以前の作業を継続したい時、(2) 過去に何をやったか思い出したい時、(3) 中断した作業の続きを始める時、(4) プロジェクトの進捗履歴を確認したい時
+description: 'This skill should be used when the user asks to "continue previous work", "過去の進捗を確認", "中断した作業の続き", "progress files", or wants to recover context from previous session progress files.'
 ---
 
 # Progress Files - 過去の進捗を参照する

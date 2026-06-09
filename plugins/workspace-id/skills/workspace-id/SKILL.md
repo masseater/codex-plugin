@@ -1,6 +1,6 @@
 ---
 name: workspace-id:workspace-id
-description: "Use when creating workspace directories for agent work. Defines the canonical workspace-id format, directory structure, and file naming convention."
+description: 'This skill should be used when the user asks to "create a workspace directory", "workspace-id", "作業ディレクトリを作成", "agent workspace", or wants canonical agent workspace naming and directory conventions.'
 tools:
   - Bash(./generate.ts *)
 ---

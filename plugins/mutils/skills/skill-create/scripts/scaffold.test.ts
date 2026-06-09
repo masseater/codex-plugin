@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -11,6 +11,7 @@ function createTmpDir(): string {
     `scaffold-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
   mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, "plugin.json"), JSON.stringify({ name: "test-plugin" }));
   return dir;
 }
 
@@ -54,8 +55,9 @@ describe("scaffold", () => {
     expect(existsSync(skillDir)).toBe(true);
 
     const skillMd = readFileSync(path.join(skillDir, "SKILL.md"), "utf-8");
-    expect(skillMd).toContain("name: my-skill");
+    expect(skillMd).toContain("name: test-plugin:my-skill");
     expect(skillMd).toContain("description:");
+    expect(skillMd).toContain("disable-model-invocation: true");
   });
 
   test("creates scripts/ directory with --scripts flag", () => {

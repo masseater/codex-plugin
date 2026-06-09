@@ -1,6 +1,6 @@
 ---
 name: mutils:dig
-description: "Clarify ambiguities in plans with structured questions"
+description: 'This skill should be used when the user asks to "clarify the plan", "ask detailed questions", "曖昧な点を詰めて", "計画を深掘り", or wants structured questions that resolve unclear points in a plan file.'
 allowed-tools: Write, Edit, Read, Grep, Glob, TodoRead, TodoWrite, AskUserQuestion
 ---
 

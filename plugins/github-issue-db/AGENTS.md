@@ -86,6 +86,20 @@ TTL は設けていない。`fetchIssueCount` で総数を見て 5% 以上変動
 - 複数 Claude セッションが同時実行されても安全にするため、書き込みはトランザクションで囲む
 - 大規模 repo 初回同期（数千件）は進捗ログを stderr に出す
 
+## Model Invocation Policy
+
+<!-- BEGIN:model-invocation-policy -->
+
+以下の skill は `disable-model-invocation: true` を付与しない。設計判断: ユーザーが自然文で依頼する主要ワークフロー、または AI がタスク遂行中に自律参照すべき実行リファレンスである。これらの `description` には自然文 trigger、または実行リファレンスとしての参照理由を定義する。
+
+- `github-issue-db:report-repo-issues`
+- `github-issue-db:search-similar-issues`
+- `github-issue-db:update-existing-issues`
+
+上記以外の skill は、明示呼び出し・内部参照・手動操作・低レベルユーティリティとして扱い、`disable-model-invocation: true` を維持する。disabled skill の `description` には広い自然文 trigger を定義しない。
+
+<!-- END:model-invocation-policy -->
+
 ## Components
 
 <!-- BEGIN:component-list (auto-generated, do not edit) -->

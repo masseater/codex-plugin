@@ -1,6 +1,6 @@
 ---
 name: context:update-markdown
-description: Markdownファイルの見出しを読み込み、セクションごとに並列で内容確認・更新提案
+description: 'This skill should be used when the user asks to "update this markdown", "review every section", "Markdownをセクションごとに更新", "ドキュメントを並列確認", or wants a markdown file audited and updated section by section.'
 argument-hint: "[file-path]"
 ---
 
@@ -25,7 +25,7 @@ $ARGUMENTS
   │   ├─ Agent 2: セクション 2  │ 並列調査
   │   └─ Agent 8: セクション 8 ─┘
   ├─ 全結果をそのまま表示
-  ├─ /mutils:pls-auq準拠で全セクション個別に確認
+  ├─ mutils:pls-auq 準拠で全セクション個別に確認
   └─ 適用確定分をファイルに更新
 ```
 
@@ -152,7 +152,7 @@ $ARGUMENTS
 
 ### 5. 全セクションの個別確認
 
-**重要**: 全セクションについて、/mutils:pls-auq準拠で個別に確認を取る。
+**重要**: 全セクションについて、mutils:pls-auq 準拠で個別に確認を取る。
 
 更新提案の有無にかかわらず、各セクションについて以下の確認を行う:
 

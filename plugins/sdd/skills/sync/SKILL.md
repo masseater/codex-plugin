@@ -1,6 +1,6 @@
 ---
 name: sdd:sync
-description: 実装状況を仕様書に同期
+description: 'This skill should be used when the user asks to "sync implementation status", "実装状況を仕様書に同期", "SDD sync", "進捗をドキュメントに反映", or wants current code progress reflected in SDD spec documents.'
 argument-hint: "[spec] [phaseNumber]"
 ---
 

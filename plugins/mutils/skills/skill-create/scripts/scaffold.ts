@@ -9,7 +9,7 @@
  *   <plugin-dir>/skills/<skill-name>/scripts/    (if --scripts)
  *   <plugin-dir>/skills/<skill-name>/references/  (if --references)
  */
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
 
@@ -44,6 +44,7 @@ if (!SKILL_NAME_RE.test(skillName)) {
 }
 
 const skillDir = path.join(pluginDir, "skills", skillName);
+const pluginName = readPluginName(pluginDir) ?? path.basename(pluginDir);
 
 if (existsSync(skillDir)) {
   process.stderr.write(`Error: directory already exists: ${skillDir}\n`);
@@ -60,8 +61,9 @@ if (values.references) {
 }
 
 const template = `---
-name: ${skillName}
-description: "TODO: This skill should be used when the user asks to ..."
+name: ${pluginName}:${skillName}
+description: "TODO: Direct invocation or internal reference purpose. Add natural-language triggers only if model invocation is intentionally enabled."
+disable-model-invocation: true
 ---
 
 # ${skillName}
@@ -82,3 +84,14 @@ process.stdout.write(
     dirs: [...(values.scripts ? ["scripts/"] : []), ...(values.references ? ["references/"] : [])],
   }),
 );
+
+function readPluginName(pluginDir: string): string | null {
+  try {
+    const pluginJson = JSON.parse(readFileSync(path.join(pluginDir, "plugin.json"), "utf-8"));
+    return typeof pluginJson.name === "string" && pluginJson.name.length > 0
+      ? pluginJson.name
+      : null;
+  } catch {
+    return null;
+  }
+}

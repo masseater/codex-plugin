@@ -1,6 +1,6 @@
 ---
 name: research:semtools
-description: 自然言語でファイルの中身を検索するsemtoolsの使用ガイド。Use when performing semantic search across files using natural language queries.
+description: 'This skill should be used when the user asks to "semantic search", "自然言語で検索", "semtools", "search files by meaning", or wants to search file contents using natural-language queries.'
 ---
 
 # semtools - セマンティック検索 CLI

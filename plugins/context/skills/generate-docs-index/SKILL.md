@@ -1,6 +1,7 @@
 ---
 name: context:generate-docs-index
-description: Auto-generate docs/index.md from docs/ directory contents. Use when adding, removing, or reorganizing documentation files, or when asked to generate a docs index.
+disable-model-invocation: true
+description: "Internal documentation-index generation workflow for direct invocation from context maintenance tasks."
 ---
 
 # generate-docs-index

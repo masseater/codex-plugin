@@ -1,7 +1,6 @@
 ---
 name: swarm:team-design
-description: Design Agent Teams composition for a task.
-disable-model-invocation: true
+description: 'This skill should be used when the user asks to "design an agent team", "Agent Teamsの構成", "チーム構成を考えて", "role-based team", or wants role-based Agent Teams composition guidance without launching yet.'
 ---
 
 > **REQUIRED**: Use **Agent Teams** for this skill. Do NOT use SubAgent (Agent tool).

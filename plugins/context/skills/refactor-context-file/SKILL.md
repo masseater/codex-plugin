@@ -1,6 +1,6 @@
 ---
 name: context:refactor-context-file
-description: コンテキストファイル（CLAUDE.md/AGENTS.md）をClaude Codeの各機能に分解・リファクタリングする
+description: 'This skill should be used when the user asks to "refactor context file", "split CLAUDE.md into skills/rules/hooks", "AGENTS.mdを分解", "コンテキストファイルを整理", or wants a single context file decomposed into Claude Code features.'
 argument-hint: "[file-path]"
 allowed-tools: Read, Write(.claude/**), Write(~/.claude/**), Bash(ls), Bash(mkdir), Glob, Grep, TodoWrite, AskUserQuestion, Skill(cc-hooks-ts:cc-hooks-ts), Skill(research:semtools), Skill(context:should-be-project-context)
 ---

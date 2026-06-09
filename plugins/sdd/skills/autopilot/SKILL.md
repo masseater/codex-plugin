@@ -1,11 +1,6 @@
 ---
 name: sdd:autopilot
-description: |
-  SDD自動進行モードのガイド。以下の状況で使用する:
-  (1) ユーザーが「自動で進めて」「一気に実装」「autopilot」と言った時
-  (2) 定型的なタスクを人の介入なしで進めたい時
-  (3) サブエージェントで各コマンドを実行する仕組みを理解したい時
-  親セッションが全体を管理し、各SDDコマンドはサブエージェントで実行される。
+description: 'This skill should be used when the user asks to "run SDD on autopilot", "自動で進めて", "一気に実装", "autopilot", or wants the SDD workflow advanced with minimal human intervention.'
 ---
 
 # SDD Autopilot
