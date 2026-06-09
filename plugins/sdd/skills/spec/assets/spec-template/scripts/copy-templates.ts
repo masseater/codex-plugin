@@ -3,10 +3,10 @@
  * 仕様書テンプレートを指定ディレクトリにコピーするスクリプト
  *
  * Usage:
- *   bun run copy-templates.ts <targetDir>
+ *   ./copy-templates.ts <targetDir>
  *
  * Example:
- *   bun run copy-templates.ts specs/user-auth
+ *   ./copy-templates.ts specs/user-auth
  */
 
 import { dirname, join } from "node:path";
@@ -19,10 +19,10 @@ async function main() {
 
   if (!targetDir) {
     console.error("Error: Target directory is required");
-    console.error("Usage: bun run copy-templates.ts <targetDir>");
+    console.error("Usage: ./copy-templates.ts <targetDir>");
     console.error("");
     console.error("Example:");
-    console.error("  bun run copy-templates.ts specs/user-auth");
+    console.error("  ./copy-templates.ts specs/user-auth");
     process.exit(1);
   }
 

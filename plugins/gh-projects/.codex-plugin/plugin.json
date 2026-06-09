@@ -1,6 +1,6 @@
 {
   "name": "gh-projects",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "description": "GitHub Projects を EPIC - Story - Task の階層と依存関係で運用するための汎用パターン集",
   "author": {
     "name": "masseater",

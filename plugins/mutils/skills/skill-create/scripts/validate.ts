@@ -7,8 +7,11 @@
  * Checks:
  *   - SKILL.md exists
  *   - Frontmatter has name and description
- *   - Description uses third-person ("This skill should be used when...")
- *   - Description contains trigger phrases (quoted strings)
+ *   - Frontmatter name includes the owning plugin name
+ *   - Frontmatter declares the default model invocation policy
+ *   - Description uses third-person
+ *   - Model-invocable descriptions contain trigger phrases
+ *   - Disabled descriptions avoid broad natural-language triggers
  *   - Body word count is within recommended range
  *   - Body does not use second-person ("You should", "You need")
  *   - Referenced files exist
@@ -32,6 +35,8 @@ type Issue = {
 const issues: Issue[] = [];
 let wordCount = 0;
 const scriptsDir = path.join(skillDir, "scripts");
+const pluginDir = findPluginRoot(skillDir);
+const pluginName = pluginDir ? readPluginName(pluginDir) : null;
 
 function error(msg: string) {
   issues.push({ severity: "error", message: msg });
@@ -63,9 +68,24 @@ const body = content.slice(fmMatch[0].length).trim();
 // Check required fields
 const nameMatch = frontmatter.match(/^name:\s*(.+)$/m);
 const descMatch = frontmatter.match(/^description:\s*["']?([\s\S]*?)["']?\s*$/m);
+const disableModelInvocationMatch = frontmatter.match(
+  /^disable-model-invocation:\s*(true|false)\s*$/m,
+);
+const isModelInvocable = !disableModelInvocationMatch || disableModelInvocationMatch[1] === "false";
 
 if (!nameMatch) {
   error("Frontmatter missing 'name' field");
+} else {
+  const name = parseFrontmatterValue(nameMatch[1] ?? "");
+  if (pluginName && !name.startsWith(`${pluginName}:`)) {
+    warn(
+      `Frontmatter name should include the owning plugin name prefix: '${pluginName}:<skill-name>'`,
+    );
+  } else if (!pluginName && !name.includes(":")) {
+    warn(
+      "Frontmatter name should include the owning plugin name prefix: '<plugin-name>:<skill-name>'",
+    );
+  }
 }
 
 if (!descMatch) {
@@ -84,12 +104,32 @@ if (!descMatch) {
     // Check trigger phrases (single or double quoted strings)
     const doubleQuoted = desc.match(/"[^"]+"/g) ?? [];
     const singleQuoted = desc.match(/'[^']+'/g) ?? [];
-    if (doubleQuoted.length + singleQuoted.length < 2) {
+    const triggerPhraseCount = doubleQuoted.length + singleQuoted.length;
+    const naturalTriggerPattern =
+      /\b(this skill should be used when|use when|triggered by|when the user asks|when the user says)\b/i;
+
+    if (isModelInvocable && triggerPhraseCount < 2) {
       warn(
-        "Description should contain at least 2 quoted trigger phrases (e.g., 'create X', 'configure Y')",
+        "Model-invocable description should contain at least 2 quoted trigger phrases (e.g., 'create X', 'configure Y')",
+      );
+    }
+
+    if (!isModelInvocable && naturalTriggerPattern.test(desc)) {
+      warn(
+        "Disabled skills should not advertise broad natural-language triggers in description; use direct invocation or internal reference wording instead",
       );
     }
   }
+}
+
+if (!disableModelInvocationMatch) {
+  warn(
+    "Frontmatter should include 'disable-model-invocation: true'. Omit it only when autonomous model invocation is intended and documented in the owning plugin's AGENTS.md.",
+  );
+} else if (disableModelInvocationMatch[1] !== "true") {
+  warn(
+    "Prefer omitting 'disable-model-invocation' over setting it to false when autonomous model invocation is intended and documented in the owning plugin's AGENTS.md.",
+  );
 }
 
 // Body checks
@@ -180,4 +220,32 @@ function printResult() {
   };
 
   process.stdout.write(JSON.stringify(result, null, 2));
+}
+
+function findPluginRoot(dir: string): string | null {
+  let current = path.resolve(dir);
+  const root = path.parse(current).root;
+
+  while (current !== root) {
+    if (existsSync(path.join(current, "plugin.json"))) {
+      return current;
+    }
+    current = path.dirname(current);
+  }
+  return null;
+}
+
+function readPluginName(pluginDir: string): string | null {
+  try {
+    const pluginJson = JSON.parse(readFileSync(path.join(pluginDir, "plugin.json"), "utf-8"));
+    return typeof pluginJson.name === "string" && pluginJson.name.length > 0
+      ? pluginJson.name
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseFrontmatterValue(value: string): string {
+  return value.trim().replace(/^["']|["']$/g, "");
 }

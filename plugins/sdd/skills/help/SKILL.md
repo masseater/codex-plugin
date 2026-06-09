@@ -1,6 +1,6 @@
 ---
 name: sdd:help
-description: SDDワークフローのヘルプ表示
+description: 'This skill should be used when the user asks for "SDD help", "SDDの使い方", "SDDワークフローを説明", "what is the next SDD command", or wants an overview of the SDD workflow.'
 ---
 
 # help - SDDワークフローヘルプ

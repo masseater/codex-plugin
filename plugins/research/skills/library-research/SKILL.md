@@ -1,6 +1,6 @@
 ---
 name: research:library-research
-description: ライブラリ・フレームワーク・ツールの徹底調査と知識ベース永続化。Use when deeply researching a library/framework/tool (clone-first analysis, hands-on verification) and persisting the findings as a reusable knowledge base.
+description: 'This skill should be used when the user asks to "research this library", "ライブラリを徹底調査", "framework investigation", "knowledge base", or wants clone-first hands-on research persisted as reusable knowledge.'
 argument-hint: "[ライブラリ名]"
 ---
 

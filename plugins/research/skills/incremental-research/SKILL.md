@@ -1,6 +1,6 @@
 ---
 name: research:incremental-research
-description: 調査計画をmarkdownに記載し、順次調べて結果を記録する構造化された調査ワークフロー。Use when conducting and recording a multi-step investigation incrementally — planning research items, investigating them in order, and tracking status/findings in a markdown plan.
+description: 'This skill should be used when the user asks to "research incrementally", "調査計画を作って進める", "multi-step investigation", "調査結果を記録", or wants structured research tracked in a markdown plan.'
 argument-hint: "[調査テーマ]"
 ---
 

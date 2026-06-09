@@ -1,6 +1,6 @@
 ---
 name: context:refactor-project-context
-description: Use when scanning and reorganizing all project context files (AGENTS.md, README.md, gotchas.md, .claude/rules/) for consistency, accuracy, and structural alignment.
+description: 'This skill should be used when the user asks to "refactor project context", "AGENTS.mdを整理", "context filesを再構成", "project context audit", or wants all project context files reorganized for consistency.'
 allowed-tools: Read, Write(.claude/**), Write(AGENTS.md), Write(README.md), Write(**/AGENTS.md), Write(**/README.md), Bash(ls), Bash(mkdir), Glob, Grep, TodoWrite, AskUserQuestion, Skill(context:should-be-project-context), Skill(research:semtools), Skill(context:refactor-context-file), Skill(context:verify-context)
 ---
 

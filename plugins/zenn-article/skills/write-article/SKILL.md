@@ -1,6 +1,6 @@
 ---
 name: zenn-article:write-article
-description: Write and publish Zenn tech articles. Use when the user asks to write a Zenn article, publish a tech blog post, or turn conversation context into a Zenn article.
+description: 'This skill should be used when the user asks to "write a Zenn article", "Zenn記事を書いて", "publish tech blog", "会話を記事化", or wants conversation context turned into a Zenn technical article.'
 ---
 
 # Zenn Article Writer

@@ -8,7 +8,7 @@ allowed-tools: ["Read", "Write", "Edit", "Bash", "Task"]
 
 計画の説明をもとに、仕様書の骨格を作成する。
 
-**スキル `spec-template` を読み込んでテンプレートをコピーすること。**
+**`assets/spec-template` のテンプレートをコピーすること。**
 
 ## 重要事項
 
@@ -35,10 +35,10 @@ $ARGUMENTS
 
 ### 3. テンプレートコピー
 
-`spec-template` スキルのスクリプトを実行:
+`sdd:spec` skill 内 asset のスクリプトを実行:
 
 ```bash
-../spec-template/scripts/copy-templates.ts specs/{spec}
+${CLAUDE_SKILL_DIR}/assets/spec-template/scripts/copy-templates.ts specs/{spec}
 ```
 
 ### 4. テンプレートの更新

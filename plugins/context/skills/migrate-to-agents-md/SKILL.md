@@ -1,6 +1,6 @@
 ---
 name: context:migrate-to-agents-md
-description: CLAUDE.mdをAGENTS.mdにマイグレーション
+description: 'This skill should be used when the user asks to "migrate CLAUDE.md to AGENTS.md", "CLAUDE.mdをAGENTS.mdに移行", "AGENTS.mdへ移行", or wants Claude-specific project context converted to AGENTS.md with a small CLAUDE.md reference file.'
 ---
 
 プロジェクトのCLAUDE.mdをAGENTS.mdにマイグレーションしてください。

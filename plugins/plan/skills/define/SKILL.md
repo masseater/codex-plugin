@@ -1,6 +1,6 @@
 ---
 name: plan:define
-description: Use when creating plan files, writing plans, or entering Plan mode. This skill provides a template and checklist for structuring plan files with User Prompts, Purpose, Structure, TODO, and Verification sections that comply with plan file content rules.
+description: 'This skill should be used when the user asks to "create a plan file", "write a plan", "Plan mode", "plan.mdを作成", or wants a plan structured with User Prompts, Purpose, Structure, TODO, and Verification sections.'
 ---
 
 ## Overview

@@ -1,6 +1,6 @@
 ---
 name: code-review:organize-commits
-description: 現在の変更を関心ごと単位で分析し、レビューしやすい論理的なコミットに整理します
+description: 'This skill should be used when the user asks to "organize commits", "split this diff into commits", "コミットを整理", "レビューしやすいコミット", or wants current changes grouped into logical commits.'
 ---
 
 # 現在の変更を関心ごと単位で分析し、レビューしやすい論理的なコミットに整理します

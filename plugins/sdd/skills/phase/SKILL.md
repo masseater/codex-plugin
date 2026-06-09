@@ -1,6 +1,6 @@
 ---
 name: sdd:phase
-description: SDDのPhase管理。plan（構成決定）、breakdown（詳細計画）、implement（実装）、insert（Phase挿入）
+description: 'This skill should be used when the user asks to "plan phases", "break down a phase", "implement an SDD phase", "Phase構成", "Phase詳細計画", or wants SDD phase planning, breakdown, implementation, or insertion.'
 argument-hint: <plan|breakdown|implement|insert> [spec-name] [args]
 ---
 

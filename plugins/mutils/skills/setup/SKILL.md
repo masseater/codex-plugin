@@ -1,6 +1,6 @@
 ---
 name: mutils:setup
-description: mutilsプラグインのセットアップ
+description: 'This skill should be used when the user asks to "set up mutils", "mutilsをセットアップ", "install mutils settings", "mutils setup", or wants recommended mutils references and dependencies applied.'
 ---
 
 # mutilsプラグインのセットアップ
@@ -13,13 +13,13 @@ mutilsプラグインの推奨設定をユーザー環境に適用します。
 
 同名のファイルに参照行を追加してください:
 
-| 選択      | 追加先        | 追加する参照                              |
-| --------- | ------------- | ----------------------------------------- |
-| AGENTS.md | `~/AGENTS.md` | `@../../assets/AGENTS.md` |
+| 選択      | 追加先        | 追加する参照                             |
+| --------- | ------------- | ---------------------------------------- |
+| AGENTS.md | `~/AGENTS.md` | `@${CLAUDE_PLUGIN_DIR}/assets/AGENTS.md` |
 
 **注意**:
 
-- `../..` はClaude Code公式の環境変数で、プラグインディレクトリの絶対パスに解決される
+- `${CLAUDE_PLUGIN_DIR}` は plugin-level assets を参照するために使う
 - IF: 追加先ファイルが存在しない; THEN MUST: 新規作成する
 - IF: 既に同じ参照が存在する; THEN MUST: 追加をスキップする
 

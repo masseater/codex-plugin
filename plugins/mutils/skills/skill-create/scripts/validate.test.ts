@@ -47,7 +47,7 @@ describe("validate", () => {
     const body = Array.from({ length: 60 }, (_, i) => `word${i}`).join(" ");
     writeFileSync(
       path.join(dir, "SKILL.md"),
-      `---\nname: good-skill\ndescription: "This skill should be used when the user asks to 'do X' or 'configure Y'."\n---\n\n# Good Skill\n\n${body}\n`,
+      `---\nname: good-skill\ndescription: "This skill should be used when the user asks to 'do X' or 'configure Y'."\ndisable-model-invocation: true\n---\n\n# Good Skill\n\n${body}\n`,
     );
 
     const { stdout, exitCode } = run(dir);
@@ -65,7 +65,7 @@ describe("validate", () => {
     const body = Array.from({ length: 60 }, (_, i) => `word${i}`).join(" ");
     writeFileSync(
       path.join(dir, "SKILL.md"),
-      `---\nname: good-skill\ndescription: "This skill should be used when the user asks to \\"do X\\" or \\"configure Y\\"."\n---\n\n# Good Skill\n\n${body}\n`,
+      `---\nname: good-skill\ndescription: "This skill should be used when the user asks to \\"do X\\" or \\"configure Y\\"."\ndisable-model-invocation: true\n---\n\n# Good Skill\n\n${body}\n`,
     );
 
     const { stdout, exitCode } = run(dir);
@@ -131,6 +131,57 @@ describe("validate", () => {
 
     const result = JSON.parse(stdout);
     expect(result.warnings.some((w: string) => w.includes("third-person"))).toBe(true);
+  });
+
+  test("warns when disable-model-invocation is missing", () => {
+    const dir = createTmpSkill();
+    tmpDirs.push(dir);
+
+    const body = Array.from({ length: 60 }, (_, i) => `word${i}`).join(" ");
+    writeFileSync(
+      path.join(dir, "SKILL.md"),
+      `---\nname: test-skill\ndescription: "This skill should be used when \\"testing\\" or \\"validating\\"."\n---\n\n# Test\n\n${body}\n`,
+    );
+
+    const { stdout, exitCode } = run(dir);
+    expect(exitCode).toBe(0);
+
+    const result = JSON.parse(stdout);
+    expect(result.warnings.some((w: string) => w.includes("disable-model-invocation"))).toBe(true);
+  });
+
+  test("does not require trigger phrases for disabled direct-only skills", () => {
+    const dir = createTmpSkill();
+    tmpDirs.push(dir);
+
+    const body = Array.from({ length: 60 }, (_, i) => `word${i}`).join(" ");
+    writeFileSync(
+      path.join(dir, "SKILL.md"),
+      `---\nname: direct-skill\ndescription: "Direct command reference for explicit skill invocation only."\ndisable-model-invocation: true\n---\n\n# Direct Skill\n\n${body}\n`,
+    );
+
+    const { stdout, exitCode } = run(dir);
+    expect(exitCode).toBe(0);
+
+    const result = JSON.parse(stdout);
+    expect(result.warnings.some((w: string) => w.includes("quoted trigger phrases"))).toBe(false);
+  });
+
+  test("warns when disabled skills advertise natural-language triggers", () => {
+    const dir = createTmpSkill();
+    tmpDirs.push(dir);
+
+    const body = Array.from({ length: 60 }, (_, i) => `word${i}`).join(" ");
+    writeFileSync(
+      path.join(dir, "SKILL.md"),
+      `---\nname: disabled-trigger\ndescription: "This skill should be used when the user asks to 'do X' or 'configure Y'."\ndisable-model-invocation: true\n---\n\n# Disabled Trigger\n\n${body}\n`,
+    );
+
+    const { stdout, exitCode } = run(dir);
+    expect(exitCode).toBe(0);
+
+    const result = JSON.parse(stdout);
+    expect(result.warnings.some((w: string) => w.includes("natural-language triggers"))).toBe(true);
   });
 
   test("warns when body is very short", () => {

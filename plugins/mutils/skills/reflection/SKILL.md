@@ -1,6 +1,6 @@
 ---
 name: mutils:reflection
-description: "Reflect on what you have been doing in this session and identify what could have been done better"
+description: 'This skill should be used when the user asks to "reflect on this session", "振り返って", "何が悪かったか考えて", "self-review the work", or wants an honest process retrospective with lessons.'
 allowed-tools: Read, Grep, Glob, AskUserQuestion, TodoRead, TodoWrite
 ---
 

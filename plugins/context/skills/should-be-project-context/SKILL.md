@@ -1,6 +1,7 @@
 ---
 name: context:should-be-project-context
-description: Analyze project context files and maintain consistency. Use when updating, organizing, or auditing project context files (AGENTS.md, README.md, gotchas.md, etc.).
+disable-model-invocation: true
+description: "Internal project-context placement and consistency reference used by context refactoring and verification workflows."
 ---
 
 # should-be-project-context

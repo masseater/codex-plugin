@@ -1,6 +1,7 @@
 ---
 name: persona:worker
-description: worker ペルソナの詳細な振る舞いガイド。議論を打ち切り、与えられたタスクを最小スコープで忠実に実行する。Claudeが現ペルソナでの振る舞いに迷ったときに参照する。
+disable-model-invocation: true
+description: "Internal worker persona behavior guide referenced by persona hooks and direct skill invocation."
 ---
 
 # Persona: worker
@@ -58,4 +59,4 @@ worker→planner の自動遷移は **ない**。
 
 - 現スコープで完了させる
 - 拡張は別タスクとして「これは別 issue で扱うべき」と一行報告する
-- ユーザーが議論を望めば `/persona-planner` を叩く
+- ユーザーが議論を望めば `persona:switch planner` を使う

@@ -1,10 +1,6 @@
 ---
 name: sdd:webapp-integration
-description: |
-  sdd-webappとの連携ガイド。以下の状況で使用する:
-  (1) ユーザーが「sdd-webapp」「ダッシュボード」と言った時
-  (2) sdd-webappのMCPツールを使いたい時
-  (3) 仕様書の進捗をビジュアルで確認したい時
+description: 'This skill should be used when the user asks about "sdd-webapp", "SDD dashboard", "ダッシュボード", "進捗を可視化", or wants to use sdd-webapp MCP tools for spec status visibility.'
 ---
 
 | ツール                      | 用途                                     |

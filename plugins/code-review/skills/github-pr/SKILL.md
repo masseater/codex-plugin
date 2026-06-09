@@ -1,6 +1,7 @@
 ---
 name: code-review:github-pr
-description: GitHub PR操作のユーティリティ。Use when fetching review comments, managing unresolved threads, checking CI status, or downloading logs for a PR.
+disable-model-invocation: true
+description: "Direct utility reference for code-review PR scripts. Documents unresolved-thread, comment, CI-status, and CI-log helpers used by higher-level PR workflows."
 ---
 
 GitHub Pull Request の操作を効率化するユーティリティ集。

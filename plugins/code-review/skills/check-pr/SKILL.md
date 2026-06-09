@@ -1,6 +1,6 @@
 ---
 name: code-review:check-pr
-description: Check PR status and take action. Use when checking PR review comments, analyzing CI failures, or responding to check-pr requests.
+description: 'This skill should be used when the user asks to "check PR", "PRの状態を確認", "review comments", "CI failures", or wants PR review comments, CI status, or check-pr actions inspected.'
 ---
 
 # Check PR

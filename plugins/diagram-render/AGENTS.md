@@ -10,6 +10,19 @@ Markdown + Mermaid を [beautiful-mermaid](https://github.com/lukilabs/beautiful
 
 `render` が低レベル変換、`draw-diagram` が高レベルの図作成スキルで、後者は前者を呼び出して使う。
 
+## Model Invocation Policy
+
+<!-- BEGIN:model-invocation-policy -->
+
+以下の skill は `disable-model-invocation: true` を付与しない。設計判断: ユーザーが自然文で依頼する主要ワークフロー、または AI がタスク遂行中に自律参照すべき実行リファレンスである。これらの `description` には自然文 trigger、または実行リファレンスとしての参照理由を定義する。
+
+- `diagram-render:draw-diagram`
+- `diagram-render:render`
+
+上記以外の skill は、明示呼び出し・内部参照・手動操作・低レベルユーティリティとして扱い、`disable-model-invocation: true` を維持する。disabled skill の `description` には広い自然文 trigger を定義しない。
+
+<!-- END:model-invocation-policy -->
+
 ## Components
 
 <!-- BEGIN:component-list (auto-generated, do not edit) -->

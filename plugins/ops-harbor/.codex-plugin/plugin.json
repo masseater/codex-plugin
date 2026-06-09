@@ -1,6 +1,6 @@
 {
   "name": "ops-harbor",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "Ops Harbor integration for cached work item visibility and MCP-first workflows",
   "author": {
     "name": "masseater",

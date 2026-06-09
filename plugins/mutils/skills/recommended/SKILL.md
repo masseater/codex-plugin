@@ -1,6 +1,6 @@
 ---
 name: mutils:recommended
-description: おすすめのClaude Code設定・プラグイン・MCPサーバーを紹介
+description: 'This skill should be used when the user asks for "recommended Claude Code settings", "おすすめプラグイン", "おすすめMCP", "what should I install", or wants recommended Claude Code plugins, skills, or MCP servers.'
 ---
 
 # おすすめ紹介

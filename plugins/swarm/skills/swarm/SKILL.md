@@ -1,8 +1,7 @@
 ---
 name: swarm:swarm
-description: Interactively design optimal Agent Teams composition for a task.
+description: 'This skill should be used when the user asks to "create an agent team", "use Agent Teams", "swarmで進める", "チームを設計して実行", or wants an interactive Agent Teams composition launched for a task.'
 argument-hint: "[task description]"
-disable-model-invocation: true
 ---
 
 > **REQUIRED**: Use **Agent Teams** for this skill. Do NOT use SubAgent (Agent tool).

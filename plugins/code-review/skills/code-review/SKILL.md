@@ -1,6 +1,6 @@
 ---
 name: code-review:code-review
-description: Perform rigorous code review on recently created artifacts. Use when reviewing code quality after implementation.
+description: 'This skill should be used when the user asks for "code review", "レビューして", "review this diff", "実装をレビュー", or wants rigorous review of recently created artifacts.'
 ---
 
 # Perform Rigorous Code Review on Recently Created Artifacts

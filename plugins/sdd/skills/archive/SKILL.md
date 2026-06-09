@@ -1,7 +1,7 @@
 ---
 name: sdd:archive
 argument-hint: ""
-description: 完了または不要になったspecsをアーカイブします
+description: 'This skill should be used when the user asks to "archive a completed spec", "specをアーカイブ", "完了タスクをアーカイブ", "archive SDD task", or wants completed/rejected specs moved into the SDD archived specs directory.'
 ---
 
 specs/配下のタスクを一覧表示し、選択したタスクを`specs/_archived/`ディレクトリに移動してください。

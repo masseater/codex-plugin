@@ -1,6 +1,6 @@
 ---
 name: sdd:validate
-description: Phase検証スキル。ドキュメント・要件・品質の3観点から統合検証を実施。/sdd:validate コマンド実行時に参照。
+description: 'This skill should be used when the user asks to "validate a phase", "Phase検証", "SDD validate", "実装を検証", or wants docs, requirements, quality, and feasibility checks for an SDD phase.'
 ---
 
 # Phase Validation Skill

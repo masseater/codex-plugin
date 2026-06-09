@@ -61,13 +61,27 @@ Implemented as TypeScript files in the hooks/ directory using cc-hooks-ts.
 - In hooks.json: `./hooks/xxx.ts`
 - In skills: `@./skills/xxx/reference.md`
 
+## Model Invocation Policy
+
+<!-- BEGIN:model-invocation-policy -->
+
+以下の skill は `disable-model-invocation: true` を付与しない。設計判断: ユーザーが自然文で依頼する主要ワークフロー、または AI がタスク遂行中に自律参照すべき実行リファレンスである。これらの `description` には自然文 trigger、または実行リファレンスとしての参照理由を定義する。
+
+- `ui-dev:figma-data`
+- `ui-dev:figma-implement`
+- `ui-dev:figma-screenshot`
+
+上記以外の skill は、明示呼び出し・内部参照・手動操作・低レベルユーティリティとして扱い、`disable-model-invocation: true` を維持する。disabled skill の `description` には広い自然文 trigger を定義しない。
+
+<!-- END:model-invocation-policy -->
+
 ## Components
 
 <!-- BEGIN:component-list (auto-generated, do not edit) -->
 
 | Type  | Name                      | Description                                                                                                                                                                                                                                                                                                                                                          |
 | ----- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| skill | ui-dev:dev-command        | This skill should be used when the user asks to "generate design feedback", "create QA checklist", "scaffold screen map", "update screen map", "run ui-dev check", or needs manual utility commands for UI implementation workflows.                                                                                                                                 |
+| skill | ui-dev:dev-command        | Direct manual utility command reference for UI implementation workflows, including design feedback, QA checklist, screen-map updates, checks, scaffolding, and install commands.                                                                                                                                                                                     |
 | skill | ui-dev:figma-data         | This skill should be used when the user asks to "extract Figma design data", "get CSS properties from Figma", "trace prototype chain", "export assets from Figma", "get component variants", or needs exact design values (colors, spacing, typography, interactions) from Figma nodes via API.                                                                      |
 | skill | ui-dev:figma-implement    | This skill should be used when the user asks to "implement Figma screens", "implement this design", "implement the whole flow", "batch implement from Figma", "implement all screens", or provides a Figma prototype URL and wants to build the UI. Traces the prototype graph, plans all screens, then implements one screen at a time with subagent-driven review. |
 | skill | ui-dev:figma-screenshot   | This skill should be used when the user asks to "save a Figma screenshot", "export a Figma node as image", "capture Figma design", or needs to save Figma node screenshots to local files. Prefer this over Figma MCP's get_screenshot.                                                                                                                              |

@@ -1,6 +1,6 @@
 ---
 name: research:image-analyze
-description: Analyze or compare images and PDFs using AI (Gemini) or local processing (sharp/pixelmatch). Use when performing design review, screenshot comparison, visual diff, edge detection, image metadata inspection, or PDF document analysis.
+description: 'This skill should be used when the user asks to "analyze image", "compare screenshots", "visual diff", "PDFを解析", or wants image/PDF analysis using AI or local processing.'
 ---
 
 # Image Analyze

@@ -1,6 +1,6 @@
 ---
 name: mutils:task-history
-description: "Review past task and TODO history from previous sessions. Use when asked to review past work, check what was done, or reflect on completed tasks."
+description: 'This skill should be used when the user asks to "review past work", "過去の作業を確認", "what was done", "TODO履歴", or wants past task and TODO history from previous sessions reviewed.'
 allowed-tools: Bash(./query.ts *), Read
 ---
 
