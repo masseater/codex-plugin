@@ -1,0 +1,25 @@
+{
+  "name": "ccs",
+  "version": "0.1.1",
+  "description": "CCS (Claude Code Sessions) 環境の自動設定・セッション管理・委譲ワークフロー",
+  "author": {
+    "name": "masseater",
+    "url": "https://github.com/masseater"
+  },
+  "homepage": "https://github.com/masseater/codex-plugin/tree/main/plugins/ccs",
+  "repository": "https://github.com/masseater/codex-plugin",
+  "keywords": [
+    "masseater",
+    "claude-code-plugin",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Ccs",
+    "shortDescription": "CCS (Claude Code Sessions) 環境の自動設定・セッション管理・委譲ワークフロー",
+    "longDescription": "CCS (Claude Code Sessions) 環境の自動設定・セッション管理・委譲ワークフロー",
+    "developerName": "masseater",
+    "category": "Productivity"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}

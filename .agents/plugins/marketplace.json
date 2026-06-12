@@ -29,6 +29,18 @@
       "category": "Productivity"
     },
     {
+      "name": "ccs",
+      "source": {
+        "source": "local",
+        "path": "./plugins/ccs"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
       "name": "code-review",
       "source": {
         "source": "local",

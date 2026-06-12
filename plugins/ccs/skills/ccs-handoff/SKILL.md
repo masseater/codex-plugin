@@ -1,5 +1,5 @@
 ---
-name: mutils:ccs-handoff
+name: ccs:ccs-handoff
 description: 'This skill should be used when the user asks to "handoff from CCS", "Claude Codeの作業を引き継ぐ", "rate limit handoff", "context overflow", or wants to resume interrupted work from another CCS profile session.'
 tools:
   - Bash(./ccs-handoff.ts *)
