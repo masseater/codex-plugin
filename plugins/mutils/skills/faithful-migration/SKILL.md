@@ -39,27 +39,23 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash(ls *), Bash(find *), Bash(rg 
 
 本スキルは以下のスキルを **呼び出す側** として動作する。
 
-| スキル                           | 用途                                         |
-| -------------------------------- | -------------------------------------------- |
-| `workspace-id`                   | 作業ディレクトリ規約に基づく workspace 生成  |
-| `diagram-render:draw-diagram`    | 移植元 / 移植先システム構成図の Mermaid 作成 |
-| `diagram-render:render`          | 構成図 Markdown を HTML へ変換               |
-| `mutils:consecutive-review-loop` | 構成図の精度を N 回連続レビューで担保する    |
+- `workspace-id` — 作業ディレクトリ規約に基づく workspace 生成
+- `diagram-render:draw-diagram` — 移植元 / 移植先システム構成図の Mermaid 作成
+- `diagram-render:render` — 構成図 Markdown を HTML へ変換
+- `mutils:consecutive-review-loop` — 構成図の精度を N 回連続レビューで担保する
 
 ## 成果物ディレクトリ
 
 workspace-id スキルで生成された `.agents/workspaces/[workspace-id]/` 配下に以下を統一保存する。
 
-| ファイル / ディレクトリ           | 内容                                                                           |
-| --------------------------------- | ------------------------------------------------------------------------------ |
-| `000000-outcome.md`               | 着手前に宣言した 1 周フロー outcome                                            |
-| `000001-enumeration.md`           | 移植元の全画面 + 全 API endpoint 列挙表、移植先対応 path と 1:1 diff（3 列表） |
-| `000002-source-diagram.md`        | 移植元の **完璧な** システム構成図（Mermaid）                                  |
-| `000002-source-diagram.html`      | 同 HTML（`diagram-render:render` で生成）                                      |
-| `000003-target-diagram.md`        | `000002` を移植先リポジトリの規約に基づいて再構成した版（Mermaid）             |
-| `000003-target-diagram.html`      | 同 HTML                                                                        |
-| `000004-pr-bodies/`               | outcome 単位の PR 本文ドラフト（1 PR = 1 outcome）                             |
-| `000005-screenshots/[flow-name]/` | merge 前必須の 1 周フロースクリーンショット                                    |
+- `000000-outcome.md` — 着手前に宣言した 1 周フロー outcome
+- `000001-enumeration.md` — 移植元の全画面 + 全 API endpoint 列挙表、移植先対応 path と 1:1 diff（3 列表）
+- `000002-source-diagram.md`** — 移植元の **完璧な システム構成図（Mermaid）
+- `000002-source-diagram.html` — 同 HTML（`diagram-render:render` で生成）
+- `000003-target-diagram.md` — `000002` を移植先リポジトリの規約に基づいて再構成した版（Mermaid）
+- `000003-target-diagram.html` — 同 HTML
+- `000004-pr-bodies/` — outcome 単位の PR 本文ドラフト（1 PR = 1 outcome）
+- `000005-screenshots/[flow-name]/` — merge 前必須の 1 周フロースクリーンショット
 
 ## Phase 1: Workspace Bootstrap
 
@@ -204,11 +200,9 @@ while streak < 3:
 
 ### 禁止語リスト
 
-| カテゴリ         | 語                                                                                     |
-| ---------------- | -------------------------------------------------------------------------------------- |
-| 部分対応の糊塗   | `(編集モード)のみ対応`、`subset`、`部分対応`、`as-is`                                  |
-| 完了に見せる骨格 | `骨格`、`walking skeleton`、`mock 除去`、`機能パリティ`                                |
-| 検証先送り       | `後続 PR で対応`、`次の PR で`、`レビュー後にローカルで確認`、`merge 後にローカル確認` |
+- 部分対応の糊塗 — `(編集モード)のみ対応`、`subset`、`部分対応`、`as-is`
+- 完了に見せる骨格 — `骨格`、`walking skeleton`、`mock 除去`、`機能パリティ`
+- 検証先送り — `後続 PR で対応`、`次の PR で`、`レビュー後にローカルで確認`、`merge 後にローカル確認`
 
 ### 検出時の挙動（疑似コード）
 
@@ -314,12 +308,10 @@ before_open_pr(pr):
 
 ## アンチパターン
 
-| アンチパターン                                                  | なぜダメか                                                                   |
-| --------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| 「骨格を全カテゴリ網羅したので完了」                            | 完了は outcome（1 周フロー）で定義する。カテゴリ網羅は中間 KPI に過ぎない    |
-| 「主要画面 3 枚を突合したので忠実な移植を確認」                 | 突合スコープを恣意的に縛っている。Phase 2 で全列挙し全行に status を付ける   |
-| 「(編集モード) のみ対応」と書いて完了とする                     | subset 宣言で逃げている。Phase 5 で禁止語として検出される                    |
-| 「業務フロー手動確認は本 PR では未実施。merge 後に確認」        | 検証先送りは Phase 5 / Phase 7 でブロックされる                              |
-| EPIC を 1 PR にまとめる                                         | 詰み UI が diff 量に埋もれる。Phase 6 で 1 PR = 1 outcome                    |
-| 構成図レビューをメインエージェント自身が眺めて OK と判断        | 独立性が崩れる。consecutive-review-loop で flat prompt subagent を使う       |
-| target diagram でノードを「移植先には無いから」と silent に削除 | `parity status: missing` を `000001` と一致させる形で残す。silent 省略は禁止 |
+- 「骨格を全カテゴリ網羅したので完了」 — 完了は outcome（1 周フロー）で定義する。カテゴリ網羅は中間 KPI に過ぎない
+- 「主要画面 3 枚を突合したので忠実な移植を確認」 — 突合スコープを恣意的に縛っている。Phase 2 で全列挙し全行に status を付ける
+- 「(編集モード) のみ対応」と書いて完了とする — subset 宣言で逃げている。Phase 5 で禁止語として検出される
+- 「業務フロー手動確認は本 PR では未実施。merge 後に確認」 — 検証先送りは Phase 5 / Phase 7 でブロックされる
+- EPIC を 1 PR にまとめる — 詰み UI が diff 量に埋もれる。Phase 6 で 1 PR = 1 outcome
+- 構成図レビューをメインエージェント自身が眺めて OK と判断 — 独立性が崩れる。consecutive-review-loop で flat prompt subagent を使う
+- target diagram でノードを「移植先には無いから」と silent に削除 — `parity status: missing` を `000001` と一致させる形で残す。silent 省略は禁止

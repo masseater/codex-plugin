@@ -111,8 +111,8 @@ See [Plan File Content Rules](../../references/plan-file-content-rules.md)
 
 When additional prompts are received while creating the plan:
 
-1. **Add to User Prompts section**: Append the new prompt as a new blockquote entry, maintaining chronological order
-2. **Update TODO**: Add, modify, or remove TODO items as needed to reflect the new prompt
-3. **Update Structure**: Update Before/After trees if new prompts affect file structure changes
-4. **Update Verification**: Add corresponding verification items for any new TODOs
-5. **Keep the file clean**: The plan file should always reflect only the final intended state, not the evolution of decisions
+1. Add to User Prompts section: Append the new prompt as a new blockquote entry, maintaining chronological order
+2. Update TODO: Add, modify, or remove TODO items as needed to reflect the new prompt
+3. Update Structure: Update Before/After trees if new prompts affect file structure changes
+4. Update Verification: Add corresponding verification items for any new TODOs
+5. Keep the file clean: The plan file should always reflect only the final intended state, not the evolution of decisions

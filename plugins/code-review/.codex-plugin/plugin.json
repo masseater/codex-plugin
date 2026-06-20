@@ -1,6 +1,6 @@
 {
   "name": "code-review",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "description": "PR・コードレビューワークフロー支援",
   "author": {
     "name": "masseater",

@@ -10,11 +10,11 @@ A skill for analyzing project context files and maintaining consistency while up
 
 ## Principles
 
-- **AGENTS.md is the SSOT (Single Source of Truth)**
-- **README.md is the "entry point for humans"**: The first file seen on GitHub
-- **AGENTS.md is the "guide for AI agents"**: Detailed information needed for development work
-- **Unified format**: Consistent structure following templates
-- **Write in English**: All context files (AGENTS.md, README.md, gotchas.md, rules) must be written in English
+- AGENTS.md is the SSOT (Single Source of Truth)
+- README.md is the "entry point for humans": The first file seen on GitHub
+- AGENTS.md is the "guide for AI agents": Detailed information needed for development work
+- Unified format: Consistent structure following templates
+- Write in English: All context files (AGENTS.md, README.md, gotchas.md, rules) must be written in English
 
 ## File Roles
 
@@ -24,9 +24,9 @@ A skill for analyzing project context files and maintaining consistency while up
 
 **Placement rule**:
 
-- **Root directory**: Required
-- **Monorepo packages**: Each publishable package should have its own README.md (displayed on npm)
-- **Other subdirectories**: Not needed (use AGENTS.md instead)
+- Root directory: Required
+- Monorepo packages: Each publishable package should have its own README.md (displayed on npm)
+- Other subdirectories: Not needed (use AGENTS.md instead)
 
 **What to include**:
 
@@ -120,9 +120,9 @@ Example:
 
 ## Processing Targets
 
-1. **gotchas.md** - Classify and organize insights learned during sessions
-2. **AGENTS.md** - Refactor project structure and architecture information
-3. **README.md** - Consistency check + update command list
+1. gotchas.md - Classify and organize insights learned during sessions
+2. AGENTS.md - Refactor project structure and architecture information
+3. README.md - Consistency check + update command list
 
 ## Consistency Check
 

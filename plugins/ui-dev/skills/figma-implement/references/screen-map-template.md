@@ -12,19 +12,19 @@
 
 ### 1. {screenName}
 
-- **Figma node-id**: `xxx:yyy`
-- **Path**: `/path/to/screen`
-- **States**:
+- Figma node-id: `xxx:yyy`
+- Path: `/path/to/screen`
+- States:
   - Default: <!-- -->
   - Loading: <!-- -->
   - Error: <!-- -->
   - Success: <!-- -->
-- **Transitions**:
+- Transitions:
   - -> {next screen}: <!-- condition -->
   - <- {previous screen}: <!-- condition -->
-- **Interactions**: <!-- trigger, transition, easing, duration -->
-- **Validation**: <!-- -->
-- **Notes**: <!-- -->
+- Interactions: <!-- trigger, transition, easing, duration -->
+- Validation: <!-- -->
+- Notes: <!-- -->
 
 <!-- If a transition target has not been fetched yet, list it in the following format -->
 <!-- ### N. {screenName} 📋 Not Fetched -->

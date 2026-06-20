@@ -15,46 +15,51 @@ Why this matters: splitting by deliverable ("skill author" vs "command author") 
 
 ## Good Role Conditions
 
-1. **Defined by expertise/perspective** — "usability expert" not "frontend developer"
-2. **Cross-cutting across all deliverables** — reviews everything, not just specific files
-3. **Complementary to other roles** — security expert and performance expert see different things
+1. Defined by expertise/perspective — "usability expert" not "frontend developer"
+2. Cross-cutting across all deliverables — reviews everything, not just specific files
+3. Complementary to other roles — security expert and performance expert see different things
 
 ## Role Templates
 
 ### Research / Investigation
 
-| Role                               | When to use                                                          | Responsibility                                                              |
-| ---------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `{domain}-domain-expert`           | The task involves a technology with non-obvious specs or constraints | Deep knowledge of the target technology's APIs, limitations, and edge cases |
-| `{ecosystem}-ecosystem-specialist` | Prior art exists that should inform the design                       | Patterns from existing tools, plugins, and community conventions            |
-| `hypothesis-tester`                | Bug investigation with multiple plausible causes                     | Test one specific theory, actively try to disprove others' theories         |
+- `{domain}-domain-expert` — The task involves a technology with non-obvious specs or constraints
+  - Responsibility: Deep knowledge of the target technology's APIs, limitations, and edge cases
+- `{ecosystem}-ecosystem-specialist` — Prior art exists that should inform the design
+  - Responsibility: Patterns from existing tools, plugins, and community conventions
+- `hypothesis-tester` — Bug investigation with multiple plausible causes
+  - Responsibility: Test one specific theory, actively try to disprove others' theories
 
 ### Design / Quality
 
-| Role                         | When to use                                                 | Responsibility                                                                                                           |
-| ---------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `user-experience-strategist` | The output has end-user-facing touchpoints                  | User journey, information design, trigger phrases, error messages                                                        |
-| `tech-lead`                  | Multiple specialists need coordination                      | Integrates findings into overall design decisions (does not edit files directly)                                         |
-| `devils-advocate`            | Groupthink risk is high, or the design needs stress-testing | Actively challenges assumptions, finds edge cases, argues against the current direction to force stronger justifications |
-| `naive-user`                 | Discoverability or onboarding matters                       | Validates whether someone with no prior context can understand and use the result                                        |
-| `consistent-checker`         | The project has established conventions                     | Checks terminology, interface format, naming conventions for inconsistencies                                             |
+- `user-experience-strategist` — The output has end-user-facing touchpoints
+  - Responsibility: User journey, information design, trigger phrases, error messages
+- `tech-lead` — Multiple specialists need coordination
+  - Responsibility: Integrates findings into overall design decisions (does not edit files directly)
+- `devils-advocate` — Groupthink risk is high, or the design needs stress-testing
+  - Responsibility: Actively challenges assumptions, finds edge cases, argues against the current direction to force stronger justifications
+- `naive-user` — Discoverability or onboarding matters
+  - Responsibility: Validates whether someone with no prior context can understand and use the result
+- `consistent-checker` — The project has established conventions
+  - Responsibility: Checks terminology, interface format, naming conventions for inconsistencies
 
 ### Implementation
 
-| Role                 | When to use                                          | Responsibility                                                     |
-| -------------------- | ---------------------------------------------------- | ------------------------------------------------------------------ |
-| `{stack}-specialist` | The implementation requires deep framework knowledge | Expert in a specific technology stack's patterns and idioms        |
-| `test-engineer`      | The deliverable has verifiable acceptance criteria   | Writes and runs tests, validates edge cases, reports coverage gaps |
+- `{stack}-specialist` — The implementation requires deep framework knowledge
+  - Responsibility: Expert in a specific technology stack's patterns and idioms
+- `test-engineer` — The deliverable has verifiable acceptance criteria
+  - Responsibility: Writes and runs tests, validates edge cases, reports coverage gaps
 
 ## Anti-Patterns
 
 ### Deliverable-based splitting
 
-| Bad                               | Why                                      | Better                                                          |
-| --------------------------------- | ---------------------------------------- | --------------------------------------------------------------- |
-| "skill author" + "command author" | Each artifact gets single perspective    | "domain expert" + "UX strategist" who both review all artifacts |
-| "frontend dev" + "backend dev"    | Layer ownership, no cross-cutting review | "API design expert" + "security reviewer" across all layers     |
-| "file-A owner" + "file-B owner"   | Ownership by file, not by concern        | Roles that review across files from different angles            |
+- "skill author" + "command author" — Each artifact gets single perspective
+  - Better: "domain expert" + "UX strategist" who both review all artifacts
+- "frontend dev" + "backend dev" — Layer ownership, no cross-cutting review
+  - Better: "API design expert" + "security reviewer" across all layers
+- "file-A owner" + "file-B owner" — Ownership by file, not by concern
+  - Better: Roles that review across files from different angles
 
 ### Too many teammates
 
@@ -78,13 +83,21 @@ Include everything the teammate needs to do their job independently.
 
 > **Note**: When this skill is invoked, the user has already chosen Agent Teams. This table is for understanding Agent Teams' characteristics, NOT for second-guessing the user's choice.
 
-| Criterion                   | Agent Teams                             | SubAgent              | Single Session |
-| --------------------------- | --------------------------------------- | --------------------- | -------------- |
-| Tasks parallelizable        | Yes, independently                      | Yes, focused tasks    | Sequential     |
-| Workers need to communicate | Yes (teammates message each other)      | No (report back only) | N/A            |
-| File conflict risk          | Low (separate file ownership)           | Low                   | None           |
-| Token budget                | High (each teammate = separate context) | Medium                | Low            |
-| Coordination overhead       | High                                    | Low                   | None           |
+- Tasks parallelizable — Yes, independently
+  - SubAgent: Yes, focused tasks
+  - Single Session: Sequential
+- Workers need to communicate — Yes (teammates message each other)
+  - SubAgent: No (report back only)
+  - Single Session: N/A
+- File conflict risk — Low (separate file ownership)
+  - SubAgent: Low
+  - Single Session: None
+- Token budget — High (each teammate = separate context)
+  - SubAgent: Medium
+  - Single Session: Low
+- Coordination overhead — High
+  - SubAgent: Low
+  - Single Session: None
 
 **Agent Teams excel when**: teammates need to share findings, challenge each other, and coordinate on their own. The task is complex enough that multiple independent perspectives genuinely add value.
 

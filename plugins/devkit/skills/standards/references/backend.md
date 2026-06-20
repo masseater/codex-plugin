@@ -4,14 +4,12 @@ description: Backend tech stack — Hono framework, Drizzle ORM, better-auth, aw
 
 # Backend Stack
 
-| Item           | Technology                     |
-| -------------- | ------------------------------ |
-| Framework      | Hono                           |
-| ORM            | Drizzle ORM                    |
-| Auth           | better-auth (Google OAuth 2.0) |
-| DI             | awilix                         |
-| Env validation | t3-env                         |
-| Error handling | Fail fast (see Philosophy)     |
+- Framework — Hono
+- ORM — Drizzle ORM
+- Auth — better-auth (Google OAuth 2.0)
+- DI — awilix
+- Env validation — t3-env
+- Error handling — Fail fast (see Philosophy)
 
 ## Hono
 

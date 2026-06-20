@@ -11,16 +11,14 @@ A collection of utility commands for manual human execution.
 
 ## Subcommand List
 
-| Command             | Description                                   |
-| ------------------- | --------------------------------------------- |
-| `design-feedback`   | Generate feedback for designers               |
-| `qa-checklist`      | Generate manual QA checklist                  |
-| `update-screen-map` | Update the screen map                         |
-| `update-context`    | Update config.json reviewPrompts              |
-| `check`             | lint + format check                           |
-| `typecheck`         | Type check                                    |
-| `scaffold`          | Generate screen map skeleton from a Figma URL |
-| `install`           | Install dependencies                          |
+- `design-feedback` — Generate feedback for designers
+- `qa-checklist` — Generate manual QA checklist
+- `update-screen-map` — Update the screen map
+- `update-context` — Update config.json reviewPrompts
+- `check` — lint + format check
+- `typecheck` — Type check
+- `scaffold` — Generate screen map skeleton from a Figma URL
+- `install` — Install dependencies
 
 ## design-feedback
 

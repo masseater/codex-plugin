@@ -11,7 +11,7 @@ allowed-tools: ["Read", "Edit", "Task", "AskUserQuestion", "TodoWrite"]
 
 **`/sdd:research clarify`（このコマンド）の役割**:
 
-- **ビジネス要件やユーザーの意思決定**が必要な不明箇所をユーザーに質問
+- ビジネス要件やユーザーの意思決定が必要な不明箇所をユーザーに質問
 - AIだけでは判断できず、ユーザー（プロダクトオーナー、ステークホルダー）の意思決定が必要な項目
 - 例：
   - 機能の優先順位や範囲
@@ -21,8 +21,8 @@ allowed-tools: ["Read", "Edit", "Task", "AskUserQuestion", "TodoWrite"]
 
 **`/sdd:research conduct` との違い**:
 
-- **clarify-spec**: ビジネス要件やユーザーの意思決定が必要な項目をユーザーに質問
-- **conduct-research**: 技術的な調査が必要な項目をAIが調査・検証
+- clarify-spec: ビジネス要件やユーザーの意思決定が必要な項目をユーザーに質問
+- conduct-research: 技術的な調査が必要な項目をAIが調査・検証
 - clarify-specは「ユーザーに聞く」、conduct-researchは「AIが調べる」
 
 **使い分けの例**:
@@ -67,10 +67,10 @@ allowed-tools: ["Read", "Edit", "Task", "AskUserQuestion", "TodoWrite"]
 
 各不明箇所について以下の情報を収集:
 
-- **ファイル名**: どのファイルに記載されているか
-- **セクション名**: どのセクションの内容か
-- **不明な内容**: 何が不明なのか
-- **提示されている案**: 案A、案B、案Cなど
+- ファイル名: どのファイルに記載されているか
+- セクション名: どのセクションの内容か
+- 不明な内容: 何が不明なのか
+- 提示されている案: 案A、案B、案Cなど
 
 ### 3. 不明箇所の整理とタスク化
 

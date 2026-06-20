@@ -34,14 +34,13 @@ agnix --target claude-code --strict .
 ```
 
 **引数:**
-| オプション | 説明 |
-|-----------|------|
-| `--target <tool>` | 対象ツール（claude-code, cursor, copilot, mcp, agents-md, agent-skills, gemini-cli） |
-| `--fix` | HIGH + MEDIUM confidence の自動修正を適用 |
-| `--fix-safe` | HIGH confidence のみ修正 |
-| `--fix-unsafe` | 全 confidence レベルの修正を適用 |
-| `--dry-run --show-fixes` | 修正のプレビュー（差分表示） |
-| `--strict` | 警告をエラーとして扱う |
+
+- `--target <tool>` — 対象ツール（claude-code, cursor, copilot, mcp, agents-md, agent-skills, gemini-cli）
+- `--fix` — HIGH + MEDIUM confidence の自動修正を適用
+- `--fix-safe` — HIGH confidence のみ修正
+- `--fix-unsafe` — 全 confidence レベルの修正を適用
+- `--dry-run --show-fixes` — 修正のプレビュー（差分表示）
+- `--strict` — 警告をエラーとして扱う
 
 `--target` 未指定時は全ターゲットが対象になる。Claude Code プロジェクトでは `--target claude-code` を推奨。
 

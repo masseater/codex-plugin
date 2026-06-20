@@ -19,11 +19,15 @@ yyyymmdd-HHmm-[feature-name]
 
 ### Format Components
 
-| Component    | Format     | Example      | Notes                                                 |
-| ------------ | ---------- | ------------ | ----------------------------------------------------- |
-| Date         | `yyyymmdd` | `20260302`   | Local date, 4-digit year, 2-digit month, 2-digit day  |
-| Time         | `HHmm`     | `1430`       | Local time in 24-hour format (hours and minutes only) |
-| Feature Name | kebab-case | `doc-engine` | Must match regex: `/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/`   |
+- Date — `yyyymmdd`
+  - Example: `20260302`
+  - Notes: Local date, 4-digit year, 2-digit month, 2-digit day
+- Time — `HHmm`
+  - Example: `1430`
+  - Notes: Local time in 24-hour format (hours and minutes only)
+- Feature Name — kebab-case
+  - Example: `doc-engine`
+  - Notes: Must match regex: `/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/`
 
 ### Feature Name Rules
 
@@ -57,11 +61,15 @@ Files within a workspace use a structured naming pattern:
 
 ### File Name Components
 
-| Component    | Format            | Example                  | Notes                                                           |
-| ------------ | ----------------- | ------------------------ | --------------------------------------------------------------- |
-| Sequence     | `[nnnnnn]`        | `000001`                 | 6-digit zero-padded integer, incremented per file               |
-| Subagent     | `[subagent-name]` | `documentation-engineer` | Identifies which subagent created the file                      |
-| Content Type | `[content]`       | `report`                 | Describes the file's purpose (e.g., `report`, `review`, `plan`) |
+- Sequence — `[nnnnnn]`
+  - Example: `000001`
+  - Notes: 6-digit zero-padded integer, incremented per file
+- Subagent — `[subagent-name]`
+  - Example: `documentation-engineer`
+  - Notes: Identifies which subagent created the file
+- Content Type — `[content]`
+  - Example: `report`
+  - Notes: Describes the file's purpose (e.g., `report`, `review`, `plan`)
 
 ### File Name Examples
 
@@ -153,9 +161,9 @@ The `rounds/` directory structure (e.g., `rounds/[NNNN]/`) is specific to the pl
 
 When creating workspaces for plugin-specific work:
 
-- **plan plugin**: Creates `.agents/plans/` files and may organize rounds within workspaces
-- **progress-tracker plugin**: Creates progress-tracker workspace files under `.agents/workspaces/[workspace-id]/`
-- **code-review plugin**: Creates review reports under `.agents/workspaces/[workspace-id]/`
-- **research plugin**: Creates research findings under `.agents/workspaces/[workspace-id]/`
+- plan plugin: Creates `.agents/plans/` files and may organize rounds within workspaces
+- progress-tracker plugin: Creates progress-tracker workspace files under `.agents/workspaces/[workspace-id]/`
+- code-review plugin: Creates review reports under `.agents/workspaces/[workspace-id]/`
+- research plugin: Creates research findings under `.agents/workspaces/[workspace-id]/`
 
 All plugins use the same canonical workspace-id format defined by this skill.

@@ -46,9 +46,7 @@ const { data: pr } = await octokit.pulls.get({
 
 ## Anti-patterns
 
-| Anti-pattern                                  | Better approach                            |
-| --------------------------------------------- | ------------------------------------------ |
-| `gh api /repos/...` for API calls             | Use Octokit's typed methods                |
-| Parsing `gh pr list` output with grep/awk     | `octokit.pulls.list()` for structured data |
-| Parsing `gh issue list --json` JSON output    | Fetch directly via Octokit                 |
-| Calling `gh pr comment` repeatedly in scripts | `octokit.issues.createComment()` in a loop |
+- `gh api /repos/...` for API calls — Use Octokit's typed methods
+- Parsing `gh pr list` output with grep/awk — `octokit.pulls.list()` for structured data
+- Parsing `gh issue list --json` JSON output — Fetch directly via Octokit
+- Calling `gh pr comment` repeatedly in scripts — `octokit.issues.createComment()` in a loop

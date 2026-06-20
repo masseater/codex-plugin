@@ -1,6 +1,6 @@
 {
   "name": "workspace-id",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "エージェント作業ディレクトリ（workspace-id）の規約定義と Auto Compact / resume 時の復元",
   "author": {
     "name": "masseater",

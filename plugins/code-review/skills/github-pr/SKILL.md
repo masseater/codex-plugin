@@ -8,12 +8,10 @@ GitHub Pull Request の操作を効率化するユーティリティ集。
 
 いずれも `./scripts/<scriptName>` に配置されている。
 
-| スクリプト                  | 説明                             |
-| --------------------------- | -------------------------------- |
-| `get-unresolved-threads.ts` | 未解決スレッドID一覧を取得       |
-| `get-comments-by-thread.ts` | スレッドIDからコメント詳細を取得 |
-| `get-ci-status.ts`          | PRのCI状態を取得                 |
-| `get-ci-logs.ts`            | CIジョブのログをダウンロード     |
+- `get-unresolved-threads.ts` — 未解決スレッドID一覧を取得
+- `get-comments-by-thread.ts` — スレッドIDからコメント詳細を取得
+- `get-ci-status.ts` — PRのCI状態を取得
+- `get-ci-logs.ts` — CIジョブのログをダウンロード
 
 使用する際は `<script> --help` を実行し、使い方を把握してから使用すること。
 

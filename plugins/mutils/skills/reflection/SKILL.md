@@ -44,24 +44,24 @@ For each significant piece of work identified, analyze:
 
 ### Process Analysis
 
-- **Initial understanding**: Did I fully understand the requirements before starting?
-- **Planning**: Did I plan adequately before implementation?
-- **Research**: Did I check existing implementations/libraries before writing new code?
-- **Incremental approach**: Did I break down the work into manageable steps?
+- Initial understanding: Did I fully understand the requirements before starting?
+- Planning: Did I plan adequately before implementation?
+- Research: Did I check existing implementations/libraries before writing new code?
+- Incremental approach: Did I break down the work into manageable steps?
 
 ### Decision Analysis
 
-- **Assumptions made**: What did I assume without verifying?
-- **Alternatives considered**: Did I explore multiple approaches?
-- **Trade-offs evaluated**: Were trade-offs explicitly considered and documented?
-- **Scope creep**: Did I add unnecessary features or complexity?
+- Assumptions made: What did I assume without verifying?
+- Alternatives considered: Did I explore multiple approaches?
+- Trade-offs evaluated: Were trade-offs explicitly considered and documented?
+- Scope creep: Did I add unnecessary features or complexity?
 
 ### Execution Analysis
 
-- **Tool usage**: Did I use the most appropriate tools?
-- **Communication**: Did I ask clarifying questions when needed?
-- **Verification**: Did I verify my work before declaring it complete?
-- **Documentation**: Did I document decisions and rationale?
+- Tool usage: Did I use the most appropriate tools?
+- Communication: Did I ask clarifying questions when needed?
+- Verification: Did I verify my work before declaring it complete?
+- Documentation: Did I document decisions and rationale?
 
 ## Generate Reflection Report
 
@@ -80,14 +80,14 @@ Output a structured reflection in this format:
 
 ### Critical Issues
 
-- **{Issue}**: {Description}
+- {Issue}: {Description}
   - What happened: {Specific situation}
   - Better approach: {What should have been done}
   - Lesson: {Takeaway for future work}
 
 ### Minor Improvements
 
-- **{Issue}**: {Description}
+- {Issue}: {Description}
   - Better approach: {Suggestion}
 
 ## Key Lessons Learned
@@ -106,12 +106,12 @@ Output a structured reflection in this format:
 
 Ask yourself these questions honestly:
 
-- **Did I rush?** Was there pressure (real or perceived) that led to shortcuts?
-- **Did I over-engineer?** Did I add complexity that wasn't needed?
-- **Did I under-engineer?** Did I take shortcuts that will cause problems later?
-- **Did I communicate effectively?** Did I explain my reasoning clearly?
-- **Did I verify assumptions?** Or did I proceed on untested beliefs?
-- **Did I learn something new?** If not, why not?
+- Did I rush? Was there pressure (real or perceived) that led to shortcuts?
+- Did I over-engineer? Did I add complexity that wasn't needed?
+- Did I under-engineer? Did I take shortcuts that will cause problems later?
+- Did I communicate effectively? Did I explain my reasoning clearly?
+- Did I verify assumptions? Or did I proceed on untested beliefs?
+- Did I learn something new? If not, why not?
 
 ## Ask User for Feedback
 

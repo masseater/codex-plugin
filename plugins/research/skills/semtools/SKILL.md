@@ -9,12 +9,14 @@ description: 'This skill should be used when the user asks to "semantic search",
 
 ## コマンド一覧
 
-| コマンド             | 説明                                 | API              |
-| -------------------- | ------------------------------------ | ---------------- |
-| `semtools search`    | ローカルセマンティック検索           | 不要（ローカル） |
-| `semtools workspace` | 検索キャッシュ（ワークスペース）管理 | 不要             |
-| `semtools parse`     | PDF/DOCX/PPTX → Markdown 変換        | LlamaParse       |
-| `semtools ask`       | 文書ベースの質問応答                 | OpenAI           |
+- `semtools search` — ローカルセマンティック検索
+  - API: 不要（ローカル）
+- `semtools workspace` — 検索キャッシュ（ワークスペース）管理
+  - API: 不要
+- `semtools parse` — PDF/DOCX/PPTX → Markdown 変換
+  - API: LlamaParse
+- `semtools ask` — 文書ベースの質問応答
+  - API: OpenAI
 
 `search` と `workspace` はローカルのみで完結し API キー不要。`parse` は LlamaParse、`ask` は OpenAI のキーが必要。
 

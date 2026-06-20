@@ -141,7 +141,7 @@ function generateMarkdown(entries: FileEntry[]): string {
     sections.push(`### ${category}\n`);
     for (const item of items) {
       const desc = item.description ? ` — ${item.description}` : "";
-      sections.push(`- **\`${item.relativePath}\`**${desc}`);
+      sections.push(`- \`${item.relativePath}\`${desc}`);
     }
     sections.push("");
   }

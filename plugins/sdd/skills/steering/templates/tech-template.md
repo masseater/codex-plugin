@@ -15,9 +15,9 @@
 
 ### Primary Language(s)
 
-- **Language**: [言語]
-- **Runtime**: [ランタイム]
-- **Framework**: [フレームワーク]
+- Language: [言語]
+- Runtime: [ランタイム]
+- Framework: [フレームワーク]
 
 ### Key Dependencies/Libraries
 
@@ -67,14 +67,14 @@
 
 [重要な技術的決定とその理由]
 
-1. **[決定事項1]**:
-   - **理由**: [理由]
-   - **代替案**: [検討した代替案]
-   - **トレードオフ**: [トレードオフ]
+1. [決定事項1]:
+   - 理由: [理由]
+   - 代替案: [検討した代替案]
+   - トレードオフ: [トレードオフ]
 ```
 
 ## 記載のポイント
 
-- **Architecture**: 図を使わず文章で説明
-- **Key Technical Decisions**: ADR（Architecture Decision Records）的な記録
+- Architecture: 図を使わず文章で説明
+- Key Technical Decisions: ADR（Architecture Decision Records）的な記録
 - 具体的なコマンドは抽象化しすぎない（開発者が実行できるレベル）

@@ -1,6 +1,6 @@
 {
   "name": "diagram-render",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "Markdown + Mermaid を beautiful-mermaid で SVG にレンダリングし自己完結HTMLとして出力するスキル",
   "author": {
     "name": "masseater",

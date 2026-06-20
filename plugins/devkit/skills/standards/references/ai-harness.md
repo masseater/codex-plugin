@@ -48,12 +48,10 @@ Design linter and custom check error messages as fix instructions for AI agents.
 
 Elements an error message should contain:
 
-| Element                      | Purpose                                                                                            |
-| ---------------------------- | -------------------------------------------------------------------------------------------------- |
-| What is wrong                | Identify the violation                                                                             |
-| File and line number         | Locate the fix target                                                                              |
-| WHY — reason the rule exists | Reference to ADR or documentation. Helps the agent understand "why" and prevent similar violations |
-| FIX — repair steps           | Natural language description of the fix, detailed enough for the agent to execute directly         |
+- What is wrong — Identify the violation
+- File and line number — Locate the fix target
+- WHY — reason the rule exists — Reference to ADR or documentation. Helps the agent understand "why" and prevent similar violations
+- FIX — repair steps — Natural language description of the fix, detailed enough for the agent to execute directly
 
 This design lets tools "educate" the agent as they run. No human intervention needed each time an error occurs.
 

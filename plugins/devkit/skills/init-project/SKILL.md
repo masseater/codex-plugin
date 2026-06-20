@@ -10,8 +10,8 @@ Unified flow for creating new projects and complementing existing ones.
 ## Detection
 
 1. Check if `package.json` exists in the current directory
-2. **Does not exist** → New project flow
-3. **Exists** → Complement setup flow
+2. Does not exist → New project flow
+3. Exists → Complement setup flow
 
 ## New Project Flow
 
@@ -39,11 +39,9 @@ After project setup, set the following environment variable to enable additional
 
 Enforces tool usage in pnpm/tsgo environments. When set, the following commands are blocked:
 
-| Blocked Command | Alternative |
-| --------------- | ----------- |
-| npx             | pnpx        |
-| npm             | pnpm        |
-| tsc             | tsgo        |
+- npx — pnpx
+- npm — pnpm
+- tsc — tsgo
 
 Add to the project's `.envrc`:
 

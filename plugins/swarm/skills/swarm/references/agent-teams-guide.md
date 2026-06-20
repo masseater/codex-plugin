@@ -19,12 +19,10 @@ Requires Claude Code v2.1.32 or later.
 
 ## Architecture
 
-| Component     | Role                                                                                       |
-| ------------- | ------------------------------------------------------------------------------------------ |
-| **Team lead** | The main Claude Code session that creates the team, spawns teammates, and coordinates work |
-| **Teammates** | Separate Claude Code instances that each work on assigned tasks                            |
-| **Task list** | Shared list of work items that teammates claim and complete                                |
-| **Mailbox**   | Messaging system for communication between agents                                          |
+- Team lead — The main Claude Code session that creates the team, spawns teammates, and coordinates work
+- Teammates — Separate Claude Code instances that each work on assigned tasks
+- Task list — Shared list of work items that teammates claim and complete
+- Mailbox — Messaging system for communication between agents
 
 Teams and tasks are stored locally:
 
@@ -48,8 +46,8 @@ Teammates load project context automatically (CLAUDE.md, MCP servers, skills), b
 
 ## Communication
 
-- **Direct message**: send to one specific teammate (preferred)
-- **Broadcast**: send to all teammates simultaneously (use sparingly — costs scale with team size)
+- Direct message: send to one specific teammate (preferred)
+- Broadcast: send to all teammates simultaneously (use sparingly — costs scale with team size)
 
 Teammates can message each other directly, not just report back to the lead. This is the key advantage over SubAgents.
 
@@ -63,17 +61,15 @@ The shared task list coordinates work. Tasks have three states: pending, in prog
 
 ## Team Size Guidance
 
-- **3-5 teammates** for most workflows
-- **5-6 tasks per teammate** keeps everyone productive
+- 3-5 teammates for most workflows
+- 5-6 tasks per teammate keeps everyone productive
 - Token costs scale linearly with team size
 - More than 5 teammates usually hits diminishing returns
 
 ## Display Modes
 
-| Mode                     | Description                                          |
-| ------------------------ | ---------------------------------------------------- |
-| **in-process** (default) | All teammates in main terminal. Shift+Down to cycle. |
-| **split panes**          | Each teammate in its own tmux/iTerm2 pane.           |
+- in-process (default) — All teammates in main terminal. Shift+Down to cycle.
+- split panes — Each teammate in its own tmux/iTerm2 pane.
 
 ## Shutdown and Cleanup
 
@@ -93,10 +89,13 @@ The shared task list coordinates work. Tasks have three states: pending, in prog
 
 ## Key Difference from SubAgents
 
-| Aspect        | Agent Teams                                | SubAgent                                    |
-| ------------- | ------------------------------------------ | ------------------------------------------- |
-| Context       | Own full context window, independent       | Own context, results return to caller       |
-| Communication | Teammates message each other directly      | Report results back to main agent only      |
-| Coordination  | Shared task list with self-coordination    | Main agent manages all work                 |
-| Best for      | Complex work requiring discussion          | Focused tasks where only the result matters |
-| Token cost    | Higher (each teammate = separate instance) | Lower (results summarized back)             |
+- Context — Own full context window, independent
+  - SubAgent: Own context, results return to caller
+- Communication — Teammates message each other directly
+  - SubAgent: Report results back to main agent only
+- Coordination — Shared task list with self-coordination
+  - SubAgent: Main agent manages all work
+- Best for — Complex work requiring discussion
+  - SubAgent: Focused tasks where only the result matters
+- Token cost — Higher (each teammate = separate instance)
+  - SubAgent: Lower (results summarized back)

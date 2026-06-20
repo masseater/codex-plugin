@@ -42,24 +42,22 @@ graph LR
 
 ### オプション
 
-| Flag              | 説明                                                          |
-| ----------------- | ------------------------------------------------------------- |
-| `<input>` (位置)  | 入力 Markdown パス（必須）                                    |
-| `-o`, `--output`  | 出力 HTML パス（省略時は `<input>.html`）                     |
-| `-t`, `--title`   | HTML `<title>`（省略時は入力ファイル名）                      |
-| `--theme`         | `light` または `dark`（default: `light`）                     |
-| `--transparent`   | Mermaid SVG の背景を透過にする                                |
-| `--strict`        | Mermaid ブロックに 1 つでもエラーがあれば exit 1（CI 用途）   |
-| `--validate-only` | 構文検査のみ実行し HTML は書き出さない。エラーがあれば exit 1 |
+- `<input>` (位置) — 入力 Markdown パス（必須）
+- `-o`, `--output` — 出力 HTML パス（省略時は `<input>.html`）
+- `-t`, `--title` — HTML `<title>`（省略時は入力ファイル名）
+- `--theme` — `light` または `dark`（default: `light`）
+- `--transparent` — Mermaid SVG の背景を透過にする
+- `--strict` — Mermaid ブロックに 1 つでもエラーがあれば exit 1（CI 用途）
+- `--validate-only` — 構文検査のみ実行し HTML は書き出さない。エラーがあれば exit 1
 
 ### Mermaid バリデーション
 
 スクリプトには Mermaid 構文検査が組み込まれている。
 
-- **構文検査**: 各ブロックを `beautiful-mermaid` でレンダリングし、失敗したブロックは HTML 内にエラー表示として埋め込み、stderr にも `[file:line] block #N: <error message>` を出力する
-- **孤立ノード検出**: `graph` / `flowchart` / `stateDiagram` のブロックで、どのエッジにも繋がっていないノード (例: `C[Orphan Node]` だけ書いて `C` を `-->` に登場させない) を検出してエラーにする
-- **CI 連携**: `--strict` でエラー時に exit 1。GitHub Actions などのチェックに利用できる
-- **検査のみ**: `--validate-only` を付けると HTML を書き出さず構文検査のみ実行する
+- 構文検査: 各ブロックを `beautiful-mermaid` でレンダリングし、失敗したブロックは HTML 内にエラー表示として埋め込み、stderr にも `[file:line] block #N: <error message>` を出力する
+- 孤立ノード検出: `graph` / `flowchart` / `stateDiagram` のブロックで、どのエッジにも繋がっていないノード (例: `C[Orphan Node]` だけ書いて `C` を `-->` に登場させない) を検出してエラーにする
+- CI 連携: `--strict` でエラー時に exit 1。GitHub Actions などのチェックに利用できる
+- 検査のみ: `--validate-only` を付けると HTML を書き出さず構文検査のみ実行する
 
 ```bash
 # 検査のみ (CI で使用)

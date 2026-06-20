@@ -9,20 +9,20 @@ Generate Zenn tech articles from conversation context or specified topics, and p
 
 ## Workflow
 
-1. **Determine source** — Based on user instructions, compose the article using one of:
-   - **Conversation context mode**: Summarize technical content from the current session into an article
-   - **Topic mode**: Write about a user-specified topic, referencing conversation context as needed
-2. **Generate article** — Produce the article in Zenn Markdown format
-3. **Review** — Present the generated article to the user and incorporate feedback
-4. **Publish** — Create the file in the Zenn repository, push to a new branch, and open a PR
+1. Determine source — Based on user instructions, compose the article using one of:
+   - Conversation context mode: Summarize technical content from the current session into an article
+   - Topic mode: Write about a user-specified topic, referencing conversation context as needed
+2. Generate article — Produce the article in Zenn Markdown format
+3. Review — Present the generated article to the user and incorporate feedback
+4. Publish — Create the file in the Zenn repository, push to a new branch, and open a PR
 
 ## Zenn Repository Info
 
-- **GitHub**: `masseater/zenn-article`
-- **Local path**: Read from `../../config/repo-path.txt`. If the file does not exist, ask the user for the path, then save it to that file for future use
-- **Articles directory**: `articles/`
-- **Images directory**: `images/`
-- **Default branch**: `master`
+- GitHub: `masseater/zenn-article`
+- Local path: Read from `../../config/repo-path.txt`. If the file does not exist, ask the user for the path, then save it to that file for future use
+- Articles directory: `articles/`
+- Images directory: `images/`
+- Default branch: `master`
 
 ## Article Format
 

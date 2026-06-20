@@ -104,10 +104,10 @@ Suggest customizing `reviewPrompts` and `contextFiles` (files to reference durin
 
 ### Critical Rules
 
-- **The parent is an orchestrator ONLY.** The parent MUST NOT write any implementation code itself. ALL implementation and review work MUST be delegated to subagents via the Task tool
-- **Do not ask the user for confirmation at each step.** Complete all screens autonomously and report the results at the end
-- **All review findings must be addressed** — fix every issue reported by reviewers. If a finding cannot be fixed via code (spec ambiguity, design issue, architecture concern), record it as a TODO and move on
-- **Interactions are mandatory.** Every screen's transitions, animations, and interactive behaviors from the prototype chain and screen map MUST be implemented. Skipping interactions is not acceptable
+- The parent is an orchestrator ONLY. The parent MUST NOT write any implementation code itself. ALL implementation and review work MUST be delegated to subagents via the Task tool
+- Do not ask the user for confirmation at each step. Complete all screens autonomously and report the results at the end
+- All review findings must be addressed — fix every issue reported by reviewers. If a finding cannot be fixed via code (spec ambiguity, design issue, architecture concern), record it as a TODO and move on
+- Interactions are mandatory. Every screen's transitions, animations, and interactive behaviors from the prototype chain and screen map MUST be implemented. Skipping interactions is not acceptable
 
 ```
 for (screen in screens) {
@@ -137,16 +137,18 @@ Read both review reports and auto-classify findings. **Do not ask the user for j
 
 #### Issue Classification Guide (A/B/C/D)
 
-| Category                          | Description                                                | Action                                                                     |
-| --------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------- |
-| **A. Fixable via code**           | Bugs, style mismatches, missing implementation             | Fix -> re-run Step 2                                                       |
-| **B. Spec ambiguity/gap**         | Undefined retry limits, missing timeout handling, etc.     | Make a reasonable assumption, fix, and record the assumption in the report |
-| **C. Design change needed**       | Undefined error states, layout breaks with real data, etc. | `// TODO(design):` + mark screen map with `⚠️ Unconfirmed`                 |
-| **D. Architecture change needed** | State management rethink, API call timing change, etc.     | Record in "Unresolved TODOs" in the report                                 |
+- A. Fixable via code — Bugs, style mismatches, missing implementation
+  - Action: Fix -> re-run Step 2
+- B. Spec ambiguity/gap — Undefined retry limits, missing timeout handling, etc.
+  - Action: Make a reasonable assumption, fix, and record the assumption in the report
+- C. Design change needed — Undefined error states, layout breaks with real data, etc.
+  - Action: `// TODO(design):` + mark screen map with `⚠️ Unconfirmed`
+- D. Architecture change needed — State management rethink, API call timing change, etc.
+  - Action: Record in "Unresolved TODOs" in the report
 
-- **A and B findings**: Spawn fix subagent to address all of them. All reviewer findings must be fixed
-- **C and D findings**: Record as TODOs and proceed (these require human decisions)
-- **No fixable findings (A/B)**: Screen passes. Go to Step 4
+- A and B findings: Spawn fix subagent to address all of them. All reviewer findings must be fixed
+- C and D findings: Record as TODOs and proceed (these require human decisions)
+- No fixable findings (A/B): Screen passes. Go to Step 4
 
 ### Step 4: Spawn Fix Subagent
 
@@ -209,10 +211,8 @@ This is the only point where the user receives a full report. Make it thorough.
 
 ## Troubleshooting
 
-| Situation                                  | Resolution                                                                                         |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| Prototype chain trace returns only 1 frame | Confirm with user that the start node is correct. Verify a frame node (not page node) is specified |
-| Prototype chain trace fails                | Check `FIGMA_ACCESS_TOKEN` setup. Try both node-id formats (colon/dash)                            |
-| Subagent returns without writing a report  | Restart with the same prompt once. If it fails twice, report to the user                           |
-| get_design_context returns empty           | Verify the node-id is correct. Check that the node is Ready for Dev in Figma                       |
-| Fix loop is dragging on                    | Present remaining issues summary to user and ask whether to skip or proceed                        |
+- Prototype chain trace returns only 1 frame — Confirm with user that the start node is correct. Verify a frame node (not page node) is specified
+- Prototype chain trace fails — Check `FIGMA_ACCESS_TOKEN` setup. Try both node-id formats (colon/dash)
+- Subagent returns without writing a report — Restart with the same prompt once. If it fails twice, report to the user
+- get_design_context returns empty — Verify the node-id is correct. Check that the node is Ready for Dev in Figma
+- Fix loop is dragging on — Present remaining issues summary to user and ask whether to skip or proceed

@@ -19,10 +19,10 @@ The debug plugin is a lightweight diagnostic tool for Claude Code plugin develop
 
 The debug plugin's SessionStart hooks execute on every session event (startup, resume, clear, compact). The following data is produced:
 
-| Destination                                    | Content                                      | Persistence              |
-| ---------------------------------------------- | -------------------------------------------- | ------------------------ |
-| `$XDG_STATE_HOME/claude-code-plugin/debug.txt` | `CLAUDE_PLUGIN_ROOT` absolute path           | Overwritten each session |
-| stdout (additionalContext)                     | Structured context about debug plugin status | Conversation only        |
+- `$XDG_STATE_HOME/claude-code-plugin/debug.txt` — `CLAUDE_PLUGIN_ROOT` absolute path
+  - Persistence: Overwritten each session
+- stdout (additionalContext) — Structured context about debug plugin status
+  - Persistence: Conversation only
 
 Default `XDG_STATE_HOME` is `~/.local/state` when the environment variable is not set.
 
@@ -38,10 +38,8 @@ The SessionStart hook outputs a structured context message via `additionalContex
 
 ## Environment Variables
 
-| Variable             | Description                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------- |
-| `CLAUDE_PLUGIN_ROOT` | Absolute path to the debug plugin directory. Set by Claude Code for all plugin hooks. |
-| `XDG_STATE_HOME`     | Base directory for state data. Falls back to `~/.local/state`.                        |
+- `CLAUDE_PLUGIN_ROOT` — Absolute path to the debug plugin directory. Set by Claude Code for all plugin hooks.
+- `XDG_STATE_HOME` — Base directory for state data. Falls back to `~/.local/state`.
 
 ## Diagnostic Workflow
 

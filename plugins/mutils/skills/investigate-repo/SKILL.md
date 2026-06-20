@@ -77,13 +77,13 @@ Output in this shape:
 
 #### [<severity>] <title>
 
-- **id**: `<slug>`
-- **category**: <category>
-- **evidence**:
+- id: `<slug>`
+- category: <category>
+- evidence:
   - `path/to/file.ts:42` — <quoted snippet or short description>
   - `path/to/other.ts:13`
-- **suggested fix**: <one or two sentences>
-- **keywords**: <comma-separated>
+- suggested fix: <one or two sentences>
+- keywords: <comma-separated>
 
 ---
 ```

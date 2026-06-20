@@ -14,23 +14,19 @@ All production services must emit **logs**, **metrics**, and **traces**. Omittin
 
 ### Instrumentation Layer
 
-| Layer                   | What to capture                                                                          |
-| ----------------------- | ---------------------------------------------------------------------------------------- |
-| HTTP requests/responses | Method, path, status, duration, request ID                                               |
-| Database queries        | Query type, table, duration, row count                                                   |
-| External API calls      | Endpoint, status, duration, retry count                                                  |
-| Business logic          | State transitions, decision branch outcomes — only when the layers above cannot cover it |
+- HTTP requests/responses — Method, path, status, duration, request ID
+- Database queries — Query type, table, duration, row count
+- External API calls — Endpoint, status, duration, retry count
+- Business logic — State transitions, decision branch outcomes — only when the layers above cannot cover it
 
 ### Log Level Policy
 
-| Level | When to use                                                                 |
-| ----- | --------------------------------------------------------------------------- |
-| fatal | Process cannot continue — crash imminent                                    |
-| error | Operation failed — requires attention but process survives                  |
-| warn  | Unexpected condition that was handled — may indicate a deeper issue         |
-| info  | Significant business events — request completed, job processed, user action |
-| debug | Diagnostic detail — off in production by default                            |
-| trace | Extremely verbose — only enabled for targeted debugging                     |
+- fatal — Process cannot continue — crash imminent
+- error — Operation failed — requires attention but process survives
+- warn — Unexpected condition that was handled — may indicate a deeper issue
+- info — Significant business events — request completed, job processed, user action
+- debug — Diagnostic detail — off in production by default
+- trace — Extremely verbose — only enabled for targeted debugging
 
 ### Rules
 
@@ -43,11 +39,9 @@ All production services must emit **logs**, **metrics**, and **traces**. Omittin
 
 ## Metrics
 
-| Instrument | When to use                                     |
-| ---------- | ----------------------------------------------- |
-| Counter    | Request counts, error counts, events            |
-| Histogram  | Latency distributions, response sizes           |
-| Gauge      | Queue depth, active connections, resource usage |
+- Counter — Request counts, error counts, events
+- Histogram — Latency distributions, response sizes
+- Gauge — Queue depth, active connections, resource usage
 
 - Expose request rate, error rate, and latency percentiles (RED method) for every service
 - Track custom business metrics where they directly inform operational decisions

@@ -53,16 +53,22 @@ Parent Process
 
 Before launching subagents, extract concrete, verifiable claims from each section. A "claim" is any statement that can be checked against reality.
 
-| Category                     | Example                           | How to Verify                    |
-| ---------------------------- | --------------------------------- | -------------------------------- |
-| **File/directory existence** | "`plugins/` contains plugin code" | Glob for the path                |
-| **Command behavior**         | "`bun run check` runs lint"       | Read package.json scripts        |
-| **Tool/version reference**   | "Uses Biome for linting"          | Check config files, package.json |
-| **Configuration**            | "Hooks are in hooks.json"         | Glob/Read the file               |
-| **Workflow description**     | "Pre-commit runs security check"  | Read lefthook.yml or equivalent  |
-| **Cross-file reference**     | "CLAUDE.md references AGENTS.md"  | Read the referenced file         |
-| **External tool/API**        | "tsgo is native TypeScript 7.x"   | WebSearch for current status     |
-| **Structural claim**         | "5 skills in context plugin"      | Count actual skill directories   |
+- File/directory existence — "`plugins/` contains plugin code"
+  - How to Verify: Glob for the path
+- Command behavior — "`bun run check` runs lint"
+  - How to Verify: Read package.json scripts
+- Tool/version reference — "Uses Biome for linting"
+  - How to Verify: Check config files, package.json
+- Configuration — "Hooks are in hooks.json"
+  - How to Verify: Glob/Read the file
+- Workflow description — "Pre-commit runs security check"
+  - How to Verify: Read lefthook.yml or equivalent
+- Cross-file reference — "CLAUDE.md references AGENTS.md"
+  - How to Verify: Read the referenced file
+- External tool/API — "tsgo is native TypeScript 7.x"
+  - How to Verify: WebSearch for current status
+- Structural claim — "5 skills in context plugin"
+  - How to Verify: Count actual skill directories
 
 ### 3. Launch Subagents in Parallel
 
@@ -77,9 +83,9 @@ IMPORTANT: Do NOT trust your own knowledge. Only evidence from the actual codeba
 
 ## Target Section
 
-- **File**: {file-path}
-- **Section**: {number}/{total} — {heading}
-- **Lines**: {start}-{end}
+- File: {file-path}
+- Section: {number}/{total} — {heading}
+- Lines: {start}-{end}
 
 ## Section Content
 
@@ -97,10 +103,10 @@ IMPORTANT: Do NOT trust your own knowledge. Only evidence from the actual codeba
 
 For EACH claim:
 
-1. **Search the codebase**: Use Grep/Glob/Read to find evidence
-2. **Search the web** (if claim involves external tools/versions): Use WebSearch
-3. **Record evidence**: Exact file paths, line numbers, or URLs found
-4. **Determine verdict**:
+1. Search the codebase: Use Grep/Glob/Read to find evidence
+2. Search the web (if claim involves external tools/versions): Use WebSearch
+3. Record evidence: Exact file paths, line numbers, or URLs found
+4. Determine verdict:
    - VERIFIED: Evidence confirms the claim
    - FALSE: Evidence contradicts the claim
    - OUTDATED: Was true but no longer accurate
@@ -111,9 +117,9 @@ For EACH claim:
 For each claim:
 
 **Claim {N}**: "{claim text}"
-- **Verdict**: {VERIFIED|FALSE|OUTDATED|UNVERIFIED}
-- **Evidence**: {file paths, line numbers, or URLs}
-- **Correction** (if FALSE/OUTDATED): {correct statement}
+- Verdict: {VERIFIED|FALSE|OUTDATED|UNVERIFIED}
+- Evidence: {file paths, line numbers, or URLs}
+- Correction (if FALSE/OUTDATED): {correct statement}
 
 If any claims are FALSE or OUTDATED, provide:
 
