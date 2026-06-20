@@ -39,15 +39,15 @@ After receiving user answers, output:
 
 ## Decisions
 
-| Item         | Choice   | Reason            | Notes                       |
-| ------------ | -------- | ----------------- | --------------------------- |
-| Data storage | Database | Scalability needs | Consider migration strategy |
+- Data storage — Database
+  - Reason: Scalability needs
+  - Notes: Consider migration strategy
 
 ## Next Steps
 
-1. **First task**
+1. First task
    - Details...
-2. **Second task**
+2. Second task
    - Details...
      </output_format>
 
@@ -56,7 +56,7 @@ After receiving user answers, output:
 ## Important Notes
 
 - MUST: use the AskUserQuestion tool; MUST NOT: ask conversational questions instead
-- **Language selection**:
+- Language selection:
   1. IF: CLAUDE.md states a language preference (e.g., "respond in Japanese"); THEN MUST: use that language
   2. IF: no preference is found; THEN MUST: use English
 - MUST: include pros/cons in each option

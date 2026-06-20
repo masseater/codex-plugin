@@ -26,6 +26,7 @@ bun run typecheck    # type check
 以下の skill は `disable-model-invocation: true` を付与しない。設計判断: ユーザーが自然文で依頼する主要ワークフロー、または AI がタスク遂行中に自律参照すべき実行リファレンスである。これらの `description` には自然文 trigger、または実行リファレンスとしての参照理由を定義する。
 
 - `github-workflow:create-issue`
+- `github-workflow:watch-pr` — PR監視時の落とし穴・判断基準リファレンス。PR監視時にAIが自律参照し、コンフリクトがCIをブロックする等の14件の落とし穴を踏まないようにする。
 
 上記以外の skill は、明示呼び出し・内部参照・手動操作・低レベルユーティリティとして扱い、`disable-model-invocation: true` を維持する。disabled skill の `description` には広い自然文 trigger を定義しない。
 
@@ -38,6 +39,7 @@ bun run typecheck    # type check
 | Type  | Name                         | Description                                                                                                                                                                                                                                                                                                                |
 | ----- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | skill | github-workflow:create-issue | Create a GitHub issue in the current repository with a drafted title, body, and labels, confirming with the user before submission. Use when the user says "issueを作成", "GitHub issueを立てる", "create issue", "新しいissue", "バグ報告issue", or wants to file a new issue from conversation or investigation context. |
+| skill | github-workflow:watch-pr     | This skill should be used when the user asks to 'watch PRs', 'monitor PR status', 'PRを監視', 'PRの状態を見て', 'babysit this PR', 'PRが通るまで見て', or when the agent needs to monitor PR health after push, PR creation, or CI failure detection.                                                                      |
 | agent | ci-watcher                   | Monitor CI and PR merge conflict status for pushed branches in the background.                                                                                                                                                                                                                                             |
 | hook  | auto-ci-watch                | PostToolUse (`Bash`)                                                                                                                                                                                                                                                                                                       |
 | hook  | check-branch-status          | Stop                                                                                                                                                                                                                                                                                                                       |

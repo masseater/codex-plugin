@@ -98,16 +98,14 @@ gh label list --repo OWNER/REPO --limit 100 --json name
 
 Default mappings:
 
-| Category      | Labels          |
-| ------------- | --------------- |
-| `bug`         | `bug`           |
-| `tech-debt`   | `tech-debt`     |
-| `test-gap`    | `test`          |
-| `doc`         | `documentation` |
-| `dependency`  | `dependencies`  |
-| `performance` | `performance`   |
-| `security`    | `security`      |
-| `lint`/`type` | `tech-debt`     |
+- `bug` — `bug`
+- `tech-debt` — `tech-debt`
+- `test-gap` — `test`
+- `doc` — `documentation`
+- `dependency` — `dependencies`
+- `performance` — `performance`
+- `security` — `security`
+- `lint`/`type` — `tech-debt`
 
 Add repo-specific automation labels when they exist (e.g. `claude` triggers Claude Code Action in this repo). Never invent a label that does not exist in the target repo.
 

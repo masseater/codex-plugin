@@ -10,16 +10,30 @@ Tech stack and conventions for CLI tool development.
 
 All required. Use the latest version at or above the specified minimum.
 
-| Item                  | Technology                        | Version  | Notes                                                                              |
-| --------------------- | --------------------------------- | -------- | ---------------------------------------------------------------------------------- |
-| Language              | TypeScript                        | -        | -                                                                                  |
-| Runtime               | Bun                               | -        | -                                                                                  |
-| Type checker          | @typescript/native-preview (tsgo) | v7+      | tsc is forbidden — tsgo provides 10x faster type-checking with identical semantics |
-| Linter/Formatter      | @biomejs/biome                    | v2+      | -                                                                                  |
-| CLI framework         | citty                             | v0.1.6+  | -                                                                                  |
-| Colored output        | chalk                             | v5.6.2+  | -                                                                                  |
-| Progress bar          | cli-progress                      | v3.12.0+ | -                                                                                  |
-| Unused code detection | knip                              | -        | -                                                                                  |
+- Language — TypeScript
+  - Version: -
+  - Notes: -
+- Runtime — Bun
+  - Version: -
+  - Notes: -
+- Type checker — @typescript/native-preview (tsgo)
+  - Version: v7+
+  - Notes: tsc is forbidden — tsgo provides 10x faster type-checking with identical semantics
+- Linter/Formatter — @biomejs/biome
+  - Version: v2+
+  - Notes: -
+- CLI framework — citty
+  - Version: v0.1.6+
+  - Notes: -
+- Colored output — chalk
+  - Version: v5.6.2+
+  - Notes: -
+- Progress bar — cli-progress
+  - Version: v3.12.0+
+  - Notes: -
+- Unused code detection — knip
+  - Version: -
+  - Notes: -
 
 Report missing stack items as critical violations.
 

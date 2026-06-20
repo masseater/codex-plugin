@@ -54,12 +54,10 @@ Record concrete evidence (`path/to/file.ts:42`, test names, command output) for 
 
 Classify the issue overall:
 
-| Verdict              | Meaning                                                               |
-| -------------------- | --------------------------------------------------------------------- |
-| `complete`           | Every hard requirement is satisfied with evidence                     |
-| `partially-complete` | Some requirements are satisfied; specific ones remain                 |
-| `not-started`        | No code addresses the issue yet                                       |
-| `obsolete`           | The issue no longer applies (scope removed, superseded, already moot) |
+- `complete` — Every hard requirement is satisfied with evidence
+- `partially-complete` — Some requirements are satisfied; specific ones remain
+- `not-started` — No code addresses the issue yet
+- `obsolete` — The issue no longer applies (scope removed, superseded, already moot)
 
 Per-criterion verdicts must each carry evidence. A criterion without evidence is "unknown", not "satisfied".
 
@@ -75,12 +73,10 @@ Present the review in 日本語:
 
 MUST NOT: modify the issue without explicit approval. MUST: use `AskUserQuestion` to confirm what to apply, proposing defaults based on the verdict:
 
-| Verdict              | Proposed status update                                                               |
-| -------------------- | ------------------------------------------------------------------------------------ |
-| `complete`           | Post a review comment with evidence; close with `completed`; optionally label `done` |
-| `partially-complete` | Post a comment listing remaining work; keep open; adjust labels if useful            |
-| `not-started`        | Post a comment noting no code addresses it yet; keep open                            |
-| `obsolete`           | Post a comment explaining why; close with `not_planned`                              |
+- `complete` — Post a review comment with evidence; close with `completed`; optionally label `done`
+- `partially-complete` — Post a comment listing remaining work; keep open; adjust labels if useful
+- `not-started` — Post a comment noting no code addresses it yet; keep open
+- `obsolete` — Post a comment explaining why; close with `not_planned`
 
 Let the user accept, adjust (e.g. keep open instead of closing), or skip the update.
 
@@ -119,6 +115,6 @@ Confirm to the user what was applied — the new state, labels, and the URL of t
 
 ### Scripts
 
-- **`scripts/fetch-issue.ts`** — Fetch a GitHub issue's body, comments, labels, state, and assignees as JSON.
-- **`scripts/update-issue-status.ts`** — Apply a status update to a GitHub issue: post a review comment, add/remove
+- `scripts/fetch-issue.ts` — Fetch a GitHub issue's body, comments, labels, state, and assignees as JSON.
+- `scripts/update-issue-status.ts` — Apply a status update to a GitHub issue: post a review comment, add/remove
 <!-- REFERENCES_END -->

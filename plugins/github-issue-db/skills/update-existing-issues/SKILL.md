@@ -127,19 +127,18 @@ Keep < 2500 chars. Use permalinks (`blob/<sha>/<path>#L<line>`), not full quotes
 
 ### Step 5: Decide Closure
 
-| Verdict              | Action                                                |
-| -------------------- | ----------------------------------------------------- |
-| `resolved`           | Recommend close, explicit per-issue or batch approval |
-| `partially-resolved` | Comment only                                          |
-| `reproduces`         | Comment only (+ optional `confirmed` label)           |
-| `not-verifiable`     | Comment "needs repro" (+ optional `needs-repro`)      |
+- `resolved` — Recommend close, explicit per-issue or batch approval
+- `partially-resolved` — Comment only
+- `reproduces` — Comment only (+ optional `confirmed` label)
+- `not-verifiable` — Comment "needs repro" (+ optional `needs-repro`)
 
 ### Step 6: Plan → Confirm
 
-```markdown
-| #   | Title | Verdict | Action | Marker | Note |
-| --- | ----- | ------- | ------ | ------ | ---- |
-```
+- # — Title
+  - Verdict: Verdict
+  - Action: Action
+  - Marker: Marker
+  - Note: Note
 
 `AskUserQuestion`: approve-all / per-close-review / edit-per-issue / exclude / dry-run.
 

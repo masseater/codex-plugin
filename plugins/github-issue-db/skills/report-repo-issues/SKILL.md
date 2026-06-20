@@ -62,21 +62,22 @@ For each finding, invoke `github-issue-db:search-similar-issues`. Collect `recom
 
 ### Step 5: Build Action Plan
 
-| similar-issues recommendation | Action                                                 |
-| ----------------------------- | ------------------------------------------------------ |
-| `duplicate` (open)            | `comment` via `github-issue-db:update-existing-issues` |
-| `duplicate` (closed)          | ask user: reopen vs create+cross-link                  |
-| `related`                     | `create` with `Related: #<n>`                          |
-| `no-match`                    | `create`                                               |
+- `duplicate` (open) — `comment` via `github-issue-db:update-existing-issues`
+- `duplicate` (closed) — ask user: reopen vs create+cross-link
+- `related` — `create` with `Related: #<n>`
+- `no-match` — `create`
 
 Render as:
 
-```markdown
-| #   | Finding | Action  | Target               |
-| --- | ------- | ------- | -------------------- |
-| 1   | <title> | comment | #42 <existing title> |
-| 2   | <title> | create  | —                    |
-```
+- # — Finding
+  - Action: Action
+  - Target: Target
+- 1 — `<title>`
+  - Action: comment
+  - Target: #42 `<existing title>`
+- 2 — `<title>`
+  - Action: create
+  - Target: —
 
 ### Step 6: Confirm with User
 

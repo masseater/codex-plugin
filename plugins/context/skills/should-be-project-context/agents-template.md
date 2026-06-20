@@ -8,18 +8,16 @@ Next.js documents structure as categorized tables that define **what each name m
 
 AGENTS.md should follow the same approach:
 
-1. **Top-level Directories** — what each directory is for
-2. **Top-level Files** — configuration and manifest files
-3. **Directory-scoped Conventions** — special files that have meaning inside specific directories (like `layout.tsx` inside `app/`)
-4. **Naming Patterns** — glob/dynamic patterns and what they mean (like `[slug]` in Next.js)
+1. Top-level Directories — what each directory is for
+2. Top-level Files — configuration and manifest files
+3. Directory-scoped Conventions — special files that have meaning inside specific directories (like `layout.tsx` inside `app/`)
+4. Naming Patterns — glob/dynamic patterns and what they mean (like `[slug]` in Next.js)
 
 ### What goes in AGENTS.md vs docs/directory-structure.md
 
-| AGENTS.md                                | docs/directory-structure.md        |
-| ---------------------------------------- | ---------------------------------- |
-| Category tables defining what names mean | Full tree views (`├──` format)     |
-| Convention patterns with glob syntax     | Exhaustive per-file listings       |
-| One-line descriptions per entry          | Detailed explanations and examples |
+- Category tables defining what names mean — Full tree views (`├──` format)
+- Convention patterns with glob syntax — Exhaustive per-file listings
+- One-line descriptions per entry — Detailed explanations and examples
 
 ### Example: Claude Code Plugin project
 
@@ -71,11 +69,11 @@ For detailed directory tree, see [docs/directory-structure.md](docs/directory-st
 
 ### Key principles
 
-- **Category per heading** — don't dump everything into one flat table
-- **Scope conventions to their parent** — `skills/*/SKILL.md` belongs under "Plugin Directory Conventions", not top-level
-- **Describe meaning, not content** — `plugin.json` = "Plugin manifest" not "JSON file with name and version fields"
-- **One line per entry** — if it needs more, it belongs in docs/
-- **Glob patterns for repeating structures** — `plugins/*/`, `skills/*/SKILL.md`, `hooks/*.ts`
+- Category per heading — don't dump everything into one flat table
+- Scope conventions to their parent — `skills/*/SKILL.md` belongs under "Plugin Directory Conventions", not top-level
+- Describe meaning, not content — `plugin.json` = "Plugin manifest" not "JSON file with name and version fields"
+- One line per entry — if it needs more, it belongs in docs/
+- Glob patterns for repeating structures — `plugins/*/`, `skills/*/SKILL.md`, `hooks/*.ts`
 
 ## Root AGENTS.md template
 

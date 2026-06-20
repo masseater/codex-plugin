@@ -8,13 +8,11 @@ Foundation ecosystem not tied to any specific tech stack (Web/Backend/CLI).
 
 ## Tools
 
-| Tool                            | Role                                                      |
-| ------------------------------- | --------------------------------------------------------- |
-| Node.js (latest LTS or current) | Runtime                                                   |
-| pnpm                            | Package manager                                           |
-| tsx                             | TypeScript script runner (for project scripts)            |
-| Turborepo                       | Monorepo task runner + remote cache                       |
-| Bun                             | Runtime for non-project tooling (AI hooks, plugins, etc.) |
+- Node.js (latest LTS or current) — Runtime
+- pnpm — Package manager
+- tsx — TypeScript script runner (for project scripts)
+- Turborepo — Monorepo task runner + remote cache
+- Bun — Runtime for non-project tooling (AI hooks, plugins, etc.)
 
 ## Tool Version Management
 
@@ -29,20 +27,18 @@ pnpm = "10.12.1"
 
 ## Script Execution Policy
 
-| Context                                          | Runner     | Why                                                                  |
-| ------------------------------------------------ | ---------- | -------------------------------------------------------------------- |
-| Project scripts (dev, build, test, migrations)   | pnpm + tsx | Part of the project dependency graph; reproducible via lockfile      |
-| AI coding agent hooks, plugins, external tooling | Bun        | Not part of the project; independent runtime, no lockfile dependency |
+- Project scripts (dev, build, test, migrations) — pnpm + tsx
+  - Why: Part of the project dependency graph; reproducible via lockfile
+- AI coding agent hooks, plugins, external tooling — Bun
+  - Why: Not part of the project; independent runtime, no lockfile dependency
 
 Project scripts must be executable via `pnpm tsx <script>` or as package.json scripts. They must not depend on Bun APIs.
 
 ## Deployment
 
-| Project type  | Deploy target      |
-| ------------- | ------------------ |
-| Next.js (web) | Vercel             |
-| CLI tools     | npm publish        |
-| Other         | Choose per project |
+- Next.js (web) — Vercel
+- CLI tools — npm publish
+- Other — Choose per project
 
 DB and storage are chosen per project — no default mandated. Evaluate based on project requirements (serverless compatibility, cost, data model fit).
 

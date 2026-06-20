@@ -14,8 +14,8 @@ Never use `skipEnvValidation` (or any option that disables validation). Validati
 
 Two constants work together:
 
-- **`isDummy`** — boolean flag that determines whether dummy injection is active
-- **`DUMMY_ENV`** — object containing dummy values for all required env vars, passed to `runtimeEnv` as a substitute for `process.env`
+- `isDummy` — boolean flag that determines whether dummy injection is active
+- `DUMMY_ENV` — object containing dummy values for all required env vars, passed to `runtimeEnv` as a substitute for `process.env`
 
 When writing the `isDummy` condition, always place the conditions that **must return false** first (guards), then the conditions where dummy injection is acceptable:
 

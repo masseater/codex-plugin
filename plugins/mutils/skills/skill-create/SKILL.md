@@ -25,13 +25,11 @@ Automate mechanical work (directory creation, frontmatter validation, reference 
 
 Put every deterministic, repeatable step in a script — not in Claude's reasoning. This eliminates variance and saves tokens. The boundary:
 
-| Automated (scripts)                 | Human + Claude                                   |
-| ----------------------------------- | ------------------------------------------------ |
-| Directory scaffolding               | Clarifying skill intent and invocation use cases |
-| Frontmatter template generation     | Writing the description for that invocation mode |
-| Validation (structure, style, refs) | Designing workflow steps                         |
-| Context detection (plugin, skills)  | Deciding what goes in SKILL.md vs references     |
-| Executable permission setting       | Writing the skill body content                   |
+- Directory scaffolding — Clarifying skill intent and invocation use cases
+- Frontmatter template generation — Writing the description for that invocation mode
+- Validation (structure, style, refs) — Designing workflow steps
+- Context detection (plugin, skills) — Deciding what goes in SKILL.md vs references
+- Executable permission setting — Writing the skill body content
 
 ## Capability Placement Policy
 
@@ -92,11 +90,11 @@ function placeSharedMaterial(material):
 
 Before scaffolding, clarify the following. If the user provided enough context, skip asking and confirm instead:
 
-1. **What the skill does** — one sentence purpose
-2. **Invocation use case** — whether ordinary natural language should invoke it, or whether it is direct-only/internal
-3. **What resources it needs** — scripts (deterministic tasks), references (large docs), or neither
-4. **Is model invocation intentionally needed?** — default is direct user invocation with `disable-model-invocation: true`; autonomous invocation requires a decision note in the owning plugin's `AGENTS.md`
-5. **Where support material belongs** — owning skill `assets/`, plugin-level `assets/`, or a justified shared `mutils` skill
+1. What the skill does — one sentence purpose
+2. Invocation use case — whether ordinary natural language should invoke it, or whether it is direct-only/internal
+3. What resources it needs — scripts (deterministic tasks), references (large docs), or neither
+4. Is model invocation intentionally needed? — default is direct user invocation with `disable-model-invocation: true`; autonomous invocation requires a decision note in the owning plugin's `AGENTS.md`
+5. Where support material belongs — owning skill `assets/`, plugin-level `assets/`, or a justified shared `mutils` skill
 
 ### Step 2: Scaffold
 
@@ -145,13 +143,11 @@ For syntax details, refer to: https://code.claude.com/docs/en/skills#inject-dyna
 
 Extract deterministic logic into scripts. This prevents Claude from reinventing the same logic each session and ensures consistent behavior:
 
-| Extract into a script when the skill needs                       | Why                                                |
-| ---------------------------------------------------------------- | -------------------------------------------------- |
-| File transformation (rotating, converting, formatting)           | Deterministic — Claude should not reimplement this |
-| Validation (structure, linting, schema compliance)               | Consistent checks across sessions                  |
-| Data gathering (API calls, file scanning, environment detection) | Avoid wasting reasoning tokens on I/O              |
-| Template generation (boilerplate, scaffolding)                   | Single source of truth for templates               |
-| Index management (catalogs, manifests)                           | Eliminate manual maintenance drift                 |
+- File transformation (rotating, converting, formatting) — Deterministic — Claude should not reimplement this
+- Validation (structure, linting, schema compliance) — Consistent checks across sessions
+- Data gathering (API calls, file scanning, environment detection) — Avoid wasting reasoning tokens on I/O
+- Template generation (boilerplate, scaffolding) — Single source of truth for templates
+- Index management (catalogs, manifests) — Eliminate manual maintenance drift
 
 **Script conventions:**
 
@@ -229,20 +225,18 @@ Use this checklist before considering the skill complete:
 
 ## Anti-patterns
 
-| Anti-pattern                                           | Better approach                               |
-| ------------------------------------------------------ | --------------------------------------------- |
-| Instructing Claude to "create the directory structure" | Use scaffold script                           |
-| Writing validation logic in SKILL.md prose             | Create a validation script                    |
-| Embedding large reference docs in SKILL.md             | Move to `references/` and link                |
-| Vague model-invocable description ("Helps with X")     | Specific triggers ("create X", "configure Y") |
-| Natural-language triggers on a disabled skill          | Direct invocation/internal reference wording  |
-| Second-person instructions ("You should...")           | Imperative form ("Run...", "Create...")       |
-| Hardcoding paths in SKILL.md                           | Use `${CLAUDE_SKILL_DIR}` variable            |
-| Slash command for a manual workflow                    | Skill with `disable-model-invocation: true`   |
-| Separate skill used by only one skill                  | Owning skill's `assets/` directory            |
-| Same-plugin shared helper skill                        | Plugin-level `assets/` beside `skills/`       |
-| Manual file permission setting                         | Script it or document in scaffold             |
-| Hand-editing Bundled Resources section                 | Re-run `inject-references.ts`                 |
+- Instructing Claude to "create the directory structure" — Use scaffold script
+- Writing validation logic in SKILL.md prose — Create a validation script
+- Embedding large reference docs in SKILL.md — Move to `references/` and link
+- Vague model-invocable description ("Helps with X") — Specific triggers ("create X", "configure Y")
+- Natural-language triggers on a disabled skill — Direct invocation/internal reference wording
+- Second-person instructions ("You should...") — Imperative form ("Run...", "Create...")
+- Hardcoding paths in SKILL.md — Use `${CLAUDE_SKILL_DIR}` variable
+- Slash command for a manual workflow — Skill with `disable-model-invocation: true`
+- Separate skill used by only one skill — Owning skill's `assets/` directory
+- Same-plugin shared helper skill — Plugin-level `assets/` beside `skills/`
+- Manual file permission setting — Script it or document in scaffold
+- Hand-editing Bundled Resources section — Re-run `inject-references.ts`
 
 ## Bundled Resources
 
@@ -250,12 +244,12 @@ Use this checklist before considering the skill complete:
 
 ### Scripts
 
-- **`scripts/detect-context.ts`** — Detect the current plugin context for skill creation.
-- **`scripts/inject-references.ts`** — Scan a skill directory and inject a references section into its SKILL.md.
-- **`scripts/scaffold.ts`** — Scaffold a new skill directory with SKILL.md template and optional subdirectories.
-- **`scripts/validate.ts`** — Validate a SKILL.md file for quality and completeness.
+- `scripts/detect-context.ts` — Detect the current plugin context for skill creation.
+- `scripts/inject-references.ts` — Scan a skill directory and inject a references section into its SKILL.md.
+- `scripts/scaffold.ts` — Scaffold a new skill directory with SKILL.md template and optional subdirectories.
+- `scripts/validate.ts` — Validate a SKILL.md file for quality and completeness.
 
 ### References
 
-- **`references/github-api.md`** — GitHub API guidelines: use gh auth token + Octokit instead of gh CLI directly
+- `references/github-api.md` — GitHub API guidelines: use gh auth token + Octokit instead of gh CLI directly
 <!-- REFERENCES_END -->

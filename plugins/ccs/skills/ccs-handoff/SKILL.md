@@ -33,17 +33,17 @@ Read the Markdown output from the script carefully.
 
 From the script output, perform the following:
 
-1. **Change directory**: `cd` to the Project Path shown in Session Info
-2. **Check Git Branch**: Compare the branch in Session Info with the current branch.
+1. Change directory: `cd` to the Project Path shown in Session Info
+2. Check Git Branch: Compare the branch in Session Info with the current branch.
    - MUST NOT: checkout or switch branches (prohibited by AGENTS.md; leave the branch as-is instead)
    - IF: the branches differ; THEN MUST: report the discrepancy to the user
-3. **Re-register pending items**: From the "Pending Tasks" and "Pending TODOs" sections, re-register all items into the current session using TodoWrite.
-4. **Understand interrupted work**: Read and internalize the Session Summary, First Prompt, and Recent Messages sections to understand what was being worked on.
-5. **Gather additional context**: Check the following for supplementary information:
+3. Re-register pending items: From the "Pending Tasks" and "Pending TODOs" sections, re-register all items into the current session using TodoWrite.
+4. Understand interrupted work: Read and internalize the Session Summary, First Prompt, and Recent Messages sections to understand what was being worked on.
+5. Gather additional context: Check the following for supplementary information:
    - `git status` — current working tree state
    - `.agents/sessions/` — any session reports from the previous work
    - `.agents/plans/` — any active plan files
-6. **Subagent awareness**: If the Subagents section indicates detection, inform the user that the previous session had active subagent sessions.
+6. Subagent awareness: If the Subagents section indicates detection, inform the user that the previous session had active subagent sessions.
 
 ### 4. Report and Continue
 

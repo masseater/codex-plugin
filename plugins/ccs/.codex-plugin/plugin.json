@@ -1,6 +1,6 @@
 {
   "name": "ccs",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "CCS (Claude Code Sessions) 環境の自動設定・セッション管理・委譲ワークフロー",
   "author": {
     "name": "masseater",

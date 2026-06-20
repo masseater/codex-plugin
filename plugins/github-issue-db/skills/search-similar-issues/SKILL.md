@@ -76,12 +76,10 @@ The script returns JSON with `candidates[]` scored by `0.7 * bm25_norm + 0.2 * l
 
 Map the numeric `score` from the script to the categorical `similarity`:
 
-| Condition                                                                               | similarity |
-| --------------------------------------------------------------------------------------- | ---------- |
-| `bm25Norm ≥ 0.85` AND title/body share a concrete file path OR symbol match (from body) | `high`     |
-| `score ≥ 0.55`                                                                          | `medium`   |
-| `score ≥ 0.30`                                                                          | `low`      |
-| else                                                                                    | drop       |
+- `bm25Norm ≥ 0.85` AND title/body share a concrete file path OR symbol match (from body) — `high`
+- `score ≥ 0.55` — `medium`
+- `score ≥ 0.30` — `low`
+- else — drop
 
 These thresholds are heuristic starting points — tune per-repo by comparing a handful of known-duplicate runs before trusting auto-routing.
 

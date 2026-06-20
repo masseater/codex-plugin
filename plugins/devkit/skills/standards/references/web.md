@@ -4,12 +4,10 @@ description: Web stack — Next.js App Router, TanStack Query/Form, shadcn/ui, F
 
 # Web Stack
 
-| Item                  | Technology                         |
-| --------------------- | ---------------------------------- |
-| Framework             | Next.js (App Router)               |
-| State / Data fetching | TanStack Query (dehydrate pattern) |
-| Form                  | TanStack Form + valibot            |
-| UI                    | shadcn/ui + Tailwind CSS v4        |
+- Framework — Next.js (App Router)
+- State / Data fetching — TanStack Query (dehydrate pattern)
+- Form — TanStack Form + valibot
+- UI — shadcn/ui + Tailwind CSS v4
 
 ## Environment Variables
 
@@ -38,13 +36,13 @@ Direct `process.env` access is forbidden outside `env.ts`.
 
 ## FSD Customization (Differences from Standard FSD v2.1)
 
-1. **Early separation** — Separate features/entities early instead of standard FSD's "pages first"
-2. **`fsd/insignificant-slice` off** — Slices used by a single page can still live in features/entities
-3. **Slice Groups for nesting features** — `features/[domain]/[action]/`
+1. Early separation — Separate features/entities early instead of standard FSD's "pages first"
+2. `fsd/insignificant-slice` off — Slices used by a single page can still live in features/entities
+3. Slice Groups for nesting features — `features/[domain]/[action]/`
    - Adopts the Slice Groups concept from PR #906
    - Group folders are purely structural (no segments/index.ts of their own)
-4. **Next.js + FSD integration** — `app/` for Next.js routing, FSD layers inside `src/`
-5. **`shared/` imports use `enforce-barrel-import`** — `fsd/public-api` is off for `shared/`. Instead, the custom `enforce-barrel-import` rule (see `references/quality-automation.md`) enforces: if `index.ts` exists in a directory, import from the directory; otherwise direct file import is allowed
+4. Next.js + FSD integration — `app/` for Next.js routing, FSD layers inside `src/`
+5. `shared/` imports use `enforce-barrel-import` — `fsd/public-api` is off for `shared/`. Instead, the custom `enforce-barrel-import` rule (see `references/quality-automation.md`) enforces: if `index.ts` exists in a directory, import from the directory; otherwise direct file import is allowed
 
 ## TanStack Query Dehydrate Pattern
 

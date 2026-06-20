@@ -20,12 +20,14 @@ Run the query tool to retrieve history:
 
 ### Options
 
-| Flag              | Description                                        | Default |
-| ----------------- | -------------------------------------------------- | ------- |
-| `--recent N`      | Show last N events                                 | 50      |
-| `--session ID`    | Filter by session ID                               | (all)   |
-| `--status STATUS` | Filter by status (pending, in_progress, completed) | (all)   |
-| `--since DATE`    | Show events since ISO date                         | (all)   |
+- `--recent N` — Show last N events
+  - Default: 50
+- `--session ID` — Filter by session ID
+  - Default: (all)
+- `--status STATUS` — Filter by status (pending, in_progress, completed)
+  - Default: (all)
+- `--since DATE` — Show events since ISO date
+  - Default: (all)
 
 ### Examples
 

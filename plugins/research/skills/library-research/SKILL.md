@@ -13,10 +13,10 @@ Clone-First アプローチによるライブラリ調査ワークフロー。
 
 ## ナレッジベースの保存先
 
-| 保存先         | パス                                  | 用途                               |
-| -------------- | ------------------------------------- | ---------------------------------- |
-| プロジェクト用 | `.claude/skills/library-knowledge/`   | プロジェクト固有ライブラリ         |
-| ユーザー用     | `~/.claude/skills/library-knowledge/` | 汎用ライブラリ（プロジェクト横断） |
+- プロジェクト用 — `.claude/skills/library-knowledge/`
+  - 用途: プロジェクト固有ライブラリ
+- ユーザー用 — `~/.claude/skills/library-knowledge/`
+  - 用途: 汎用ライブラリ（プロジェクト横断）
 
 保存先ディレクトリと `SKILL.md` は各スクリプトが `resolve-knowledge-dir` を通じて自動作成する。
 
@@ -77,13 +77,11 @@ IF: プロジェクト内で既に使われている; THEN MUST: 調査スコー
 
 対応レジストリ:
 
-| レジストリ | エンドポイント                                          |
-| ---------- | ------------------------------------------------------- |
-| npm        | `registry.npmjs.org/{name}`                             |
-| pypi       | `pypi.org/pypi/{name}/json`                             |
-| crates     | `crates.io/api/v1/crates/{name}`                        |
-| go         | `proxy.golang.org/{module}/@latest`                     |
-| github     | `api.github.com/repos/{owner}/{repo}` + releases/latest |
+- npm — `registry.npmjs.org/{name}`
+- pypi — `pypi.org/pypi/{name}/json`
+- crates — `crates.io/api/v1/crates/{name}`
+- go — `proxy.golang.org/{module}/@latest`
+- github — `api.github.com/repos/{owner}/{repo}` + releases/latest
 
 `meta.yml` はナレッジディレクトリに直接書き込まれる。
 
@@ -122,11 +120,11 @@ IF: Phase 1b で clone-and-analyze.ts を実行する; THEN MUST NOT: `--cleanup
 
 `analysis.json` だけでは不十分な場合、clone 先を直接 Read する:
 
-- **README.md** → quick-start の基礎情報
-- **examples/** → 実際の使用パターン
-- **CHANGELOG.md** → 破壊的変更の詳細
-- **tests/** → テストから読み取れる実際の使い方・エッジケース
-- **src/ の型定義** → API の正確な理解
+- README.md → quick-start の基礎情報
+- examples/ → 実際の使用パターン
+- CHANGELOG.md → 破壊的変更の詳細
+- tests/ → テストから読み取れる実際の使い方・エッジケース
+- src/ の型定義 → API の正確な理解
 
 この時点でリポジトリ内の情報は網羅的に取得済み。clone はこの後の検証で使用するため残しておく。
 
@@ -186,25 +184,28 @@ clone で得られない情報だけを外部から取得する。
 
 以下の視点を意識して調査する:
 
-| 視点         | 関心事                         | 情報源                             |
-| ------------ | ------------------------------ | ---------------------------------- |
-| 新規ユーザー | 導入の容易さ、最小コード例     | README, examples/, Getting Started |
-| 開発者       | API設計、型サポート、拡張性    | src/, types, API docs              |
-| メンテナ     | コード品質、テスト、CI         | tests/, .github/, coverage         |
-| 評価者       | 代替との比較、トレンド、将来性 | npm trends, GitHub stats, Issues   |
-| 運用者       | 互換性、既知バグ、破壊的変更   | CHANGELOG, Issues, CI matrix       |
+- 新規ユーザー — 導入の容易さ、最小コード例
+  - 情報源: README, examples/, Getting Started
+- 開発者 — API設計、型サポート、拡張性
+  - 情報源: src/, types, API docs
+- メンテナ — コード品質、テスト、CI
+  - 情報源: tests/, .github/, coverage
+- 評価者 — 代替との比較、トレンド、将来性
+  - 情報源: npm trends, GitHub stats, Issues
+- 運用者 — 互換性、既知バグ、破壊的変更
+  - 情報源: CHANGELOG, Issues, CI matrix
 
 ### visited.json による重複排除
 
 調査の各ステップで以下のワークフローを繰り返す:
 
-1. **確認**: 訪問済みかチェック
+1. 確認: 訪問済みかチェック
    ```bash
    ./scripts/update-visited.ts --name {library-name} [--user] --check --key "{URL or query}"
    ```
-2. **訪問済みならスキップ**: `"visited": true` なら次の情報源へ
-3. **未訪問なら取得**: WebSearch, WebFetch, MCP, gh CLI 等で情報を取得
-4. **記録**: 取得後に訪問を記録
+2. 訪問済みならスキップ: `"visited": true` なら次の情報源へ
+3. 未訪問なら取得: WebSearch, WebFetch, MCP, gh CLI 等で情報を取得
+4. 記録: 取得後に訪問を記録
    ```bash
    ./scripts/update-visited.ts --name {library-name} [--user] --type url --key "{URL}" --summary "{要約}"
    ```
@@ -212,12 +213,14 @@ clone で得られない情報だけを外部から取得する。
 
 ### 取得対象（目的ベース）
 
-| 目的                                                              | 要求度 | 条件                             |
-| ----------------------------------------------------------------- | ------ | -------------------------------- |
-| API の詳細ドキュメント（公式ドキュメント、MCP 経由等）            | MUST   | 常時                             |
-| ユーザーの実体験・ハマりポイント（Issues, Discussions, ブログ等） | MUST   | 常時                             |
-| 代替ライブラリとの比較                                            | MUST   | ユーザーが比較を依頼した場合     |
-| ランタイム互換性（Bun 等）                                        | SHOULD | ランタイム互換性に懸念がある場合 |
+- API の詳細ドキュメント（公式ドキュメント、MCP 経由等） — MUST
+  - 条件: 常時
+- ユーザーの実体験・ハマりポイント（Issues, Discussions, ブログ等） — MUST
+  - 条件: 常時
+- 代替ライブラリとの比較 — MUST
+  - 条件: ユーザーが比較を依頼した場合
+- ランタイム互換性（Bun 等） — SHOULD
+  - 条件: ランタイム互換性に懸念がある場合
 
 手段は固定しない。`MAY`: 目的を達成できるなら何を使ってもよい（WebSearch, WebFetch, MCP, gh CLI 等）。
 
@@ -230,12 +233,14 @@ clone で得られない情報だけを外部から取得する。
 
 ### 自動生成ファイル
 
-| ファイル        | 生成元                | 用途                                       |
-| --------------- | --------------------- | ------------------------------------------ |
-| `meta.yml`      | fetch-package-info.ts | パッケージメタデータ                       |
-| `analysis.json` | clone-and-analyze.ts  | リポジトリの構造化データ                   |
-| `visited.json`  | update-visited.ts     | 訪問済みURL/検索クエリの追跡               |
-| `index.md`      | generate-index.ts     | ナレッジのエントリポイント（手動編集禁止） |
+- `meta.yml` — fetch-package-info.ts
+  - 用途: パッケージメタデータ
+- `analysis.json` — clone-and-analyze.ts
+  - 用途: リポジトリの構造化データ
+- `visited.json` — update-visited.ts
+  - 用途: 訪問済みURL/検索クエリの追跡
+- `index.md` — generate-index.ts
+  - 用途: ナレッジのエントリポイント（手動編集禁止）
 
 ### meta.yml への追記
 

@@ -18,8 +18,8 @@ Delegate deterministic tasks to cost-optimized models via CCS CLI.
 
 Execute tasks via alternative models using:
 
-- **Initial delegation**: `ccs {profile} -p "task"`
-- **Session continuation**: `ccs {profile}:continue -p "follow-up"`
+- Initial delegation: `ccs {profile} -p "task"`
+- Session continuation: `ccs {profile}:continue -p "follow-up"`
 
 **Profile Selection:**
 
@@ -47,24 +47,24 @@ Users trigger delegation naturally:
 
 **For `/ccs [task]`:**
 
-1. **Parse override flag**
+1. Parse override flag
    - Scan task for pattern: `--(\w+)`
    - If match: `profile = match[1]`, remove flag from task, skip to step 5
    - If no match: continue to step 2
 
-2. **Discover profiles**
+2. Discover profiles
    - Read `~/.ccs/config.json` using Read tool
    - Extract `Object.keys(config.profiles)` -> `availableProfiles[]`
    - If file missing -> Error: "CCS not configured. Run: ccs doctor"
    - If empty -> Error: "No profiles in config.json"
 
-3. **Analyze task requirements**
+3. Analyze task requirements
    - Scan task for keywords:
      - `/(think|analyze|reason|debug|investigate|evaluate)/i` -> `needsReasoning = true`
      - `/(architecture|entire|all files|codebase|analyze all)/i` -> `needsLongContext = true`
      - `/(typo|test|refactor|update|fix)/i` -> `preferCostOptimized = true`
 
-4. **Select profile**
+4. Select profile
    - For each profile in `availableProfiles`: classify by name pattern (see Profile Characteristic Inference table)
    - If `needsReasoning`: filter profiles where `reasoning=true` -> prefer kimi
    - Else if `needsLongContext`: filter profiles where `context=long` -> prefer kimi
@@ -73,40 +73,40 @@ Users trigger delegation naturally:
    - If `filteredProfiles.length === 0`: fallback to `glm` if exists, else first available
    - If no profiles: Error
 
-5. **Enhance prompt**
+5. Enhance prompt
    - If task mentions files: gather context using Read tool
    - Add: file paths, current implementation, expected behavior, success criteria
    - Preserve slash commands at task start (e.g., `/cook`, `/commit`)
 
-6. **Execute delegation**
+6. Execute delegation
    - Run: `ccs {selectedProfile} -p "$enhancedPrompt"` via Bash tool
 
-7. **Report results**
+7. Report results
    - Log: "Selected {profile} (reason: {reasoning/long-context/cost-optimized})"
    - Report: Cost (USD), Duration (sec), Session ID, Exit code
 
 **For `/ccs:continue [follow-up]`:**
 
-1. **Detect profile**
+1. Detect profile
    - Read `~/.ccs/delegation-sessions.json` using Read tool
    - Find most recent session (latest timestamp)
    - Extract profile name from session data
    - If no sessions -> Error: "No previous delegation. Use /ccs first"
 
-2. **Parse override flag**
+2. Parse override flag
    - Scan follow-up for pattern: `--(\w+)`
    - If match: `profile = match[1]`, remove flag from follow-up, log profile switch
    - If no match: use detected profile from step 1
 
-3. **Enhance prompt**
+3. Enhance prompt
    - Review previous work (check what was accomplished)
    - Add: previous context, incomplete tasks, validation criteria
    - Preserve slash commands at start
 
-4. **Execute continuation**
+4. Execute continuation
    - Run: `ccs {profile}:continue -p "$enhancedPrompt"` via Bash tool
 
-5. **Report results**
+5. Report results
    - Report: Profile, Session #, Incremental cost, Total cost, Duration, Exit code
 
 ## Decision Framework
@@ -129,20 +129,27 @@ Users trigger delegation naturally:
 
 **Task Analysis Keywords** (scan task string with regex):
 
-| Pattern                                                       | Variable                     | Example               |
-| ------------------------------------------------------------- | ---------------------------- | --------------------- |
-| `/(think\|analyze\|reason\|debug\|investigate\|evaluate)/i`   | `needsReasoning = true`      | "think about caching" |
-| `/(architecture\|entire\|all files\|codebase\|analyze all)/i` | `needsLongContext = true`    | "analyze all files"   |
-| `/(typo\|test\|refactor\|update\|fix)/i`                      | `preferCostOptimized = true` | "fix typo in README"  |
+- \*\*`/(think\*\* — analyze\
+  - Example: reason\
+- \*\*`/(architecture\*\* — entire\
+  - Example: all files\
+- \*\*`/(typo\*\* — test\
+  - Example: refactor\
 
 **Profile Characteristic Inference** (classify by name pattern):
 
-| Profile Pattern | Cost   | Context  | Reasoning |
-| --------------- | ------ | -------- | --------- |
-| `/^glm/i`       | low    | standard | false     |
-| `/^kimi/i`      | medium | long     | true      |
-| `/^claude/i`    | high   | standard | false     |
-| others          | low    | standard | false     |
+- `/^glm/i` — low
+  - Context: standard
+  - Reasoning: false
+- `/^kimi/i` — medium
+  - Context: long
+  - Reasoning: true
+- `/^claude/i` — high
+  - Context: standard
+  - Reasoning: false
+- others — low
+  - Context: standard
+  - Reasoning: false
 
 **Selection Algorithm** (apply filters sequentially):
 

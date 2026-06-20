@@ -38,10 +38,10 @@ SDDワークフローの各Phaseの詳細説明。
 
 ### 各コマンドの役割
 
-| コマンド           | 入力             | 出力                                                |
-| ------------------ | ---------------- | --------------------------------------------------- |
-| `spec:init`        | 計画の説明       | `overview.md`（目的、スコープ、実装概要、調査項目） |
-| `research:conduct` | タスク名、項目名 | `specs/research/[項目名].md`                        |
+- `spec:init` — 計画の説明
+  - 出力: `overview.md`（目的、スコープ、実装概要、調査項目）
+- `research:conduct` — タスク名、項目名
+  - 出力: `specs/research/[項目名].md`
 
 ---
 
@@ -61,10 +61,8 @@ SDDワークフローの各Phaseの詳細説明。
 
 ### 各コマンドの役割
 
-| コマンド            | 出力                                            |
-| ------------------- | ----------------------------------------------- |
-| `spec:requirements` | `specification.md`（機能要件、非機能要件）      |
-| `spec:technical`    | `technical-details.md`（技術スタック、API設計） |
+- `spec:requirements` — `specification.md`（機能要件、非機能要件）
+- `spec:technical` — `technical-details.md`（技術スタック、API設計）
 
 ---
 

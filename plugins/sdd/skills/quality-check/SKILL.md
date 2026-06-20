@@ -13,8 +13,8 @@ allowed-tools: Task, Read, Glob
 
 以下の SubAgent を起動して品質チェックを実施:
 
-1. **contradiction-checker**: ドキュメント間の矛盾検出
-2. **steering-reviewer**: ステアリングドキュメントへの準拠確認
+1. contradiction-checker: ドキュメント間の矛盾検出
+2. steering-reviewer: ステアリングドキュメントへの準拠確認
 
 ## 手順
 

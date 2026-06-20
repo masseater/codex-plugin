@@ -44,57 +44,93 @@ AI-oriented error resolution guide for CCS delegation issues.
 
 ### Environment/Config Errors
 
-| Code  | Pattern                     | Root Cause            | Resolution                                            |
-| ----- | --------------------------- | --------------------- | ----------------------------------------------------- |
-| E-001 | Profile 'X' not configured  | Missing settings file | `ccs doctor` -> configure manually                    |
-| E-002 | Invalid API key (401)       | Token expired/invalid | Verify token in settings.json -> regenerate if needed |
-| E-003 | Settings file not found     | File doesn't exist    | `ccs doctor` -> shows missing profiles                |
-| E-004 | JSON parse error (settings) | Malformed JSON        | Validate: `jq . ~/.ccs/{profile}.settings.json`       |
+- E-001 — Profile 'X' not configured
+  - Root Cause: Missing settings file
+  - Resolution: `ccs doctor` -> configure manually
+- E-002 — Invalid API key (401)
+  - Root Cause: Token expired/invalid
+  - Resolution: Verify token in settings.json -> regenerate if needed
+- E-003 — Settings file not found
+  - Root Cause: File doesn't exist
+  - Resolution: `ccs doctor` -> shows missing profiles
+- E-004 — JSON parse error (settings)
+  - Root Cause: Malformed JSON
+  - Resolution: Validate: `jq . ~/.ccs/{profile}.settings.json`
 
 ### Delegation Execution Errors
 
-| Code  | Pattern                 | Root Cause                   | Resolution                                   |
-| ----- | ----------------------- | ---------------------------- | -------------------------------------------- |
-| D-001 | No previous session     | Using :continue without init | Run `ccs {profile} -p "init"` first          |
-| D-002 | Missing prompt after -p | No argument provided         | Quote prompt: `ccs {profile} -p "text"`      |
-| D-003 | No profile specified    | Missing profile name         | Syntax: `ccs <profile> -p "task"`            |
-| D-004 | Invalid profile name    | Profile doesn't exist        | Check: `ccs doctor` for available profiles   |
-| D-005 | File not found          | CWD mismatch                 | Verify: delegation runs in current directory |
+- D-001 — No previous session
+  - Root Cause: Using :continue without init
+  - Resolution: Run `ccs {profile} -p "init"` first
+- D-002 — Missing prompt after -p
+  - Root Cause: No argument provided
+  - Resolution: Quote prompt: `ccs {profile} -p "text"`
+- D-003 — No profile specified
+  - Root Cause: Missing profile name
+  - Resolution: Syntax: `ccs <profile> -p "task"`
+- D-004 — Invalid profile name
+  - Root Cause: Profile doesn't exist
+  - Resolution: Check: `ccs doctor` for available profiles
+- D-005 — File not found
+  - Root Cause: CWD mismatch
+  - Resolution: Verify: delegation runs in current directory
 
 ### Session Management Errors
 
-| Code  | Pattern                | Root Cause          | Resolution                                               |
-| ----- | ---------------------- | ------------------- | -------------------------------------------------------- |
-| S-001 | Session file corrupted | Malformed JSON      | `rm ~/.ccs/delegation-sessions.json` -> fresh start      |
-| S-002 | Session expired        | >30 days old        | Start new: `ccs {profile} -p "task"`                     |
-| S-003 | Session ID mismatch    | ID not found        | Check: `jq '.{profile}' ~/.ccs/delegation-sessions.json` |
-| S-004 | Cost aggregation error | Calculation failure | Reset session or ignore (doesn't affect execution)       |
+- S-001 — Session file corrupted
+  - Root Cause: Malformed JSON
+  - Resolution: `rm ~/.ccs/delegation-sessions.json` -> fresh start
+- S-002 — Session expired
+  - Root Cause: >30 days old
+  - Resolution: Start new: `ccs {profile} -p "task"`
+- S-003 — Session ID mismatch
+  - Root Cause: ID not found
+  - Resolution: Check: `jq '.{profile}' ~/.ccs/delegation-sessions.json`
+- S-004 — Cost aggregation error
+  - Root Cause: Calculation failure
+  - Resolution: Reset session or ignore (doesn't affect execution)
 
 ### Network/API Errors
 
-| Code  | Pattern                  | Root Cause              | Resolution                                   |
-| ----- | ------------------------ | ----------------------- | -------------------------------------------- |
-| N-001 | Connection timeout       | Network/API unreachable | Check: internet, endpoint, firewall -> Retry |
-| N-002 | Rate limiting (429)      | Too many requests       | Wait 60s -> Retry                            |
-| N-003 | API endpoint unreachable | Wrong URL in settings   | Verify ANTHROPIC_BASE_URL in settings.json   |
-| N-004 | SSL/TLS error            | Certificate issue       | Check system certs, firewall SSL inspection  |
+- N-001 — Connection timeout
+  - Root Cause: Network/API unreachable
+  - Resolution: Check: internet, endpoint, firewall -> Retry
+- N-002 — Rate limiting (429)
+  - Root Cause: Too many requests
+  - Resolution: Wait 60s -> Retry
+- N-003 — API endpoint unreachable
+  - Root Cause: Wrong URL in settings
+  - Resolution: Verify ANTHROPIC_BASE_URL in settings.json
+- N-004 — SSL/TLS error
+  - Root Cause: Certificate issue
+  - Resolution: Check system certs, firewall SSL inspection
 
 ### Claude CLI Compatibility Errors
 
-| Code  | Pattern                     | Root Cause         | Resolution                            |
-| ----- | --------------------------- | ------------------ | ------------------------------------- |
-| C-001 | Claude CLI not found        | Not installed      | Install from code.claude.com          |
-| C-002 | Outdated CLI version        | Old version        | Update: `ccs sync` or `ccs update`    |
-| C-003 | stream-json not supported   | Version < required | Upgrade CLI: check `claude --version` |
-| C-004 | Permission mode unsupported | Old CLI version    | Upgrade to support --permission-mode  |
+- C-001 — Claude CLI not found
+  - Root Cause: Not installed
+  - Resolution: Install from code.claude.com
+- C-002 — Outdated CLI version
+  - Root Cause: Old version
+  - Resolution: Update: `ccs sync` or `ccs update`
+- C-003 — stream-json not supported
+  - Root Cause: Version < required
+  - Resolution: Upgrade CLI: check `claude --version`
+- C-004 — Permission mode unsupported
+  - Root Cause: Old CLI version
+  - Resolution: Upgrade to support --permission-mode
 
 ### Timeout/Resource Errors
 
-| Code  | Pattern                    | Root Cause            | Resolution                                |
-| ----- | -------------------------- | --------------------- | ----------------------------------------- |
-| T-001 | Execution timeout (10 min) | Task too complex/slow | Simplify task or split into smaller tasks |
-| T-002 | Memory limit exceeded      | Large file processing | Reduce scope, process in batches          |
-| T-003 | Process killed (SIGTERM)   | External termination  | Check system resources, retry             |
+- T-001 — Execution timeout (10 min)
+  - Root Cause: Task too complex/slow
+  - Resolution: Simplify task or split into smaller tasks
+- T-002 — Memory limit exceeded
+  - Root Cause: Large file processing
+  - Resolution: Reduce scope, process in batches
+- T-003 — Process killed (SIGTERM)
+  - Root Cause: External termination
+  - Resolution: Check system resources, retry
 
 ## Common Resolution Patterns
 

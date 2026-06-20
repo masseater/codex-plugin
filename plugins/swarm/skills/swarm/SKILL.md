@@ -25,9 +25,9 @@ Ask the user if anything is unclear. A clear picture of the whole task is essent
 The user has chosen Agent Teams — do NOT suggest SubAgent or single session as alternatives.
 Instead, shape the task to play to Agent Teams' strengths:
 
-- **Maximize parallelism** — identify which parts can run independently and simultaneously
-- **Minimize file conflicts** — ensure each teammate owns a distinct set of files
-- **Design for cross-pollination** — structure work so teammates challenge and build on each other's findings
+- Maximize parallelism — identify which parts can run independently and simultaneously
+- Minimize file conflicts — ensure each teammate owns a distinct set of files
+- Design for cross-pollination — structure work so teammates challenge and build on each other's findings
 
 If the task has sequential dependencies or same-file edits, restructure the approach (e.g., split phases, assign a coordinator role) rather than abandoning Agent Teams.
 
@@ -38,28 +38,30 @@ The full design guide and role templates are in @../team-design/SKILL.md — rea
 
 Present the proposed team:
 
-| Name   | Role   | Responsibility                      |
-| ------ | ------ | ----------------------------------- |
-| {name} | {role} | {what this role is responsible for} |
+- {name} — {role}
+  - Responsibility: {what this role is responsible for}
 
 **Team size**: 3-5 teammates. Three focused teammates often outperform five scattered ones.
 
 ### Example: Designing a new Claude Code plugin
 
-| Name                        | Role                 | Responsibility                                                                      |
-| --------------------------- | -------------------- | ----------------------------------------------------------------------------------- |
-| claude-code-domain-expert   | Domain Expert        | Claude Code plugin API, skill/hook/agent specs, conventions                         |
-| plugin-ecosystem-specialist | Ecosystem Specialist | Existing plugins, similar tools, reusable patterns                                  |
-| ux-strategist               | UX Strategist        | User journey, trigger design, error messages, naming                                |
-| devils-advocate             | Devil's Advocate     | Challenges design decisions, finds edge cases, argues "why not just use X instead?" |
+- claude-code-domain-expert — Domain Expert
+  - Responsibility: Claude Code plugin API, skill/hook/agent specs, conventions
+- plugin-ecosystem-specialist — Ecosystem Specialist
+  - Responsibility: Existing plugins, similar tools, reusable patterns
+- ux-strategist — UX Strategist
+  - Responsibility: User journey, trigger design, error messages, naming
+- devils-advocate — Devil's Advocate
+  - Responsibility: Challenges design decisions, finds edge cases, argues "why not just use X instead?"
 
 ### Example: Investigating a production bug
 
-| Name         | Role                      | Responsibility                                          |
-| ------------ | ------------------------- | ------------------------------------------------------- |
-| hypothesis-a | Network Hypothesis        | Investigate timeout, DNS, load balancer angles          |
-| hypothesis-b | Application Hypothesis    | Investigate memory leaks, race conditions, config drift |
-| hypothesis-c | Infrastructure Hypothesis | Investigate disk, CPU, container limits                 |
+- hypothesis-a — Network Hypothesis
+  - Responsibility: Investigate timeout, DNS, load balancer angles
+- hypothesis-b — Application Hypothesis
+  - Responsibility: Investigate memory leaks, race conditions, config drift
+- hypothesis-c — Infrastructure Hypothesis
+  - Responsibility: Investigate disk, CPU, container limits
 
 The key is that each teammate actively challenges the others' findings.
 
@@ -70,7 +72,7 @@ The shared task list is how Agent Teams coordinate work.
 
 Task design principles:
 
-- **5-6 tasks per teammate** keeps everyone productive without excessive context switching
+- 5-6 tasks per teammate keeps everyone productive without excessive context switching
 - Set `blockedBy` dependencies between tasks explicitly
 - Tasks should be self-contained units with a clear deliverable
 - Avoid tasks that require two teammates to edit the same file
@@ -90,8 +92,8 @@ Critical: teammates do NOT inherit the lead's conversation history. Include all 
 
 **Communication patterns:**
 
-- **Direct message**: to one specific teammate (preferred — targeted and efficient)
-- **Broadcast**: to all teammates simultaneously (use sparingly — costs scale with team size)
+- Direct message: to one specific teammate (preferred — targeted and efficient)
+- Broadcast: to all teammates simultaneously (use sparingly — costs scale with team size)
 
 ## Step 6: Monitor and steer
 

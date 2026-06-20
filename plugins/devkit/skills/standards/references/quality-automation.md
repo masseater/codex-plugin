@@ -19,16 +19,14 @@ When you think "I want to detect this pattern," first consider whether it can be
 
 ## Tools
 
-| Tool                  | Role                                                               |
-| --------------------- | ------------------------------------------------------------------ |
-| oxlint                | Primary linter (oxc-based, 10-100x faster than ESLint)             |
-| oxfmt                 | Formatting (oxc-based, fast)                                       |
-| ESLint (v9+)          | Custom rules, type-aware rules, architectural boundary enforcement |
-| steiger               | FSD architecture linting                                           |
-| tsgo (TypeScript v7+) | Type checking                                                      |
-| knip                  | Unused code detection                                              |
-| lefthook              | Git hooks management                                               |
-| Renovate              | Automated dependency updates                                       |
+- oxlint — Primary linter (oxc-based, 10-100x faster than ESLint)
+- oxfmt — Formatting (oxc-based, fast)
+- ESLint (v9+) — Custom rules, type-aware rules, architectural boundary enforcement
+- steiger — FSD architecture linting
+- tsgo (TypeScript v7+) — Type checking
+- knip — Unused code detection
+- lefthook — Git hooks management
+- Renovate — Automated dependency updates
 
 ## oxfmt — Formatting (Root Execution)
 
@@ -56,15 +54,20 @@ Use oxlint as the primary linter. It provides 700+ built-in rules in Rust (50-10
 
 Enable categories based on project needs:
 
-| Category    | Description                        | Default   |
-| ----------- | ---------------------------------- | --------- |
-| correctness | Outright wrong or useless code     | warn/deny |
-| suspicious  | Most likely wrong or useless       | warn      |
-| perf        | Can be written to run faster       | warn      |
-| style       | Naming and code style conventions  | allow     |
-| pedantic    | Style or best-practice enforcement | allow     |
-| restriction | Restricts certain syntax/patterns  | allow     |
-| nursery     | Experimental rules                 | allow     |
+- correctness — Outright wrong or useless code
+  - Default: warn/deny
+- suspicious — Most likely wrong or useless
+  - Default: warn
+- perf — Can be written to run faster
+  - Default: warn
+- style — Naming and code style conventions
+  - Default: allow
+- pedantic — Style or best-practice enforcement
+  - Default: allow
+- restriction — Restricts certain syntax/patterns
+  - Default: allow
+- nursery — Experimental rules
+  - Default: allow
 
 Write project-specific rules as oxlint JS plugins (ESLint v9+ API compatible, alpha stability). Configure via `jsPlugins` in `oxlint.config.ts`. Many ESLint plugins work without modification — test each one before relying on it.
 
@@ -80,13 +83,11 @@ Each workspace's `oxlint.config.ts` imports `{ oxlintBase }` from `@repo/lint-co
 
 Use ESLint alongside oxlint when you need capabilities oxlint cannot provide:
 
-| Use ESLint for                | How                                                                                                               |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Type-aware rules              | Add typescript-eslint with typed linting (no-floating-promises, no-unsafe-\*, etc.)                               |
-| Architectural boundaries      | Add eslint-plugin-boundaries to enforce FSD layer import constraints                                              |
-| Import policy                 | Add eslint-plugin-import-x for circular dependency detection and import ordering                                  |
-| Project-specific domain rules | Write local custom plugins — create a `.ts` file in the repo and import it in `eslint.config.ts` (no npm publish) |
-| TanStack Query best practices | Add @tanstack/eslint-plugin-query                                                                                 |
+- Type-aware rules — Add typescript-eslint with typed linting (no-floating-promises, no-unsafe-\*, etc.)
+- Architectural boundaries — Add eslint-plugin-boundaries to enforce FSD layer import constraints
+- Import policy — Add eslint-plugin-import-x for circular dependency detection and import ordering
+- Project-specific domain rules — Write local custom plugins — create a `.ts` file in the repo and import it in `eslint.config.ts` (no npm publish)
+- TanStack Query best practices — Add @tanstack/eslint-plugin-query
 
 Implement `fix()` in custom rules for automatic remediation via `--fix`.
 
@@ -96,10 +97,8 @@ ESLint also inherits from `@repo/lint-config`, same as oxlint.
 
 **Root vs Workspace responsibilities**:
 
-| Level                        | ESLint scope                                                                                           |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Root `eslint.config.ts`      | Repository-wide structural rules (JSON lint: plugin.json, hooks.json, package.json custom rules, etc.) |
-| Workspace `eslint.config.ts` | TypeScript/TSX type-aware rules, architectural boundaries, domain-specific rules                       |
+- Root `eslint.config.ts` — Repository-wide structural rules (JSON lint: plugin.json, hooks.json, package.json custom rules, etc.)
+- Workspace `eslint.config.ts` — TypeScript/TSX type-aware rules, architectural boundaries, domain-specific rules
 
 Root ESLint handles repository structure lint (JSON files, etc.). Workspace ESLint runs per-workspace via turbo.
 
@@ -107,13 +106,16 @@ Each workspace's `eslint.config.ts` imports `{ eslintBase }` from `@repo/lint-co
 
 ## When to Use Which
 
-| Need                               | Use                                                | Why                                                  |
-| ---------------------------------- | -------------------------------------------------- | ---------------------------------------------------- |
-| General correctness/style checks   | oxlint                                             | Fast, zero-config, 700+ built-in rules               |
-| Project-specific AST rules         | oxlint JS plugin first, ESLint if stability needed | oxlint plugin API is alpha but ESLint v9+ compatible |
-| Rules requiring type information   | ESLint + typescript-eslint                         | oxlint does not support type-aware linting           |
-| Architectural boundary enforcement | ESLint + eslint-plugin-boundaries                  | Layer-level import constraints                       |
-| Circular dependency detection      | oxlint (import/no-cycle) or ESLint                 | oxlint uses module graph — no performance penalty    |
+- General correctness/style checks — oxlint
+  - Why: Fast, zero-config, 700+ built-in rules
+- Project-specific AST rules — oxlint JS plugin first, ESLint if stability needed
+  - Why: oxlint plugin API is alpha but ESLint v9+ compatible
+- Rules requiring type information — ESLint + typescript-eslint
+  - Why: oxlint does not support type-aware linting
+- Architectural boundary enforcement — ESLint + eslint-plugin-boundaries
+  - Why: Layer-level import constraints
+- Circular dependency detection — oxlint (import/no-cycle) or ESLint
+  - Why: oxlint uses module graph — no performance penalty
 
 ## Vitest Test File Restrictions
 
@@ -146,10 +148,8 @@ export default [
 
 ## Prohibited ESLint Rules
 
-| Rule                    | Why prohibited                                                                                                                                                                                                                      |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `no-restricted-imports` | ESLint flat config merges arrays per key — if multiple config entries define `no-restricted-imports`, only the last one takes effect. Restrictions silently disappear. Use `eslint-plugin-import-x` rules or custom plugins instead |
-| `no-restricted-syntax`  | Same flat config merge problem as `no-restricted-imports`. Write a local custom plugin instead                                                                                                                                      |
+- `no-restricted-imports` — ESLint flat config merges arrays per key — if multiple config entries define `no-restricted-imports`, only the last one takes effect. Restrictions silently disappear. Use `eslint-plugin-import-x` rules or custom plugins instead
+- `no-restricted-syntax` — Same flat config merge problem as `no-restricted-imports`. Write a local custom plugin instead
 
 ## Custom Rule: enforce-barrel-import
 
@@ -175,7 +175,7 @@ This rule replaces `fsd/public-api` for `shared/` where the standard FSD rule is
 - Write custom rules as oxlint JS plugins first. Fall back to ESLint custom plugins when type-aware analysis or stability is required
 - When running both, use `eslint-plugin-oxlint` to disable overlapping rules
 - Place local plugins as `.ts` files in the repository (no npm publish required)
-- **Never write a standalone script for something a lint rule can do** — lint rules are discoverable, composable, and run everywhere
+- Never write a standalone script for something a lint rule can do — lint rules are discoverable, composable, and run everywhere
 
 ### `@repo/lint-config` — Shared Config Package
 
@@ -191,12 +191,14 @@ packages/
 
 ### Monorepo Execution Model
 
-| Tool                     | Execution level       | Rationale                                                                                     |
-| ------------------------ | --------------------- | --------------------------------------------------------------------------------------------- |
-| oxfmt                    | Root only             | Formatting is uniform across the monorepo — no reason for per-workspace divergence            |
-| oxlint                   | Per-workspace (turbo) | Rules may differ per workspace. Common base inherited from `@repo/lint-config`                |
-| ESLint (code)            | Per-workspace (turbo) | Type-aware rules depend on workspace tsconfig. Common base inherited from `@repo/lint-config` |
-| ESLint (JSON/structural) | Root                  | Repository structure custom rules (plugin.json, hooks.json, etc.) run once at root            |
+- oxfmt — Root only
+  - Rationale: Formatting is uniform across the monorepo — no reason for per-workspace divergence
+- oxlint — Per-workspace (turbo)
+  - Rationale: Rules may differ per workspace. Common base inherited from `@repo/lint-config`
+- ESLint (code) — Per-workspace (turbo)
+  - Rationale: Type-aware rules depend on workspace tsconfig. Common base inherited from `@repo/lint-config`
+- ESLint (JSON/structural) — Root
+  - Rationale: Repository structure custom rules (plugin.json, hooks.json, etc.) run once at root
 
 ## Tool Invocation Policy
 
@@ -252,12 +254,14 @@ Why:
 
 Every PR and push to main must pass the following checks. These are non-optional and must be configured as required status checks in the repository's branch protection rules:
 
-| Check                 | Command                  | Purpose                                                                                |
-| --------------------- | ------------------------ | -------------------------------------------------------------------------------------- |
-| Lint + Format         | `pnpm run check`         | Root: ESLint (JSON) + oxfmt → Turbo: oxlint + ESLint (code) per workspace              |
-| Type check            | `pnpm run typecheck`     | Ensure type safety across the codebase                                                 |
-| Test with coverage    | `pnpm run test:coverage` | Verify behavior and enforce coverage thresholds (includes Storybook interaction tests) |
-| Unused code detection | `pnpm run knip`          | Prevent dead code from accumulating                                                    |
+- Lint + Format — `pnpm run check`
+  - Purpose: Root: ESLint (JSON) + oxfmt → Turbo: oxlint + ESLint (code) per workspace
+- Type check — `pnpm run typecheck`
+  - Purpose: Ensure type safety across the codebase
+- Test with coverage — `pnpm run test:coverage`
+  - Purpose: Verify behavior and enforce coverage thresholds (includes Storybook interaction tests)
+- Unused code detection — `pnpm run knip`
+  - Purpose: Prevent dead code from accumulating
 
 All four checks must pass before a PR can merge. No exceptions, no manual overrides. If a check is flaky, fix the flakiness — do not skip the check.
 
@@ -275,12 +279,14 @@ Use Renovate for automated dependency updates. Keep dependencies current to redu
 
 Enable automerge for updates where CI provides sufficient confidence:
 
-| Update type                | Automerge | Rationale                                                                              |
-| -------------------------- | --------- | -------------------------------------------------------------------------------------- |
-| Patch versions (x.x.PATCH) | Yes       | Bug fixes and security patches with low risk. CI passing is sufficient                 |
-| Minor versions (x.MINOR.x) | Yes       | New features with backward compatibility. If tests and type checks pass, safe to merge |
-| Major versions (MAJOR.x.x) | No        | Breaking changes require manual review of migration guides and changelog               |
-| lockfile-only updates      | Yes       | No code change — only lockfile resolution updates                                      |
+- Patch versions (x.x.PATCH) — Yes
+  - Rationale: Bug fixes and security patches with low risk. CI passing is sufficient
+- Minor versions (x.MINOR.x) — Yes
+  - Rationale: New features with backward compatibility. If tests and type checks pass, safe to merge
+- Major versions (MAJOR.x.x) — No
+  - Rationale: Breaking changes require manual review of migration guides and changelog
+- lockfile-only updates — Yes
+  - Rationale: No code change — only lockfile resolution updates
 
 ### Grouping
 

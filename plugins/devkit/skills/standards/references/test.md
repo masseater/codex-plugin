@@ -6,12 +6,10 @@ description: Test policy — Vitest framework, Storybook visual testing with CSF
 
 ## Tools
 
-| Item              | Technology                                            |
-| ----------------- | ----------------------------------------------------- |
-| Test framework    | Vitest                                                |
-| Visual testing    | Storybook (CSF factories format)                      |
-| Test file naming  | `[name].test.ts` (co-located with source file)        |
-| Story file naming | `[name].stories.tsx` (co-located with component file) |
+- Test framework — Vitest
+- Visual testing — Storybook (CSF factories format)
+- Test file naming — `[name].test.ts` (co-located with source file)
+- Story file naming — `[name].stories.tsx` (co-located with component file)
 
 ## Test File Placement
 
@@ -19,12 +17,10 @@ Place test files next to the source file they test: `foo.ts` → `foo.test.ts`, 
 
 ## What to Test
 
-| Test                          | Why                                                  |
-| ----------------------------- | ---------------------------------------------------- |
-| Public API of each module     | Catches regressions at the boundary others depend on |
-| Business logic with branching | Branches are where bugs hide                         |
-| Error paths and edge cases    | Verifies fail-fast behavior matches expectations     |
-| Data transformations          | Input → output assertions are cheap and high-value   |
+- Public API of each module — Catches regressions at the boundary others depend on
+- Business logic with branching — Branches are where bugs hide
+- Error paths and edge cases — Verifies fail-fast behavior matches expectations
+- Data transformations — Input → output assertions are cheap and high-value
 
 Do NOT test:
 
@@ -34,11 +30,9 @@ Do NOT test:
 
 ## Mocking Strategy
 
-| Approach                      | When                                                         |
-| ----------------------------- | ------------------------------------------------------------ |
-| No mock (real implementation) | Default. Use real code whenever possible                     |
-| Dependency injection          | Prefer over mocking. Pass dependencies as arguments          |
-| `vi.mock()`                   | Last resort. Only for external I/O (network, filesystem, DB) |
+- No mock (real implementation) — Default. Use real code whenever possible
+- Dependency injection — Prefer over mocking. Pass dependencies as arguments
+- `vi.mock()` — Last resort. Only for external I/O (network, filesystem, DB)
 
 Never mock what you own. If you need to mock an internal module, the design has a coupling problem — fix the design instead.
 
@@ -56,19 +50,21 @@ Enforce via ESLint rules in `references/quality-automation.md`.
 
 ### Vague Matchers
 
-| Matcher         | Why prohibited                                                                        | Use instead                                       |
-| --------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `toBeTruthy()`  | Passes for `1`, `"str"`, `[]`, `{}` — almost never what you mean                      | `toBe(true)` for booleans, or a specific matcher  |
-| `toBeFalsy()`   | Passes for `0`, `""`, `null`, `undefined`, `NaN` — hides which falsy value you expect | `toBe(false)` for booleans, or a specific matcher |
-| `toBeDefined()` | Only checks `!== undefined` — passes for `null`, `0`, `""`, `false`                   | Assert the specific expected value                |
+- `toBeTruthy()` — Passes for `1`, `"str"`, `[]`, `{}` — almost never what you mean
+  - Use instead: `toBe(true)` for booleans, or a specific matcher
+- `toBeFalsy()` — Passes for `0`, `""`, `null`, `undefined`, `NaN` — hides which falsy value you expect
+  - Use instead: `toBe(false)` for booleans, or a specific matcher
+- `toBeDefined()` — Only checks `!== undefined` — passes for `null`, `0`, `""`, `false`
+  - Use instead: Assert the specific expected value
 
 ### Shared Mutable State
 
-| Pattern                    | Why prohibited                                                                        | Use instead                                                  |
-| -------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `let` in test files        | Shared mutable state couples tests — one test's mutation leaks into the next          | `const` with `test.extends` fixtures or inline setup         |
-| `beforeEach` / `afterEach` | Implicit setup hidden from the test body — reader must scroll to understand context   | `test.extends` fixtures for shared setup, inline for one-off |
-| `beforeAll` / `afterAll`   | Same implicit coupling; expensive shared resources should use `test.extends` fixtures | `test.extends` fixtures                                      |
+- `let` in test files — Shared mutable state couples tests — one test's mutation leaks into the next
+  - Use instead: `const` with `test.extends` fixtures or inline setup
+- `beforeEach` / `afterEach` — Implicit setup hidden from the test body — reader must scroll to understand context
+  - Use instead: `test.extends` fixtures for shared setup, inline for one-off
+- `beforeAll` / `afterAll` — Same implicit coupling; expensive shared resources should use `test.extends` fixtures
+  - Use instead: `test.extends` fixtures
 
 ### test.extends — Fixture Pattern
 
@@ -127,12 +123,14 @@ test("server responds with 200", async () => {
 });
 ```
 
-| Pattern                                   | Verdict    | Why                                                                           |
-| ----------------------------------------- | ---------- | ----------------------------------------------------------------------------- |
-| `test("x", ({ _db }) => {})`              | Prohibited | Underscore-prefixed unused variable is a lint-silencing hack — unclear intent |
-| `test("x", ({ db: _db }) => {})`          | Prohibited | Same — renaming to suppress lint hides the real problem                       |
-| `test("x", ({ db }) => { /* no use */ })` | Prohibited | Destructuring a fixture you never reference is unnecessary noise              |
-| Define the fixture with `{ auto: true }`  | Required   | Fixtures not referenced in the test body must use `auto: true`                |
+- `test("x", ({ _db }) => {})` — Prohibited
+  - Why: Underscore-prefixed unused variable is a lint-silencing hack — unclear intent
+- `test("x", ({ db: _db }) => {})` — Prohibited
+  - Why: Same — renaming to suppress lint hides the real problem
+- `test("x", ({ db }) => { /* no use */ })` — Prohibited
+  - Why: Destructuring a fixture you never reference is unnecessary noise
+- Define the fixture with `{ auto: true }` — Required
+  - Why: Fixtures not referenced in the test body must use `auto: true`
 
 ## Coverage
 
@@ -152,7 +150,7 @@ All stories must use the CSF factories format. Do NOT use legacy CSF 1/2/3 synta
 
 #### Setup
 
-1. **Subpath import** — Add to `package.json`:
+1. Subpath import — Add to `package.json`:
 
 ```json
 {
@@ -162,12 +160,10 @@ All stories must use the CSF factories format. Do NOT use legacy CSF 1/2/3 synta
 }
 ```
 
-2. **Main config** — Use `defineMain` in `.storybook/main.ts`. Choose the framework package based on your project:
+2. Main config — Use `defineMain` in `.storybook/main.ts`. Choose the framework package based on your project:
 
-| Project type                | Framework package       |
-| --------------------------- | ----------------------- |
-| Next.js (default web stack) | `@storybook/nextjs`     |
-| React + Vite                | `@storybook/react-vite` |
+- Next.js (default web stack) — `@storybook/nextjs`
+- React + Vite — `@storybook/react-vite`
 
 **Next.js projects** (use this by default — see `references/web.md`):
 
@@ -193,7 +189,7 @@ export default defineMain({
 });
 ```
 
-3. **Preview config** — Use `definePreview` in `.storybook/preview.ts`:
+3. Preview config — Use `definePreview` in `.storybook/preview.ts`:
 
 **Next.js projects** (use this by default):
 

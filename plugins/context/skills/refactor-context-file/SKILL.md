@@ -56,10 +56,8 @@ allowed-tools: Read, Write(.claude/**), Write(~/.claude/**), Bash(ls), Bash(mkdi
 
 各カテゴリに応じてコマンド/Skill を呼び出すtodoを追加する。
 
-| カテゴリ | 呼び出し方法                   |
-| -------- | ------------------------------ |
-| Hooks    | `cc-hooks-ts` Skill を使用     |
-| Rules    | `.claude/rules/` に直接作成    |
-| Skills   | `.claude/skills/` に直接作成   |
-| Agents   | `.claude/agents/` に直接作成   |
-| Commands | `.claude/commands/` に直接作成 |
+- Hooks — `cc-hooks-ts` Skill を使用
+- Rules — `.claude/rules/` に直接作成
+- Skills — `.claude/skills/` に直接作成
+- Agents — `.claude/agents/` に直接作成
+- Commands — `.claude/commands/` に直接作成

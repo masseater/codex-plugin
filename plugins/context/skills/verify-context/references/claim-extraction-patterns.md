@@ -128,8 +128,8 @@ Always check for missing items, not just incorrect ones.
 
 When time is limited, prioritize:
 
-1. **File/directory existence** — fastest to verify, most impactful if wrong
-2. **Command behavior** — users rely on these directly
-3. **Counts and lists** — completeness errors are common
-4. **Version numbers** — frequently outdated
-5. **Workflow descriptions** — hardest to verify, but errors cause confusion
+1. File/directory existence — fastest to verify, most impactful if wrong
+2. Command behavior — users rely on these directly
+3. Counts and lists — completeness errors are common
+4. Version numbers — frequently outdated
+5. Workflow descriptions — hardest to verify, but errors cause confusion

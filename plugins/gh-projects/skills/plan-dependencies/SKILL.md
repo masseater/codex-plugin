@@ -9,8 +9,8 @@ description: Story / Task 間の blocked-by 依存関係を設計・登録する
 
 `epic-story-task` skill の方針:
 
-- **親子関係**: sub-issue で表現（EPIC ↔ Story、Story ↔ Task）
-- **横方向の依存**: blocked-by で表現（並行進行が困難なもの、別系統で前提となるもの）
+- 親子関係: sub-issue で表現（EPIC ↔ Story、Story ↔ Task）
+- 横方向の依存: blocked-by で表現（並行進行が困難なもの、別系統で前提となるもの）
 
 ## When to add blocked-by
 
@@ -31,8 +31,8 @@ description: Story / Task 間の blocked-by 依存関係を設計・登録する
 
 `AskUserQuestion` でまとめて聞く:
 
-1. **対象 EPIC または Story 番号** — どのスコープで依存を整理するか
-2. **依存ペアのリスト** — `{ blocked: 102, blocking: 101, reason: "..." }` のような配列
+1. 対象 EPIC または Story 番号 — どのスコープで依存を整理するか
+2. 依存ペアのリスト — `{ blocked: 102, blocking: 101, reason: "..." }` のような配列
 3. ペアが未確定なら、まず Step 1 で構造を確認してから提案する
 
 ## Workflow
@@ -131,10 +131,10 @@ EPIC 単位で再度棚卸し:
 
 ## Common Pitfalls
 
-- **過剰登録**: 「順番にやりたい」だけで blocked-by を付けると、実際の作業の柔軟性を失う。本当に並行不可能なものだけに絞る
-- **逆向き登録**: `blocked` と `blocking` を混同しがち。CLI の引数順は `block:add <repo> <blocked#> <blocking#>` で、最初が「ブロックされる側」
-- **循環見落とし**: A→B→C→A のような3点循環は手動で見つけにくい。Step 4 を省略しない
-- **EPIC 間依存**: EPIC レベルでも blocked-by は付けられるが、EPIC 間の依存はロードマップ表現の方が読みやすいので Project の Iteration / Group で表現する方が良いことが多い
+- 過剰登録: 「順番にやりたい」だけで blocked-by を付けると、実際の作業の柔軟性を失う。本当に並行不可能なものだけに絞る
+- 逆向き登録: `blocked` と `blocking` を混同しがち。CLI の引数順は `block:add <repo> <blocked#> <blocking#>` で、最初が「ブロックされる側」
+- 循環見落とし: A→B→C→A のような3点循環は手動で見つけにくい。Step 4 を省略しない
+- EPIC 間依存: EPIC レベルでも blocked-by は付けられるが、EPIC 間の依存はロードマップ表現の方が読みやすいので Project の Iteration / Group で表現する方が良いことが多い
 
 ## Notes
 

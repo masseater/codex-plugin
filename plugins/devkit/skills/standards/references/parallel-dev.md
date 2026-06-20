@@ -25,12 +25,14 @@ Provide a `worktree:setup` script that runs automatically when a new worktree is
 
 The script must perform at minimum:
 
-| Step                         | What                                                                 | Why                                                |
-| ---------------------------- | -------------------------------------------------------------------- | -------------------------------------------------- |
-| Install dependencies         | `pnpm install`                                                       | Worktrees share git objects but not `node_modules` |
-| Copy environment files       | Copy `.env.local` (and other `.env*.local` files) from main worktree | Secrets and local config are not tracked in git    |
-| Generate dynamic port config | Write port assignments to `.env.local` or a local config file        | Prevent port collisions between worktrees          |
-| Run codegen / DB setup       | Prisma generate, migrations, etc.                                    | Generated files may not exist in the new worktree  |
+- Install dependencies — `pnpm install`
+  - Why: Worktrees share git objects but not `node_modules`
+- Copy environment files — Copy `.env.local` (and other `.env*.local` files) from main worktree
+  - Why: Secrets and local config are not tracked in git
+- Generate dynamic port config — Write port assignments to `.env.local` or a local config file
+  - Why: Prevent port collisions between worktrees
+- Run codegen / DB setup — Prisma generate, migrations, etc.
+  - Why: Generated files may not exist in the new worktree
 
 ## Environment File Isolation
 

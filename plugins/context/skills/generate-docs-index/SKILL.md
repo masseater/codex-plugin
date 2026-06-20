@@ -24,8 +24,8 @@ Glob `docs/**/*.md` excluding `docs/index.md` itself and any `node_modules/`.
 
 For each file:
 
-- **Path**: relative from project root (e.g. `docs/api/mutils.md`)
-- **Title**: first `# heading` in the file. If none, use the filename without extension
+- Path: relative from project root (e.g. `docs/api/mutils.md`)
+- Title: first `# heading` in the file. If none, use the filename without extension
 
 ### 3. Group by Directory
 

@@ -13,10 +13,10 @@ Create a GitHub issue on the `masseater/codex-plugin` repository based on the cu
 
 Review the conversation history and identify what the user wants to report:
 
-- **Bug**: Something that is broken or not working as expected
-- **Feature Request**: A new feature or improvement suggestion
-- **Question**: A question about usage or behavior
-- **Other**: General feedback
+- Bug: Something that is broken or not working as expected
+- Feature Request: A new feature or improvement suggestion
+- Question: A question about usage or behavior
+- Other: General feedback
 
 ### Step 2: Draft the Issue
 

@@ -26,19 +26,20 @@ Used automatically when `FIGMA_ACCESS_TOKEN` is not set, or when the REST API fa
 
 Located at `./scripts`. All scripts are standalone executable TypeScript files with a shebang. Do NOT run them via `bun` — execute them directly.
 
-| Script                 | Description                         |
-| ---------------------- | ----------------------------------- |
-| `export-screenshot.ts` | Export a Figma node as a screenshot |
+- `export-screenshot.ts` — Export a Figma node as a screenshot
 
 ### export-screenshot.ts
 
-| Option       | Required | Description                                                    |
-| ------------ | -------- | -------------------------------------------------------------- |
-| `--file-key` | Yes      | Figma file key (from URL)                                      |
-| `--node-id`  | Yes      | Target node ID (e.g., `7247-25294` or `7247:25294`)            |
-| `--output`   | Yes      | Output file path                                               |
-| `--scale`    |          | Export scale 0.01-4 (REST API only, default: 1)                |
-| `--format`   |          | Image format: png, jpg, svg, pdf (REST API only, default: png) |
+- `--file-key` — Yes
+  - Description: Figma file key (from URL)
+- `--node-id` — Yes
+  - Description: Target node ID (e.g., `7247-25294` or `7247:25294`)
+- `--output` — Yes
+  - Description: Output file path
+- `--scale`
+  - Description: Export scale 0.01-4 (REST API only, default: 1)
+- `--format`
+  - Description: Image format: png, jpg, svg, pdf (REST API only, default: png)
 
 ### Usage
 
@@ -67,5 +68,5 @@ Located at `./scripts`. All scripts are standalone executable TypeScript files w
 
 ## How to Get File Key and Node ID
 
-- **File key**: Extract from Figma URL `https://www.figma.com/design/<file_key>/...`
-- **Node ID**: Extract from URL query parameter `?node-id=<node_id>`
+- File key: Extract from Figma URL `https://www.figma.com/design/<file_key>/...`
+- Node ID: Extract from URL query parameter `?node-id=<node_id>`

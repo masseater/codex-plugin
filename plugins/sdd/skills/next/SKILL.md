@@ -18,16 +18,22 @@ argument-hint: "[spec]"
 
 ## 状態判定ロジック
 
-| 状態            | 判定条件                  | 提案コマンド                          |
-| --------------- | ------------------------- | ------------------------------------- |
-| タスク未作成    | overview.md なし          | `/sdd:spec init`                      |
-| 調査未完了      | 調査項目に🔴がある        | `/sdd:research conduct {taskname}`    |
-| 要件未定義      | specification.md なし     | `/sdd:spec requirements {taskname}`   |
-| 技術未定義      | technical-details.md なし | `/sdd:spec technical {taskname}`      |
-| Phase未計画     | Phase構成セクションなし   | `/sdd:phase plan {taskname}`          |
-| Phase詳細未作成 | tasks/phase\*.md なし     | `/sdd:phase breakdown {taskname} N`   |
-| 実装中          | タスクに未完了あり        | `/sdd:phase implement {taskname} N.M` |
-| Phase検証待ち   | 全タスク完了              | `/sdd:validate {taskname} N`          |
+- タスク未作成 — overview.md なし
+  - 提案コマンド: `/sdd:spec init`
+- 調査未完了 — 調査項目に🔴がある
+  - 提案コマンド: `/sdd:research conduct {taskname}`
+- 要件未定義 — specification.md なし
+  - 提案コマンド: `/sdd:spec requirements {taskname}`
+- 技術未定義 — technical-details.md なし
+  - 提案コマンド: `/sdd:spec technical {taskname}`
+- Phase未計画 — Phase構成セクションなし
+  - 提案コマンド: `/sdd:phase plan {taskname}`
+- Phase詳細未作成 — tasks/phase\*.md なし
+  - 提案コマンド: `/sdd:phase breakdown {taskname} N`
+- 実装中 — タスクに未完了あり
+  - 提案コマンド: `/sdd:phase implement {taskname} N.M`
+- Phase検証待ち — 全タスク完了
+  - 提案コマンド: `/sdd:validate {taskname} N`
 
 ## 出力例
 

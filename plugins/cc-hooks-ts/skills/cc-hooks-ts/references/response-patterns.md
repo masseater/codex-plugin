@@ -10,12 +10,18 @@ Complete reference for `context.json()` response structures by event type.
 
 All events share these optional fields:
 
-| Field            | Type      | Default | Description                                     |
-| ---------------- | --------- | ------- | ----------------------------------------------- |
-| `continue`       | `boolean` | `true`  | Whether to continue processing                  |
-| `stopReason`     | `string`  | —       | Reason for stopping (shown to user, not Claude) |
-| `suppressOutput` | `boolean` | `false` | Hide stdout from user                           |
-| `systemMessage`  | `string`  | —       | Warning message displayed to user               |
+- `continue` — `boolean`
+  - Default: `true`
+  - Description: Whether to continue processing
+- `stopReason` — `string`
+  - Default: —
+  - Description: Reason for stopping (shown to user, not Claude)
+- `suppressOutput` — `boolean`
+  - Default: `false`
+  - Description: Hide stdout from user
+- `systemMessage` — `string`
+  - Default: —
+  - Description: Warning message displayed to user
 
 ## PreToolUse
 
@@ -38,12 +44,10 @@ return context.json({
 });
 ```
 
-| Field                      | Description                                                       |
-| -------------------------- | ----------------------------------------------------------------- |
-| `permissionDecision`       | `"allow"` = auto-approve, `"ask"` = prompt user, `"deny"` = block |
-| `permissionDecisionReason` | Shown to user (not fed to Claude when `"allow"`)                  |
-| `updatedInput`             | Replace tool input before execution                               |
-| `additionalContext`        | Extra context injected into Claude's conversation                 |
+- `permissionDecision` — `"allow"` = auto-approve, `"ask"` = prompt user, `"deny"` = block
+- `permissionDecisionReason` — Shown to user (not fed to Claude when `"allow"`)
+- `updatedInput` — Replace tool input before execution
+- `additionalContext` — Extra context injected into Claude's conversation
 
 ## PostToolUse
 
@@ -65,11 +69,9 @@ return context.json({
 });
 ```
 
-| Field                  | Description                            |
-| ---------------------- | -------------------------------------- |
-| `additionalContext`    | Message injected into Claude's context |
-| `updatedMCPToolOutput` | Replace MCP tool response content      |
-| `suppressOutput`       | Hide original tool output from user    |
+- `additionalContext` — Message injected into Claude's context
+- `updatedMCPToolOutput` — Replace MCP tool response content
+- `suppressOutput` — Hide original tool output from user
 
 ## PostToolUseFailure
 
@@ -104,10 +106,8 @@ return context.json({
 });
 ```
 
-| Field               | Description                                        |
-| ------------------- | -------------------------------------------------- |
-| `decision`          | `"block"` prevents the prompt from being processed |
-| `additionalContext` | Added to context if not blocked                    |
+- `decision` — `"block"` prevents the prompt from being processed
+- `additionalContext` — Added to context if not blocked
 
 ## PermissionRequest
 
@@ -189,8 +189,9 @@ return context.json({
 
 ## Exit Codes Summary
 
-| Code | Meaning                                | Method                                                   |
-| ---- | -------------------------------------- | -------------------------------------------------------- |
-| 0    | Success                                | `context.success()`, `context.json()`, `context.defer()` |
-| 1    | Non-blocking error (warn and continue) | `context.nonBlockingError()`                             |
-| 2    | Blocking error (stop execution)        | `context.blockingError()`                                |
+- 0 — Success
+  - Method: `context.success()`, `context.json()`, `context.defer()`
+- 1 — Non-blocking error (warn and continue)
+  - Method: `context.nonBlockingError()`
+- 2 — Blocking error (stop execution)
+  - Method: `context.blockingError()`

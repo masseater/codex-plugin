@@ -17,29 +17,27 @@ $ARGUMENTS
 
 Identify review target files by combining the following information sources:
 
-1. **Check progress files**
+1. Check progress files
    - Read the latest `.md` file in the `.agents/progress/` directory
    - Understand the work content documented in the "Progress" section
    - If a "Conversation" link exists, reference the conversation file (`.jsonl`) to identify edited files
 
-2. **Check git diff**
+2. Check git diff
    - Use `git diff --name-only` and `git diff --staged --name-only` to retrieve changed files
    - Add changed files to the review targets
 
-3. **Files specified as arguments** (if provided)
+3. Files specified as arguments (if provided)
    - Add file paths specified in arguments to the targets
 
 ### 2. Parallel Review by Agents
 
 Launch the following **5 agents in parallel** to conduct reviews from different perspectives:
 
-| Agent                     | Focus                                                                                  |
-| ------------------------- | -------------------------------------------------------------------------------------- |
-| `design-reviewer`         | Design and architecture (single responsibility, circular dependencies, tight coupling) |
-| `implementation-reviewer` | Implementation quality (readability, naming, duplicate code, functional style)         |
-| `type-safety-reviewer`    | Type safety (any type prohibition, proper type definitions)                            |
-| `ai-antipattern-reviewer` | AI antipatterns (hallucinated APIs, fallback abuse, dead code)                         |
-| `goal-validator`          | Goal achievement (cross-reference progress file with changes)                          |
+- `design-reviewer` — Design and architecture (single responsibility, circular dependencies, tight coupling)
+- `implementation-reviewer` — Implementation quality (readability, naming, duplicate code, functional style)
+- `type-safety-reviewer` — Type safety (any type prohibition, proper type definitions)
+- `ai-antipattern-reviewer` — AI antipatterns (hallucinated APIs, fallback abuse, dead code)
+- `goal-validator` — Goal achievement (cross-reference progress file with changes)
 
 ### 3. Fix Issues Directly
 
@@ -59,7 +57,7 @@ After all fixes are complete:
 
 ## Important Notes
 
-- **Never tolerate leniency**: "This is good enough" is prohibited
-- **Detect ad-hoc workarounds**: If you find keywords like "temporary", "just for now", "for the moment", "tentatively", or "possibly", write a self-reflection statement of at least 50 characters
-- **Strict standards**: Every issue must be addressed with precision and accountability
-- **Fix locally, don't comment on PR**: Issues found during review must be fixed in the local codebase, not posted as PR comments
+- Never tolerate leniency: "This is good enough" is prohibited
+- Detect ad-hoc workarounds: If you find keywords like "temporary", "just for now", "for the moment", "tentatively", or "possibly", write a self-reflection statement of at least 50 characters
+- Strict standards: Every issue must be addressed with precision and accountability
+- Fix locally, don't comment on PR: Issues found during review must be fixed in the local codebase, not posted as PR comments

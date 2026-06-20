@@ -1,6 +1,6 @@
 {
   "name": "github-issue-db",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "GitHub issue をローカル SQLite にクローンしオフライン検索・重複検知・状態更新を行うプラグイン",
   "author": {
     "name": "masseater",

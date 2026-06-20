@@ -11,10 +11,10 @@ EPIC レベルの Issue を起票して GitHub Project に登録する。`epic-s
 
 不明な情報は `AskUserQuestion` でまとめて聞く（一度に複数の質問可）:
 
-1. **対象リポジトリ** — `<owner>/<repo>` 形式。指定が無ければ `gh repo view --json nameWithOwner -q .nameWithOwner` で現在の repo
-2. **EPIC タイトル** — 成果視点で書く（実装視点は避ける）
-3. **対象 Project** — `<owner>` と Project 番号。複数候補があれば `project:list` で取得して提示
-4. **Type 表現** — Issue Types を使うか、ラベル（`type:epic`）で代用するか
+1. 対象リポジトリ — `<owner>/<repo>` 形式。指定が無ければ `gh repo view --json nameWithOwner -q .nameWithOwner` で現在の repo
+2. EPIC タイトル — 成果視点で書く（実装視点は避ける）
+3. 対象 Project — `<owner>` と Project 番号。複数候補があれば `project:list` で取得して提示
+4. Type 表現 — Issue Types を使うか、ラベル（`type:epic`）で代用するか
 
 ## Drafting rules
 

@@ -53,22 +53,34 @@ Key elements:
 
 ## Supported Events
 
-| Event                | Description               | Use Case                                       |
-| -------------------- | ------------------------- | ---------------------------------------------- |
-| `SessionStart`       | Session begins            | Environment checks, dependency install         |
-| `SessionEnd`         | Session ends              | Cleanup, state persistence                     |
-| `PreToolUse`         | Before tool execution     | Block operations, validate input, modify input |
-| `PostToolUse`        | After tool execution      | Logging, inject additional context             |
-| `PostToolUseFailure` | After tool failure        | Error handling, retry guidance                 |
-| `UserPromptSubmit`   | User submits prompt       | Prompt augmentation, blocking                  |
-| `Stop`               | Claude stops processing   | Cleanup, notifications                         |
-| `SubagentStart`      | Subagent spawns           | Subagent initialization                        |
-| `SubagentStop`       | Subagent stops            | Subagent result processing                     |
-| `Notification`       | System notification       | Alert handling                                 |
-| `PermissionRequest`  | Permission requested      | Auto-approve/deny rules                        |
-| `PreCompact`         | Before context compaction | State preservation                             |
-| `PostCompact`        | After context compaction  | Post-compaction processing                     |
-| `Setup`              | Setup/maintenance trigger | One-time setup tasks                           |
+- `SessionStart` — Session begins
+  - Use Case: Environment checks, dependency install
+- `SessionEnd` — Session ends
+  - Use Case: Cleanup, state persistence
+- `PreToolUse` — Before tool execution
+  - Use Case: Block operations, validate input, modify input
+- `PostToolUse` — After tool execution
+  - Use Case: Logging, inject additional context
+- `PostToolUseFailure` — After tool failure
+  - Use Case: Error handling, retry guidance
+- `UserPromptSubmit` — User submits prompt
+  - Use Case: Prompt augmentation, blocking
+- `Stop` — Claude stops processing
+  - Use Case: Cleanup, notifications
+- `SubagentStart` — Subagent spawns
+  - Use Case: Subagent initialization
+- `SubagentStop` — Subagent stops
+  - Use Case: Subagent result processing
+- `Notification` — System notification
+  - Use Case: Alert handling
+- `PermissionRequest` — Permission requested
+  - Use Case: Auto-approve/deny rules
+- `PreCompact` — Before context compaction
+  - Use Case: State preservation
+- `PostCompact` — After context compaction
+  - Use Case: Post-compaction processing
+- `Setup` — Setup/maintenance trigger
+  - Use Case: One-time setup tasks
 
 ## Tool-Specific Triggers
 
@@ -94,13 +106,16 @@ const hook = defineHook({
 
 ### Response Methods
 
-| Method                               | Exit Code | Behavior                                                                                              |
-| ------------------------------------ | --------- | ----------------------------------------------------------------------------------------------------- |
-| `context.success(payload?)`          | 0         | Continue normally. Optional `messageForUser` and `additionalClaudeContext`.                           |
-| `context.blockingError(message)`     | 2         | Stop execution. Error message fed to Claude.                                                          |
-| `context.nonBlockingError(message?)` | 1         | Show warning to user, continue execution.                                                             |
-| `context.json(payload)`              | 0         | Full control over hook output — set `permissionDecision`, `additionalContext`, `suppressOutput`, etc. |
-| `context.defer(handler, opts?)`      | 0         | Deferred async processing with optional `timeoutMs`.                                                  |
+- `context.success(payload?)` — 0
+  - Behavior: Continue normally. Optional `messageForUser` and `additionalClaudeContext`.
+- `context.blockingError(message)` — 2
+  - Behavior: Stop execution. Error message fed to Claude.
+- `context.nonBlockingError(message?)` — 1
+  - Behavior: Show warning to user, continue execution.
+- `context.json(payload)` — 0
+  - Behavior: Full control over hook output — set `permissionDecision`, `additionalContext`, `suppressOutput`, etc.
+- `context.defer(handler, opts?)` — 0
+  - Behavior: Deferred async processing with optional `timeoutMs`.
 
 ### context.input
 
@@ -235,12 +250,12 @@ Without this guard, a Stop hook that injects context will cause Claude to resume
 
 ## Best Practices
 
-1. **Use `console.error()` for user-visible output** — stdout is reserved for hook JSON responses
-2. **Implement cooldown** for frequently triggered hooks to avoid performance impact
-3. **Keep hooks lightweight** — hook execution blocks Claude's processing
-4. **Design for idempotency** — same input should produce same result
-5. **Wrap with try-catch** — unhandled errors cause hook failures
-6. **Guard Stop hooks against recursion** — always check `stop_hook_active` (see above)
+1. Use `console.error()` for user-visible output — stdout is reserved for hook JSON responses
+2. Implement cooldown for frequently triggered hooks to avoid performance impact
+3. Keep hooks lightweight — hook execution blocks Claude's processing
+4. Design for idempotency — same input should produce same result
+5. Wrap with try-catch — unhandled errors cause hook failures
+6. Guard Stop hooks against recursion — always check `stop_hook_active` (see above)
 
 ## References
 
@@ -253,5 +268,5 @@ Without this guard, a Stop hook that injects context will cause Claude to resume
 
 ### References
 
-- **`references/response-patterns.md`** — Complete context.json() response structures for all hook events — PreToolUse, PostToolUse, UserPromptSubmit, PermissionRequest, Stop, and more
+- `references/response-patterns.md` — Complete context.json() response structures for all hook events — PreToolUse, PostToolUse, UserPromptSubmit, PermissionRequest, Stop, and more
 <!-- REFERENCES_END -->

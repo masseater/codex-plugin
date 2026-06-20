@@ -13,9 +13,8 @@ mutilsプラグインの推奨設定をユーザー環境に適用します。
 
 同名のファイルに参照行を追加してください:
 
-| 選択      | 追加先        | 追加する参照                             |
-| --------- | ------------- | ---------------------------------------- |
-| AGENTS.md | `~/AGENTS.md` | `@${CLAUDE_PLUGIN_DIR}/assets/AGENTS.md` |
+- AGENTS.md — `~/AGENTS.md`
+  - 追加する参照: `@${CLAUDE_PLUGIN_DIR}/assets/AGENTS.md`
 
 **注意**:
 
