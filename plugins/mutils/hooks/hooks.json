@@ -1,5 +1,4 @@
 {
-  "description": "mutils plugin hooks",
   "hooks": {
     "SessionStart": [
       {

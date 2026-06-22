@@ -1,5 +1,4 @@
 {
-  "description": "ccs plugin hooks",
   "hooks": {
     "SessionStart": [
       {

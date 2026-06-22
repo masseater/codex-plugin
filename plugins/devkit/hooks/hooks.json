@@ -1,5 +1,4 @@
 {
-  "description": "devkit plugin hooks",
   "hooks": {
     "PreToolUse": [
       {

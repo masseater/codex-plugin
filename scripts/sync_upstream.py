@@ -247,6 +247,20 @@ def replace_plugin_root_refs_for_hooks_json(text: str) -> str:
     return text.replace("${CLAUDE_PLUGIN_ROOT}", ".")
 
 
+def normalize_hooks_json_config(text: str) -> str:
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return text
+
+    if not isinstance(payload, dict) or "hooks" not in payload:
+        return text
+    if set(payload) == {"hooks"}:
+        return text
+
+    return f"{json.dumps({'hooks': payload['hooks']}, ensure_ascii=False, indent=2)}\n"
+
+
 def codex_hook_dispatch_command(plugin: UpstreamPlugin, target_args: list[str]) -> str:
     target_args = [arg.removeprefix("./") for arg in target_args]
     script = (
@@ -336,6 +350,7 @@ def rewrite_file_contents(file_path: Path, plugin_root: Path, plugin: UpstreamPl
 
     if file_path.name == "hooks.json":
         updated = replace_plugin_root_refs_for_hooks_json(updated)
+        updated = normalize_hooks_json_config(updated)
         updated = rewrite_hooks_json_commands(updated, plugin)
     else:
         updated = replace_plugin_root_refs_for_text(updated, file_path, plugin_root)

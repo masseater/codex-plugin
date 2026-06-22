@@ -1,5 +1,4 @@
 {
-  "description": "github-workflow plugin hooks",
   "hooks": {
     "PostToolUse": [
       {

@@ -10,8 +10,7 @@
 python3 scripts/sync_upstream.py
 ```
 
-既定では upstream の default branch を追従します。2026-04-01 時点では
-`masseater/claude-code-plugin` の default branch は `main` ではなく `master` です。
+既定では upstream の default branch を解決して追従します。
 
 ローカル checkout を同期元に使う場合:
 
