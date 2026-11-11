@@ -1,50 +1,39 @@
 ---
-description: 品質自動化 — oxlint、ESLint custom plugin、oxfmt、steiger、tsgo、knip、lefthook、Renovate、CI の必須チェック、claude-code-action による自動修正、チェックは lint rule で書く方針
+description: Quality automation tools — oxlint, ESLint custom plugins, oxfmt, steiger, tsgo, knip, lefthook, Renovate, CI required checks, claude-code-action auto-fix, and automation-as-lint policy
 ---
 
-# 品質自動化
+# Quality Automation
 
-## 目次
+Concrete tools that realize "make everything mechanically detectable" from philosophy.
 
-- チェックはスクリプトではなく lint rule で書く
-- ツール
-- oxfmt: ルートで実行する
-- oxlint: 汎用の lint
-- ESLint: 型情報と構造のルール
-- 使い分け
-- Vitest の test ファイル制約
-- 使わない ESLint ルール
-- 独自ルール enforce-barrel-import
-- `@repo/lint-config` と monorepo での実行単位
-- ツールの呼び出し方
-- CI の必須チェック
-- 依存更新: Renovate
-- main の CI 失敗の自動修正: claude-code-action
-- 文書の自動化
+## Core Principle: Automation = Lint Rule, Not Script
 
-Philosophy の「すべてを機械的に検出できるようにする」を実現する具体的なツール。
+**When automating checks, write oxlint/ESLint custom plugins — not standalone scripts.**
 
-## チェックはスクリプトではなく lint rule で書く
+- Scripts get forgotten. Lint rules run alongside everything else via `pnpm run check`
+- Same checks run in CI, lefthook, editors, and AI agents — no separate execution step
+- Violations are reported with file name and line number (no stdout parsing needed)
+- Add `--fix` support for automatic remediation
 
-チェックを自動化するときは、単独のスクリプトではなく oxlint / ESLint の custom plugin を書く。スクリプトは実行し忘れられるが、lint rule は `pnpm run check` に乗って CI・lefthook・エディタ・AI エージェントのすべてで走り、違反をファイル名と行番号付きで報告できる。自動修正できるものは `--fix` も実装する。「このパターンを検出したい」と思ったら、まず lint rule にできないかを考える。
+When you think "I want to detect this pattern," first consider whether it can be a lint rule.
 
-## ツール
+## Tools
 
-- oxlint: 主 linter
-- oxfmt: formatter
-- ESLint（v9 以上）: 独自ルール、型情報を使うルール、アーキテクチャ境界の強制
-- steiger: FSD アーキテクチャの lint
-- tsgo（TypeScript v7 以上）: 型チェック
-- knip: 未使用コード検出
-- lefthook: Git hooks 管理
-- Renovate: 依存の自動更新
+- oxlint — Primary linter (oxc-based, 10-100x faster than ESLint)
+- oxfmt — Formatting (oxc-based, fast)
+- ESLint (v9+) — Custom rules, type-aware rules, architectural boundary enforcement
+- steiger — FSD architecture linting
+- tsgo (TypeScript v7+) — Type checking
+- knip — Unused code detection
+- lefthook — Git hooks management
+- Renovate — Automated dependency updates
 
-## oxfmt: ルートで実行する
+## oxfmt — Formatting (Root Execution)
 
-oxfmt は monorepo のルートでだけ実行し、workspace ごとには実行しない。フォーマットは monorepo 全体で統一し workspace ごとの差を認めないため、またルートの設定ファイルや共有スクリプトも一度で揃えられるため。workspace の `check` は lint だけを担う。
+oxfmt is the formatter for the entire monorepo. **Run at the monorepo root only** — not per-workspace.
 
 ```jsonc
-// package.json（monorepo ルート）
+// package.json (monorepo root)
 {
   "scripts": {
     "check": "eslint && oxfmt --check . && turbo run check",
@@ -53,43 +42,84 @@ oxfmt は monorepo のルートでだけ実行し、workspace ごとには実行
 }
 ```
 
-## oxlint: 汎用の lint
+Why root-only:
 
-主 linter として使う。カテゴリは correctness を warn/deny、suspicious と perf を warn にする。style・pedantic・restriction・nursery は既定（allow）のままにし、プロジェクトで使うルールだけを個別に有効にする。
+- Formatting rules are uniform across the entire monorepo — workspace-level divergence is not allowed
+- Running at root avoids duplicate invocations and ensures consistent formatting of shared files (root configs, scripts, etc.)
+- Workspace `check` scripts handle linting only; formatting is the root's responsibility
 
-- プロジェクト固有のルールは oxlint JS plugin（ESLint v9 互換 API、alpha）として書き、`oxlint.config.ts` の `jsPlugins` で設定する。既存の ESLint plugin も多くはそのまま動くが、頼る前に 1 つずつ動作を確かめる
-- 型情報を使うルールには oxlint を使わず、ESLint + typescript-eslint を使う
-- monorepo では turbo で workspace ごとに実行する。各 workspace の `oxlint.config.ts` は `@repo/lint-config` の `oxlintBase` を import して拡張する。turbo が workspace ごとに走るので、base だけで足りる場合も設定ファイルは置く
+## oxlint — Use for All General Linting
 
-## ESLint: 型情報と構造のルール
+Use oxlint as the primary linter. It provides 700+ built-in rules in Rust (50-100x faster than ESLint) with zero configuration.
 
-oxlint でできないことに限って併用する。
+Enable categories based on project needs:
 
-- 型情報を使うルール: typescript-eslint の typed linting（no-floating-promises、no-unsafe-\* など）
-- アーキテクチャ境界: eslint-plugin-boundaries で FSD の層間 import を制約する
-- import の方針: eslint-plugin-import-x で循環依存の検出と並び順
-- ドメイン固有ルール: リポジトリ内に `.ts` の local custom plugin を作り、`eslint.config.ts` で import する（npm publish しない）
-- TanStack Query: @tanstack/eslint-plugin-query
+- correctness — Outright wrong or useless code
+  - Default: warn/deny
+- suspicious — Most likely wrong or useless
+  - Default: warn
+- perf — Can be written to run faster
+  - Default: warn
+- style — Naming and code style conventions
+  - Default: allow
+- pedantic — Style or best-practice enforcement
+  - Default: allow
+- restriction — Restricts certain syntax/patterns
+  - Default: allow
+- nursery — Experimental rules
+  - Default: allow
 
-独自ルールには `fix()` を実装する。
+Write project-specific rules as oxlint JS plugins (ESLint v9+ API compatible, alpha stability). Configure via `jsPlugins` in `oxlint.config.ts`. Many ESLint plugins work without modification — test each one before relying on it.
 
-ルートと workspace の役割:
+Do not use oxlint for type-aware rules (use ESLint + typescript-eslint instead).
 
-- ルートの `eslint.config.ts`: リポジトリ構造のルール（plugin.json、hooks.json、package.json の独自ルールなど JSON の lint）。ルートで 1 回だけ実行する
-- workspace の `eslint.config.ts`: TypeScript/TSX の型情報を使うルール、アーキテクチャ境界、ドメイン固有ルール。turbo で workspace ごとに実行する。`@repo/lint-config` の `eslintBase` を import して展開し、base だけで足りる場合も設定ファイルは置く
+### Monorepo Config Strategy
 
-## 使い分け
+Run oxlint per-workspace via turbo. Inherit settings from the shared `@repo/lint-config` package (shared with ESLint, see below).
 
-- 汎用の正しさ・スタイル: oxlint
-- プロジェクト固有の AST ルール: まず oxlint JS plugin、安定性が要るなら ESLint
-- 型情報が要るルール: ESLint + typescript-eslint（oxlint は type-aware lint に未対応）
-- アーキテクチャ境界: ESLint + eslint-plugin-boundaries
-- 循環依存の検出: oxlint（`import/no-cycle`、モジュールグラフを使うので遅くならない）か ESLint
-- 両方を使うときは `eslint-plugin-oxlint` で重複ルールを ESLint 側から外す
+Each workspace's `oxlint.config.ts` imports `{ oxlintBase }` from `@repo/lint-config` and extends it. Always place a config even when the base is sufficient — turbo runs per-workspace.
 
-## Vitest の test ファイル制約
+## ESLint — Use for Type-Aware and Architectural Rules
 
-`@vitest/eslint-plugin` の `strict` preset を基準にし、プロジェクト固有の制約を重ねる。test ファイルにだけ適用する。理由は `references/test.md`。
+Use ESLint alongside oxlint when you need capabilities oxlint cannot provide:
+
+- Type-aware rules — Add typescript-eslint with typed linting (no-floating-promises, no-unsafe-\*, etc.)
+- Architectural boundaries — Add eslint-plugin-boundaries to enforce FSD layer import constraints
+- Import policy — Add eslint-plugin-import-x for circular dependency detection and import ordering
+- Project-specific domain rules — Write local custom plugins — create a `.ts` file in the repo and import it in `eslint.config.ts` (no npm publish)
+- TanStack Query best practices — Add @tanstack/eslint-plugin-query
+
+Implement `fix()` in custom rules for automatic remediation via `--fix`.
+
+### Monorepo Config Strategy
+
+ESLint also inherits from `@repo/lint-config`, same as oxlint.
+
+**Root vs Workspace responsibilities**:
+
+- Root `eslint.config.ts` — Repository-wide structural rules (JSON lint: plugin.json, hooks.json, package.json custom rules, etc.)
+- Workspace `eslint.config.ts` — TypeScript/TSX type-aware rules, architectural boundaries, domain-specific rules
+
+Root ESLint handles repository structure lint (JSON files, etc.). Workspace ESLint runs per-workspace via turbo.
+
+Each workspace's `eslint.config.ts` imports `{ eslintBase }` from `@repo/lint-config` and spreads it. Always place a config even when the base is sufficient — turbo runs per-workspace.
+
+## When to Use Which
+
+- General correctness/style checks — oxlint
+  - Why: Fast, zero-config, 700+ built-in rules
+- Project-specific AST rules — oxlint JS plugin first, ESLint if stability needed
+  - Why: oxlint plugin API is alpha but ESLint v9+ compatible
+- Rules requiring type information — ESLint + typescript-eslint
+  - Why: oxlint does not support type-aware linting
+- Architectural boundary enforcement — ESLint + eslint-plugin-boundaries
+  - Why: Layer-level import constraints
+- Circular dependency detection — oxlint (import/no-cycle) or ESLint
+  - Why: oxlint uses module graph — no performance penalty
+
+## Vitest Test File Restrictions
+
+Use `@vitest/eslint-plugin` with the `strict` preset as the baseline, then layer project-specific restrictions on top (see `references/test.md` for full rationale). Apply only to test files.
 
 ```typescript
 // eslint.config.ts
@@ -114,54 +144,70 @@ export default [
 ];
 ```
 
-test ファイルでの `let` 禁止は、`vitest/no-hooks` で `let x; beforeEach(() => { x = ... })` という主な動機を潰したうえで、規約とレビューで守る。`no-restricted-syntax` は使わない（次節）。
+`let` ban in test files: `vitest/no-hooks` removes the main motivation for `let` (the `let x; beforeEach(() => { x = ... })` pattern). Enforce `let` prohibition by convention and code review — do not use `no-restricted-syntax` (see Prohibited ESLint Rules below).
 
-## 使わない ESLint ルール
+## Prohibited ESLint Rules
 
-- `no-restricted-imports`: flat config はキーごとに配列をマージするので、複数の設定エントリで定義すると最後の 1 つだけが効き、制約が黙って消える。eslint-plugin-import-x のルールか custom plugin を使う
-- `no-restricted-syntax`: 同じ理由。local custom plugin を書く
+- `no-restricted-imports` — ESLint flat config merges arrays per key — if multiple config entries define `no-restricted-imports`, only the last one takes effect. Restrictions silently disappear. Use `eslint-plugin-import-x` rules or custom plugins instead
+- `no-restricted-syntax` — Same flat config merge problem as `no-restricted-imports`. Write a local custom plugin instead
 
-## 独自ルール enforce-barrel-import
+## Custom Rule: enforce-barrel-import
 
-`index.ts` があるディレクトリでは、その `index.ts` をディレクトリの公開 API とみなし、`index.ts` 経由で import させる。local ESLint custom plugin として書く。`shared/` で、すべてのディレクトリに index.ts を要求する `fsd/public-api` の代わりに使う。
+Enforce that imports go through `index.ts` when one exists. Write as a local ESLint custom plugin.
 
-判定: import パスを解決し、最も近いディレクトリに `index.ts`（または `index.tsx`）があるのに、それより深いファイルを指していればエラーにする。
+**Logic**: resolve the import path → walk up to find the nearest directory → if that directory contains `index.ts` (or `index.tsx`) but the import points at a deeper file → error.
 
-```text
-src/shared/api/fuga/index.ts  あり
-src/shared/api/fuga/client.ts あり
-src/shared/api/hoge.ts        あり（親に index.ts なし）
+```
+src/shared/api/fuga/index.ts  exists
+src/shared/api/fuga/client.ts exists
+src/shared/api/hoge.ts        exists (no index.ts in parent)
 
-import { x } from "@/shared/api/fuga/client"  // NG — index.ts があるので "@/shared/api/fuga" を使う
-import { x } from "@/shared/api/fuga"          // OK — 公開 API（index.ts）経由
-import { x } from "@/shared/api/hoge"          // OK — 親に index.ts が無いので直接 import してよい
+import { x } from "@/shared/api/fuga/client"  // NG — index.ts exists, use "@/shared/api/fuga"
+import { x } from "@/shared/api/fuga"          // OK — barrel import
+import { x } from "@/shared/api/hoge"          // OK — no index.ts in parent, direct import allowed
 ```
 
-## `@repo/lint-config` と monorepo での実行単位
+This rule replaces `fsd/public-api` for `shared/` where the standard FSD rule is too strict (requires index.ts in every directory).
 
-oxlint と ESLint の base 設定を 1 パッケージにまとめ、`oxlintBase` と `eslintBase` を export する。
+## Lint/Format Policy
 
-```text
+- Use oxlint + oxfmt by default (oxc ecosystem)
+- Write custom rules as oxlint JS plugins first. Fall back to ESLint custom plugins when type-aware analysis or stability is required
+- When running both, use `eslint-plugin-oxlint` to disable overlapping rules
+- Place local plugins as `.ts` files in the repository (no npm publish required)
+- Never write a standalone script for something a lint rule can do — lint rules are discoverable, composable, and run everywhere
+
+### `@repo/lint-config` — Shared Config Package
+
+Combine oxlint and ESLint base configs into a single package. Exports `oxlintBase` and `eslintBase` for workspaces to import.
+
+```
 packages/
   lint-config/                → @repo/lint-config
-    oxlint.config.ts          → oxlint base（categories, rules, ignorePatterns）
-    eslint.ts                 → ESLint base（typescript-eslint, eslint-plugin-oxlint）
+    oxlint.config.ts          → oxlint base (categories, rules, ignorePatterns)
+    eslint.ts                 → ESLint base (typescript-eslint, eslint-plugin-oxlint)
     index.ts                  → re-export: { oxlintBase, eslintBase }
 ```
 
-- oxfmt: ルートだけ
-- oxlint: workspace ごと（turbo）。workspace でルールが異なりうるため
-- ESLint（コード）: workspace ごと（turbo）。型情報を使うルールが workspace の tsconfig に依存するため
-- ESLint（JSON・構造）: ルートだけ
+### Monorepo Execution Model
 
-## ツールの呼び出し方
+- oxfmt — Root only
+  - Rationale: Formatting is uniform across the monorepo — no reason for per-workspace divergence
+- oxlint — Per-workspace (turbo)
+  - Rationale: Rules may differ per workspace. Common base inherited from `@repo/lint-config`
+- ESLint (code) — Per-workspace (turbo)
+  - Rationale: Type-aware rules depend on workspace tsconfig. Common base inherited from `@repo/lint-config`
+- ESLint (JSON/structural) — Root
+  - Rationale: Repository structure custom rules (plugin.json, hooks.json, etc.) run once at root
 
-lefthook・Claude Code hooks・CI から node_modules のバイナリを直接呼ばず、package.json の scripts で包んでそれを呼ぶ。フラグや設定パスの定義を 1 か所にし、`pnpm run` で一覧でき、どこから呼んでも同じ挙動にするため。
+## Tool Invocation Policy
 
-`package.json` の scripts は `rtk` のようなグローバルインストールしたラッパーへ依存させない。新しい checkout でもプロジェクトが宣言したツールチェーンとランタイム（`pnpm`、`bun`、`tsx` など）だけで動くようにする。出力を圧縮したいなら、ラッパーは呼び出し側（シェルの alias、CI のステップ、エージェントの起動側）で掛ける。
+When defining hooks (lefthook, Claude Code hooks) or CI scripts, never call node_modules binaries directly. Always wrap them in package.json scripts and call those instead.
+
+`package.json` scripts must not depend on globally installed wrappers such as `rtk`. Keep scripts runnable from a fresh checkout using only the project's declared toolchain and the chosen runtime (`pnpm`, `bun`, `tsx`, etc.). If a team wants compressed output, apply that wrapper at the caller layer (local shell alias, CI step wrapper, agent launcher), not inside `package.json`.
 
 ```jsonc
-// package.json（workspace）
+// package.json (workspace)
 {
   "scripts": {
     "check": "oxlint",
@@ -173,7 +219,7 @@ lefthook・Claude Code hooks・CI から node_modules のバイナリを直接�
 ```
 
 ```jsonc
-// package.json（monorepo ルート）
+// package.json (monorepo root)
 {
   "scripts": {
     "check": "eslint && oxfmt --check . && turbo run check",
@@ -197,35 +243,90 @@ pre-commit:
       run: npx oxlint && npx oxfmt --check
 ```
 
-## CI の必須チェック
+Why:
 
-PR と main への push では次の 4 つを通し、ブランチ保護の required status checks に設定する。例外や手動での上書きは認めない。flaky なチェックはスキップせず flaky さを直す。
+- Single source of truth for how each tool is invoked (flags, config paths, order)
+- Discoverable — `pnpm run` lists all available commands
+- Consistent across lefthook, CI, Claude Code hooks, and manual runs
+- Fresh clones can run scripts without undocumented global dependencies
 
-- lint + format: `pnpm run check`。ルートで ESLint（JSON）+ oxfmt を、turbo で workspace ごとの oxlint + ESLint（コード）を実行する
-- 型チェック: `pnpm run typecheck`
-- カバレッジ付き test: `pnpm run test:coverage`（Storybook の interaction test を含め、カバレッジ閾値を強制する）
-- 未使用コード検出: `pnpm run knip`
+## CI Pipeline — Required Checks
 
-AI コーディングエージェント向けの hook は `references/ai-harness.md` に従う。
+Every PR and push to main must pass the following checks. These are non-optional and must be configured as required status checks in the repository's branch protection rules:
 
-## 依存更新: Renovate
+- Lint + Format — `pnpm run check`
+  - Purpose: Root: ESLint (JSON) + oxfmt → Turbo: oxlint + ESLint (code) per workspace
+- Type check — `pnpm run typecheck`
+  - Purpose: Ensure type safety across the codebase
+- Test with coverage — `pnpm run test:coverage`
+  - Purpose: Verify behavior and enforce coverage thresholds (includes Storybook interaction tests)
+- Unused code detection — `pnpm run knip`
+  - Purpose: Prevent dead code from accumulating
 
-依存は Renovate で自動更新し、大きく危険な更新が溜まらないようにする。
+All four checks must pass before a PR can merge. No exceptions, no manual overrides. If a check is flaky, fix the flakiness — do not skip the check.
 
-- automerge: patch・minor・lockfile のみの更新は CI が通れば automerge する。major は移行ガイドと changelog を人が確認するため automerge しない
-- CI が壊れ方を検出できないパッケージは、そのパッケージだけ automerge を外して手動でレビューする
-- グルーピング: エコシステムや org スコープ単位で 1 PR にまとめる（例: `@tanstack/*`、`eslint-*`）
-- 同時に開く PR の上限は 10
-- 更新は週末や早朝などのスケジュールでまとめて流し、開発中の作業を妨げないようにする
+## AI Coding Agent Hooks
 
-## main の CI 失敗の自動修正: claude-code-action
+See `references/ai-harness.md` for Hook feedback loop design, error messages as fix instructions, and AGENTS.md design principles.
 
-main への push で CI が失敗したら、claude-code-action（OAuth 認証）が失敗ログを読んで原因を調べ、修正コミットを main に直接 push する GitHub Action を作る。CI が回帰を検出し、Claude Code が直し、CI が修正を確認するループを人手なしで回すため。API キーではなく OAuth にするのは、権限のスコープと監査証跡を得るため。
+- Use the `claude-automation-recommender` skill to analyze a codebase and recommend which hooks, subagents, and automations to set up
 
-トリガーは main の CI 失敗だけにし、PR では動かさない。PR の失敗は作成者が直す。
+## Dependency Updates — Renovate
 
-## 文書の自動化
+Use Renovate for automated dependency updates. Keep dependencies current to reduce security exposure and prevent accumulation of large, risky upgrades.
 
-- JSDoc: export するシンボルすべてに JSDoc を必須にし、欠けていれば lint エラーにする。`@param` と `@returns` は TypeScript の型情報と突き合わせ、矛盾もエラーにする。`@` タグはテキストマッチではなく型・AST のレベルで解析する
-- Markdown: プロジェクトの Markdown（README.md、AGENTS.md など）に YAML frontmatter を必須にし、`name` や `description` を機械的に収集できるようにする
-- monorepo ルートの AGENTS.md: app・package の一覧を手で書かない。各 app・package の frontmatter（または package.json の `name` と `description`）から自動収集する。収集結果でマーカーコメント（`<!-- BEGIN:xxx -->` / `<!-- END:xxx -->`）の間を置き換える
+### Automerge Policy
+
+Enable automerge for updates where CI provides sufficient confidence:
+
+- Patch versions (x.x.PATCH) — Yes
+  - Rationale: Bug fixes and security patches with low risk. CI passing is sufficient
+- Minor versions (x.MINOR.x) — Yes
+  - Rationale: New features with backward compatibility. If tests and type checks pass, safe to merge
+- Major versions (MAJOR.x.x) — No
+  - Rationale: Breaking changes require manual review of migration guides and changelog
+- lockfile-only updates — Yes
+  - Rationale: No code change — only lockfile resolution updates
+
+### Grouping
+
+Group related packages into a single PR to reduce noise and ensure compatible versions ship together. Group by ecosystem or org scope (e.g., all `@tanstack/*` packages in one PR, all `eslint-*` packages in one PR).
+
+### CI as the Merge Gate
+
+Automerge relies on CI catching regressions. The CI pipeline must include lint, type check, and test stages. If CI is insufficient to catch breakage for a given package, disable automerge for that package and review manually.
+
+### PR Limit
+
+Set the concurrent PR limit to 10. This caps the number of open Renovate PRs at any given time, preventing PR flood while keeping updates flowing steadily.
+
+### Update Schedule
+
+Configure a maintenance window that avoids deploying dependency updates during active development. Run updates on a schedule (e.g., weekends or early morning) to batch PRs and avoid mid-sprint disruption.
+
+## Auto-Fix on Main Failure — Claude Code Action
+
+Create a GitHub Action that automatically fixes CI failures on main using claude-code-action with OAuth authentication. When a push to main fails CI, the action triggers Claude Code to read the failure logs, diagnose the issue, and push a fix commit directly to main.
+
+This creates a self-healing loop: CI catches the regression, Claude Code fixes it, and CI verifies the fix — all without human intervention. OAuth authentication (not API keys) ensures the action runs with proper scoped permissions and audit trail.
+
+The action should only trigger on main branch CI failures, not on PRs. PR failures are the author's responsibility to fix.
+
+## Automated Documentation
+
+### JSDoc — Type-level analysis with mandatory lint
+
+- Require JSDoc on all exported symbols; missing JSDoc is a lint error
+- Cross-check `@param` and `@returns` against TypeScript type information; contradictions are also errors
+- Analyze JSDoc `@` tags at the type/AST level, not via text matching
+
+### Markdown — Mandatory YAML frontmatter
+
+- Require YAML frontmatter in project Markdown files (README.md, AGENTS.md, etc.)
+- Define metadata such as `name` and `description` in frontmatter so it can be collected mechanically
+
+### Monorepo Root AGENTS.md — Auto-collected lists
+
+- Never hand-write app/package lists in the root AGENTS.md
+- Auto-collect from each app/package's frontmatter (or package.json `name` + `description`)
+- Use marker comments (`<!-- BEGIN:xxx -->` / `<!-- END:xxx -->`) to auto-replace sections

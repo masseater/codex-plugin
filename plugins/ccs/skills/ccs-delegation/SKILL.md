@@ -1,50 +1,213 @@
 ---
-name: ccs-delegation
-description: CCS CLI（`ccs <profile> -p "<task>"`）で、範囲が明確な作業を別モデルのプロファイル（glm / kimi など）に委譲する。続きは `ccs <profile>:continue` で頼む。範囲が明確な作業とは typo 修正、テスト追加、単純なリファクタ、ドキュメント更新などである。ユーザーが「use ccs <task>」「use ccs:continue <follow-up>」「ccs に任せて」と頼んだときに使う。
+name: ccs:ccs-delegation
+description: >-
+  Auto-activate CCS CLI delegation for deterministic tasks. Parses user input,
+  auto-selects optimal profile (glm/kimi/custom) from ~/.ccs/config.json,
+  enhances prompts with context, executes via `ccs {profile} -p "task"` or
+  `ccs {profile}:continue`, and reports results. Triggers on "use ccs [task]"
+  patterns, typo/test/refactor keywords. Excludes complex architecture,
+  security-critical code, performance optimization, breaking changes.
+version: 3.0.0
 ---
 
-# ccs-delegation
+# CCS Delegation
 
-## 委譲してよい作業
+Delegate deterministic tasks to cost-optimized models via CCS CLI.
 
-- 範囲と完了条件がはっきりした作業: typo 修正、テスト追加、単純なリファクタ、JSDoc やドキュメントの更新
-- 次は委譲せずメインで行う: 設計判断、セキュリティに関わるコード、原因調査が要るデバッグ、性能改善、破壊的変更や移行。ユーザーが委譲を求めても、これに当たる場合はその旨を伝えてから判断を仰ぐ
+## Core Concept
 
-## 新規の委譲（「use ccs [--<profile>] <task>」）
+Execute tasks via alternative models using:
 
-1. タスク文に `--<profile>` があればそのプロファイルを使い、フラグをタスク文から除く
-2. 無ければプロファイルを選ぶ。`~/.ccs/config.yaml`（古い CCS では `~/.ccs/config.json`）の profiles からプロファイル名を読む。どちらも無ければ「CCS が未設定。`ccs doctor` を実行する」と伝えて止まる
+- Initial delegation: `ccs {profile} -p "task"`
+- Session continuation: `ccs {profile}:continue -p "follow-up"`
 
-   ```text
-   characteristics(name):
-     /^glm/i    → cost=low,    context=standard, reasoning=false
-     /^kimi/i   → cost=medium, context=long,     reasoning=true
-     /^claude/i → cost=high,   context=standard, reasoning=false
-     その他      → cost=low,    context=standard, reasoning=false
+**Profile Selection:**
 
-   if タスクが推論を要する（think / analyze / reason / debug / investigate / evaluate）:
-     候補 = reasoning=true のプロファイル（kimi を優先）
-   elif タスクが広範囲を読む（architecture / entire / all files / codebase）:
-     候補 = context=long のプロファイル（kimi を優先）
-   else:
-     候補 = cost=low のプロファイル（glm を優先）
-   選択 = 候補[0] ?? "glm"（存在すれば） ?? プロファイル一覧[0]
-   ```
+- Auto-select from `~/.ccs/config.json` via task analysis
+- Profiles: glm (cost-optimized), kimi (long-context/reasoning), custom profiles
+- Override: `--{profile}` flag forces specific profile
 
-3. 委譲先は会話の文脈を持たないので、プロンプトを補う。対象ファイルのパス、現在の実装の要点、期待する挙動、完了条件を書き足す。タスク文の先頭がスラッシュコマンド（`/commit` など）ならそのまま先頭に残す
-4. `ccs <profile> -p "<補ったプロンプト>"` を Bash で実行する。委譲先の実行は 10 分近くかかることがあり、Bash ツールの既定タイムアウトより長いので、`timeout` を 600000 にするか `run_in_background` で実行する
-5. 選んだプロファイルと理由、コスト（USD）、所要時間、セッション ID、終了コードを報告する。成果物は差分を見て確かめる
+## User Invocation Patterns
 
-## 継続（「use ccs:continue [--<profile>] <follow-up>」）
+Users trigger delegation naturally:
 
-1. `~/.ccs/delegation-sessions.json` から最新のセッションのプロファイルを読む。セッションが無ければ「先に新規の委譲が必要」と伝えて止まる
-2. `--<profile>` があればそちらに切り替える
-3. 前回の成果と残作業を確かめ、プロンプトに前回の文脈・未完了の項目・完了条件を書き足す
-4. `ccs <profile>:continue -p "<補ったプロンプト>"` を、新規の委譲と同じく `timeout` 600000 か `run_in_background` で Bash 実行する
-5. プロファイル、セッション番号、今回と累計のコスト、所要時間、終了コードを報告する
+- "use ccs [task]" - Auto-select best profile
+- "use ccs --glm [task]" - Force GLM profile
+- "use ccs --kimi [task]" - Force Kimi profile
+- "use ccs:continue [task]" - Continue last session
 
-## 失敗したとき
+**Examples:**
 
-エラーメッセージから [troubleshooting.md](references/troubleshooting.md) の該当項目を探して対処する。
+- "use ccs to fix typos in README.md"
+- "use ccs to analyze the entire architecture"
+- "use ccs --glm to add unit tests"
+- "use ccs:continue to commit the changes"
 
-ユーザーの CLAUDE.md に委譲の方針を書きたい場合は [CLAUDE.md.template](CLAUDE.md.template) を使う。
+## Agent Response Protocol
+
+**For `/ccs [task]`:**
+
+1. Parse override flag
+   - Scan task for pattern: `--(\w+)`
+   - If match: `profile = match[1]`, remove flag from task, skip to step 5
+   - If no match: continue to step 2
+
+2. Discover profiles
+   - Read `~/.ccs/config.json` using Read tool
+   - Extract `Object.keys(config.profiles)` -> `availableProfiles[]`
+   - If file missing -> Error: "CCS not configured. Run: ccs doctor"
+   - If empty -> Error: "No profiles in config.json"
+
+3. Analyze task requirements
+   - Scan task for keywords:
+     - `/(think|analyze|reason|debug|investigate|evaluate)/i` -> `needsReasoning = true`
+     - `/(architecture|entire|all files|codebase|analyze all)/i` -> `needsLongContext = true`
+     - `/(typo|test|refactor|update|fix)/i` -> `preferCostOptimized = true`
+
+4. Select profile
+   - For each profile in `availableProfiles`: classify by name pattern (see Profile Characteristic Inference table)
+   - If `needsReasoning`: filter profiles where `reasoning=true` -> prefer kimi
+   - Else if `needsLongContext`: filter profiles where `context=long` -> prefer kimi
+   - Else: filter profiles where `cost=low` -> prefer glm
+   - `selectedProfile = filteredProfiles[0]`
+   - If `filteredProfiles.length === 0`: fallback to `glm` if exists, else first available
+   - If no profiles: Error
+
+5. Enhance prompt
+   - If task mentions files: gather context using Read tool
+   - Add: file paths, current implementation, expected behavior, success criteria
+   - Preserve slash commands at task start (e.g., `/cook`, `/commit`)
+
+6. Execute delegation
+   - Run: `ccs {selectedProfile} -p "$enhancedPrompt"` via Bash tool
+
+7. Report results
+   - Log: "Selected {profile} (reason: {reasoning/long-context/cost-optimized})"
+   - Report: Cost (USD), Duration (sec), Session ID, Exit code
+
+**For `/ccs:continue [follow-up]`:**
+
+1. Detect profile
+   - Read `~/.ccs/delegation-sessions.json` using Read tool
+   - Find most recent session (latest timestamp)
+   - Extract profile name from session data
+   - If no sessions -> Error: "No previous delegation. Use /ccs first"
+
+2. Parse override flag
+   - Scan follow-up for pattern: `--(\w+)`
+   - If match: `profile = match[1]`, remove flag from follow-up, log profile switch
+   - If no match: use detected profile from step 1
+
+3. Enhance prompt
+   - Review previous work (check what was accomplished)
+   - Add: previous context, incomplete tasks, validation criteria
+   - Preserve slash commands at start
+
+4. Execute continuation
+   - Run: `ccs {profile}:continue -p "$enhancedPrompt"` via Bash tool
+
+5. Report results
+   - Report: Profile, Session #, Incremental cost, Total cost, Duration, Exit code
+
+## Decision Framework
+
+**Delegate when:**
+
+- Simple refactoring, tests, typos, documentation
+- Deterministic, well-defined scope
+- No discussion/decisions needed
+
+**Keep in main when:**
+
+- Architecture/design decisions
+- Security-critical code
+- Complex debugging requiring investigation
+- Performance optimization
+- Breaking changes/migrations
+
+## Profile Selection Logic
+
+**Task Analysis Keywords** (scan task string with regex):
+
+- \*\*`/(think\*\* — analyze\
+  - Example: reason\
+- \*\*`/(architecture\*\* — entire\
+  - Example: all files\
+- \*\*`/(typo\*\* — test\
+  - Example: refactor\
+
+**Profile Characteristic Inference** (classify by name pattern):
+
+- `/^glm/i` — low
+  - Context: standard
+  - Reasoning: false
+- `/^kimi/i` — medium
+  - Context: long
+  - Reasoning: true
+- `/^claude/i` — high
+  - Context: standard
+  - Reasoning: false
+- others — low
+  - Context: standard
+  - Reasoning: false
+
+**Selection Algorithm** (apply filters sequentially):
+
+```text
+profiles = Object.keys(config.profiles)
+classified = profiles.map(p => ({name: p, ...inferCharacteristics(p)}))
+
+if (needsReasoning):
+  filtered = classified.filter(p => p.reasoning === true).sort(['kimi'])
+else if (needsLongContext):
+  filtered = classified.filter(p => p.context === 'long').sort(['kimi'])
+else:
+  filtered = classified.filter(p => p.cost === 'low').sort(['glm', ...])
+
+selected = filtered[0] || profiles.find(p => p === 'glm') || profiles[0]
+if (!selected): throw Error("No profiles configured")
+
+log("Selected {selected} (reason: {reasoning|long-context|cost-optimized})")
+```
+
+**Override Logic**:
+
+- Parse task for `/--(\w+)/`. If match: `profile = match[1]`, remove from task, skip selection
+
+## Example Delegation Tasks
+
+**Good candidates:**
+
+- "/ccs add unit tests for UserService using Jest"
+  -> Auto-selects: glm (simple task)
+- "/ccs analyze entire architecture in src/"
+  -> Auto-selects: kimi (long-context)
+- "/ccs think about the best database schema design"
+  -> Auto-selects: kimi (reasoning)
+- "/ccs --glm refactor parseConfig to use destructuring"
+  -> Forces: glm (override)
+
+**Bad candidates (keep in main):**
+
+- "implement OAuth" (too complex, needs design)
+- "improve performance" (requires profiling)
+- "fix the bug" (needs investigation)
+
+## Execution
+
+**Commands:**
+
+- `/ccs "task"` - Intelligent delegation (auto-select profile)
+- `/ccs --{profile} "task"` - Force specific profile
+- `/ccs:continue "follow-up"` - Continue last session (auto-detect profile)
+- `/ccs:continue --{profile} "follow-up"` - Continue with profile switch
+
+**Agent via Bash:**
+
+- Auto: `ccs {auto-selected} -p "task"`
+- Continue: `ccs {detected}:continue -p "follow-up"`
+
+## References
+
+Template: `CLAUDE.md.template` - Copy to user's CLAUDE.md for auto-delegation config
+Troubleshooting: `references/troubleshooting.md`

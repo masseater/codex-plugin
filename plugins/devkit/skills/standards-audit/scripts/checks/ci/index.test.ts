@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from "vite-plus/test";
+import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -261,26 +261,5 @@ describe("ci check: all steps present", () => {
 
     const findings = await run(makeContext(rootDir));
     expect(findings).toHaveLength(0);
-  });
-});
-
-describe("ci check: unreadable workflow", () => {
-  test("読めない workflow は内容なしとして扱い、DEBUG ならログを出す", async () => {
-    vi.stubEnv("DEBUG", "1");
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const rootDir = makeTempProject();
-    // ディレクトリ名が .yml だと readFileSync が EISDIR で失敗する
-    mkdirSync(join(rootDir, ".github", "workflows", "broken.yml"), { recursive: true });
-
-    await expect(run(makeContext(rootDir))).resolves.toBeInstanceOf(Array);
-    expect(error).toHaveBeenCalledWith(
-      expect.stringContaining("skipped unreadable workflow broken.yml"),
-      expect.any(Error),
-    );
-  });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
-    vi.restoreAllMocks();
   });
 });

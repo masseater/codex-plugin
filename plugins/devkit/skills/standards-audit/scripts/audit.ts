@@ -17,7 +17,7 @@ async function audit(targetDir: string): Promise<AuditResult> {
     };
   }
 
-  const checksDir = join(import.meta.dirname, "checks");
+  const checksDir = join(import.meta.dir, "checks");
   const checks = await discoverChecks(checksDir);
 
   const scopeResults = await Promise.all(

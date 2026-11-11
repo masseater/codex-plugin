@@ -1,17 +1,17 @@
 ---
-description: Web スタック — Next.js App Router、TanStack Query/Form、shadcn/ui、FSD のカスタマイズ、dehydrate パターン
+description: Web stack — Next.js App Router, TanStack Query/Form, shadcn/ui, FSD customization, and dehydrate pattern
 ---
 
-# Web スタック
+# Web Stack
 
-- フレームワーク: Next.js（App Router）
-- 状態管理・データ取得: TanStack Query（dehydrate パターン）
-- フォーム: TanStack Form + valibot
-- UI: shadcn/ui + Tailwind CSS v4
+- Framework — Next.js (App Router)
+- State / Data fetching — TanStack Query (dehydrate pattern)
+- Form — TanStack Form + valibot
+- UI — shadcn/ui + Tailwind CSS v4
 
-## 環境変数
+## Environment Variables
 
-[t3-env](https://env.t3.gg/) で検証と型付けを行う。`env.ts`（または `env.mjs`）をプロジェクトルートか `src/` に置いてそこから import し、`env.ts` の外で `process.env` を読まない。
+Use [t3-env](https://env.t3.gg/) to validate and type all environment variables. Define `env.ts` (or `env.mjs`) at the project root or in `src/`. Import from this module instead of `process.env`.
 
 ```typescript
 // src/env.ts
@@ -32,22 +32,26 @@ export const env = createEnv({
 });
 ```
 
-## FSD のカスタマイズ（標準の FSD v2.1 との違い）
+Direct `process.env` access is forbidden outside `env.ts`.
 
-- 早期分離: 標準の「まず pages に置く」ではなく、早い段階で features / entities に分ける
-- `fsd/insignificant-slice` は off にする。1 つの page からしか使わない slice も features / entities に置いてよい
-- features のネストには Slice Groups（PR #906 の概念）を使い、`features/[domain]/[action]/` にする。グループのフォルダは構造のためだけのもので、自身の segment や index.ts を持たない
-- Next.js との統合: `app/` は Next.js のルーティングに使い、FSD の層は `src/` の中に置く
-- `shared/` では `fsd/public-api` を off にする。代わりに独自ルール `enforce-barrel-import`（`references/quality-automation.md`）を使う。このルールは、ディレクトリに `index.ts` があればディレクトリから import させ、無ければファイルの直接 import を許す
+## FSD Customization (Differences from Standard FSD v2.1)
 
-## TanStack Query の dehydrate パターン
+1. Early separation — Separate features/entities early instead of standard FSD's "pages first"
+2. `fsd/insignificant-slice` off — Slices used by a single page can still live in features/entities
+3. Slice Groups for nesting features — `features/[domain]/[action]/`
+   - Adopts the Slice Groups concept from PR #906
+   - Group folders are purely structural (no segments/index.ts of their own)
+4. Next.js + FSD integration — `app/` for Next.js routing, FSD layers inside `src/`
+5. `shared/` imports use `enforce-barrel-import` — `fsd/public-api` is off for `shared/`. Instead, the custom `enforce-barrel-import` rule (see `references/quality-automation.md`) enforces: if `index.ts` exists in a directory, import from the directory; otherwise direct file import is allowed
 
-- QueryClient は `cache()` でリクエストごとに作る
-- Server Component で `prefetchQuery` → `dehydrate` → `HydrationBoundary` の順に使う
-- staleTime はデータの性質に応じて決める
-- v5.40.0 以降の streaming dehydration を使う
+## TanStack Query Dehydrate Pattern
 
-## 関連 skill
+- Per-request QueryClient via `cache()`
+- In Server Components: `prefetchQuery` → `dehydrate` → `HydrationBoundary`
+- Set staleTime based on data characteristics
+- Leverage streaming dehydration from v5.40.0+
 
-- `feature-sliced-design` skill が入っていれば、FSD の層構造はそれを読む
-- `tanstack-query-best-practices` skill が入っていれば、クエリのパターンはそれを読む
+## Related Skills
+
+- Also load the `feature-sliced-design` skill for FSD layer structure
+- Also load the `tanstack-query-best-practices` skill for query patterns

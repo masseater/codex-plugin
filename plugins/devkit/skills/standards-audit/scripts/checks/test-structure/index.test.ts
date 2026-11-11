@@ -1,54 +1,133 @@
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-import { stubBun } from "../../__tests__/bun-stub.ts";
-import { makeCtx, makeProject } from "../../__tests__/project.ts";
+import { describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { ProjectContext } from "../../core/types.ts";
 import { meta, run } from "./index.ts";
 
-const byText = (a: unknown[], b: unknown[]): number => String(a).localeCompare(String(b));
+function makeTempProject(): string {
+  return mkdtempSync(join(tmpdir(), "test-structure-test-"));
+}
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
+function makeContext(rootDir: string): ProjectContext {
+  return {
+    rootDir,
+    label: "apps/web",
+    types: ["web"],
+    packageJson: null,
+  };
+}
 
-describe("test-structure", () => {
-  it("meta は workspace スコープ", () => {
+describe("meta", () => {
+  test("has correct module metadata", () => {
     expect(meta.name).toBe("test-structure");
     expect(meta.scope).toBe("workspace");
+    expect(meta.appliesTo).toEqual([]);
+  });
+});
+
+describe("run", () => {
+  test("clean project returns no findings", async () => {
+    const dir = makeTempProject();
+    mkdirSync(join(dir, "src"), { recursive: true });
+    writeFileSync(join(dir, "src", "app.ts"), "export const x = 1;\n");
+    writeFileSync(join(dir, "src", "app.test.ts"), "// test\n");
+
+    const findings = await run(makeContext(dir));
+    expect(findings).toHaveLength(0);
   });
 
-  it("コロケーションされた .test.ts だけなら指摘しない", async () => {
-    stubBun();
-    const dir = makeProject({ "src/a.ts": "", "src/a.test.ts": "" });
-    expect(await run(makeCtx(dir))).toEqual([]);
+  test("__tests__/ directory produces a violation", async () => {
+    const dir = makeTempProject();
+    mkdirSync(join(dir, "src", "__tests__"), { recursive: true });
+    writeFileSync(join(dir, "src", "__tests__", "app.test.ts"), "// test\n");
+
+    const findings = await run(makeContext(dir));
+    const violations = findings.filter((f) => f.severity === "violation");
+    expect(violations.length).toBeGreaterThanOrEqual(1);
+    const first = violations[0];
+    expect(first?.rule).toBe("test-structure");
+    expect(first?.file).toContain("__tests__");
   });
 
-  it("__tests__ / __test__ ディレクトリは 1 ディレクトリ 1 件の違反にする", async () => {
-    stubBun();
-    const dir = makeProject({
-      "src/__tests__/a.test.ts": "",
-      "src/__tests__/b.test.ts": "",
-      "__test__/c.test.ts": "",
+  test("__test__/ directory (singular) produces a violation", async () => {
+    const dir = makeTempProject();
+    mkdirSync(join(dir, "src", "__test__"), { recursive: true });
+    writeFileSync(join(dir, "src", "__test__", "util.test.ts"), "// test\n");
+
+    const findings = await run(makeContext(dir));
+    const violations = findings.filter((f) => f.severity === "violation");
+    expect(violations.length).toBeGreaterThanOrEqual(1);
+    expect(violations[0]?.file).toContain("__test__");
+  });
+
+  test("multiple __tests__/ directories produce separate findings", async () => {
+    const dir = makeTempProject();
+    mkdirSync(join(dir, "src", "__tests__"), { recursive: true });
+    mkdirSync(join(dir, "lib", "__tests__"), { recursive: true });
+    writeFileSync(join(dir, "src", "__tests__", "a.test.ts"), "// a\n");
+    writeFileSync(join(dir, "lib", "__tests__", "b.test.ts"), "// b\n");
+
+    const findings = await run(makeContext(dir));
+    const violations = findings.filter((f) => f.severity === "violation");
+    expect(violations.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test(".spec.ts file produces a warning", async () => {
+    const dir = makeTempProject();
+    mkdirSync(join(dir, "src"), { recursive: true });
+    writeFileSync(join(dir, "src", "app.spec.ts"), "// spec\n");
+
+    const findings = await run(makeContext(dir));
+    const warnings = findings.filter((f) => f.severity === "warning");
+    expect(warnings.length).toBeGreaterThanOrEqual(1);
+    expect(warnings[0]?.rule).toBe("test-structure");
+    expect(warnings[0]?.file).toContain("app.spec.ts");
+  });
+
+  test(".spec.tsx file produces a warning", async () => {
+    const dir = makeTempProject();
+    mkdirSync(join(dir, "src"), { recursive: true });
+    writeFileSync(join(dir, "src", "Button.spec.tsx"), "// spec\n");
+
+    const findings = await run(makeContext(dir));
+    const warnings = findings.filter((f) => f.severity === "warning");
+    expect(warnings.length).toBeGreaterThanOrEqual(1);
+    expect(warnings[0]?.file).toContain("Button.spec.tsx");
+  });
+
+  test("node_modules __tests__/ directories are ignored", async () => {
+    const dir = makeTempProject();
+    mkdirSync(join(dir, "node_modules", "some-pkg", "__tests__"), {
+      recursive: true,
     });
+    writeFileSync(join(dir, "node_modules", "some-pkg", "__tests__", "x.ts"), "// x\n");
 
-    const findings = await run(makeCtx(dir));
-    expect(findings.map((f) => [f.severity, f.file]).toSorted(byText)).toEqual([
-      ["violation", "__test__"],
-      ["violation", "src/__tests__"],
-    ]);
+    const findings = await run(makeContext(dir));
+    const violations = findings.filter((f) => f.severity === "violation");
+    expect(violations).toHaveLength(0);
   });
 
-  it(".spec.ts / .spec.tsx は警告にし、除外ディレクトリの中は見ない", async () => {
-    stubBun();
-    const dir = makeProject({
-      "src/a.spec.ts": "",
-      "src/b.spec.tsx": "",
-      "node_modules/pkg/__tests__/x.ts": "",
-      "dist/c.spec.ts": "",
+  test("node_modules .spec.ts files are ignored", async () => {
+    const dir = makeTempProject();
+    mkdirSync(join(dir, "node_modules", "some-pkg", "src"), {
+      recursive: true,
     });
+    writeFileSync(join(dir, "node_modules", "some-pkg", "src", "index.spec.ts"), "// spec\n");
 
-    const findings = await run(makeCtx(dir));
-    expect(findings.map((f) => [f.severity, f.file]).toSorted(byText)).toEqual([
-      ["warning", "src/a.spec.ts"],
-      ["warning", "src/b.spec.tsx"],
-    ]);
+    const findings = await run(makeContext(dir));
+    const warnings = findings.filter((f) => f.severity === "warning");
+    expect(warnings).toHaveLength(0);
+  });
+
+  test("findings have correct field: line is null", async () => {
+    const dir = makeTempProject();
+    mkdirSync(join(dir, "src", "__tests__"), { recursive: true });
+    writeFileSync(join(dir, "src", "__tests__", "x.ts"), "// x\n");
+
+    const findings = await run(makeContext(dir));
+    for (const f of findings) {
+      expect(f.line).toBeNull();
+    }
   });
 });

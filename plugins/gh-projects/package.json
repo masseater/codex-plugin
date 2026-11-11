@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "vp check --no-error-on-unmatched-pattern",
-    "check:fix": "vp check --fix --no-error-on-unmatched-pattern",
-    "typecheck": "tsc --noEmit"
+    "check": "oxlint",
+    "check:fix": "oxlint --fix",
+    "typecheck": "tsgo --noEmit"
   },
   "devDependencies": {
     "@repo/ts-config": "*"

@@ -1,9 +1,9 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { listConfigPaths, loadUiDevConfig } from "./config.js";
+import { findConfigPath, loadUiDevConfig } from "./config.js";
 
 describe("loadUiDevConfig", () => {
   const testTmpDir = join(tmpdir(), `ui-dev-config-test-${Date.now()}`);
@@ -122,7 +122,7 @@ describe("loadUiDevConfig", () => {
   });
 });
 
-describe("listConfigPaths", () => {
+describe("findConfigPath", () => {
   const testTmpDir = join(tmpdir(), `ui-dev-findconfig-test-${Date.now()}`);
 
   beforeEach(() => {
@@ -137,24 +137,46 @@ describe("listConfigPaths", () => {
     rmSync(testTmpDir, { recursive: true, force: true });
   });
 
-  test("returns an empty list when .agents/ui-dev does not exist", () => {
-    expect(listConfigPaths()).toEqual([]);
+  test("returns undefined when .agents/ui-dev does not exist", () => {
+    const result = findConfigPath();
+    expect(result).toBeUndefined();
   });
 
-  test("lists config.json of each flow directory", () => {
+  test("returns config path when flowName matches existing config", () => {
+    const configDir = join(testTmpDir, ".agents", "ui-dev", "registration");
+    mkdirSync(configDir, { recursive: true });
+    const configPath = join(configDir, "config.json");
+    writeFileSync(configPath, "{}");
+
+    const result = findConfigPath("registration");
+    expect(result).toBe(configPath);
+  });
+
+  test("returns undefined when flowName does not match any config", () => {
+    const configDir = join(testTmpDir, ".agents", "ui-dev", "registration");
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(join(configDir, "config.json"), "{}");
+
+    const result = findConfigPath("nonexistent");
+    expect(result).toBeUndefined();
+  });
+
+  test("finds first config.json when flowName is not specified", () => {
     const configDir = join(testTmpDir, ".agents", "ui-dev", "alpha-flow");
     mkdirSync(configDir, { recursive: true });
     writeFileSync(join(configDir, "config.json"), "{}");
 
-    expect(listConfigPaths()).toEqual([join(configDir, "config.json")]);
+    const result = findConfigPath();
+    expect(result).toBe(join(configDir, "config.json"));
   });
 
-  test("skips flow directories without config.json", () => {
+  test("returns undefined when ui-dev directory has no subdirectories with config", () => {
     const uiDevDir = join(testTmpDir, ".agents", "ui-dev");
     mkdirSync(uiDevDir, { recursive: true });
     // Create a subdirectory without config.json
     mkdirSync(join(uiDevDir, "empty-flow"));
 
-    expect(listConfigPaths()).toEqual([]);
+    const result = findConfigPath();
+    expect(result).toBeUndefined();
   });
 });

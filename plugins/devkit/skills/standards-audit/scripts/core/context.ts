@@ -1,82 +1,113 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { toPackageJsonSubset } from "./package-json.ts";
-import { parsePnpmWorkspaceYaml } from "./pnpm-workspace.ts";
-import { detectProjectTypes } from "./project-types.ts";
-import type { PackageJsonSubset, ProjectContext, WorkspaceInfo } from "./types.ts";
+import type { PackageJsonSubset, ProjectContext, ProjectType, WorkspaceInfo } from "./types.ts";
+
+/** Signal-based project type detection from combined deps */
+function detectProjectTypes(allDeps: Record<string, string>): ProjectType[] {
+  const types: ProjectType[] = [];
+  if (allDeps.next) types.push("web");
+  if (allDeps.hono) types.push("backend");
+  if (allDeps.citty) types.push("cli");
+  return types;
+}
+
+/** Parse pnpm-workspace.yaml with regex (no yaml dependency) */
+function parsePnpmWorkspaceYaml(content: string): string[] {
+  const patterns: string[] = [];
+  let inPackages = false;
+  for (const line of content.split("\n")) {
+    if (line.startsWith("packages:")) {
+      inPackages = true;
+      continue;
+    }
+    if (inPackages && /^\s+-\s+/.test(line)) {
+      patterns.push(
+        line
+          .replace(/^\s+-\s+/, "")
+          .replace(/['"]/g, "")
+          .trim(),
+      );
+    } else if (inPackages && /^\S/.test(line)) {
+      break;
+    }
+  }
+  return patterns;
+}
 
 function readPackageJson(dir: string): PackageJsonSubset | null {
   const path = join(dir, "package.json");
   if (!existsSync(path)) return null;
   try {
-    return toPackageJsonSubset(JSON.parse(readFileSync(path, "utf-8")));
-  } catch (error) {
-    // 壊れた package.json は「package.json なし」として監査を続ける。依存に基づく検査が省かれるだけで済む
-    console.error(`standards-audit: ${path} を JSON として読めないので無視する:`, error);
+    return JSON.parse(readFileSync(path, "utf-8")) as PackageJsonSubset;
+  } catch {
     return null;
   }
 }
 
-/**
- * ワークスペースのパターン（`apps/*` など）の親ディレクトリにある、package.json を持つディレクトリを探す
- * @param rootDir モノレポのルート
- * @param pattern ワークスペースのパターン
- * @returns ワークスペースのディレクトリ
- */
-function workspaceDirsIn(rootDir: string, pattern: string): string[] {
-  const fullBaseDir = join(rootDir, pattern.replace(/\/?\*.*$/, ""));
-  if (!existsSync(fullBaseDir)) return [];
-  return readdirSync(fullBaseDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => join(fullBaseDir, entry.name))
-    .filter((wsDir) => existsSync(join(wsDir, "package.json")));
-}
-
 function resolveWorkspaceGlobs(rootDir: string, patterns: string[]): string[] {
-  return patterns.flatMap((pattern) => workspaceDirsIn(rootDir, pattern)).toSorted();
-}
+  const dirs: string[] = [];
+  for (const pattern of patterns) {
+    const baseDir = pattern.replace(/\/?\*.*$/, "");
+    const fullBaseDir = join(rootDir, baseDir);
+    if (!existsSync(fullBaseDir)) continue;
 
-function combinedDeps(pkg: PackageJsonSubset | null): Record<string, string> {
-  return { ...pkg?.dependencies, ...pkg?.devDependencies };
-}
-
-function projectScope(dir: string, label: string): ProjectContext {
-  const packageJson = readPackageJson(dir);
-  return {
-    rootDir: dir,
-    label,
-    types: detectProjectTypes(combinedDeps(packageJson)),
-    packageJson,
-  };
-}
-
-function packageWorkspaces(rootPkg: PackageJsonSubset | null): string[] {
-  return rootPkg?.workspaces ?? [];
-}
-
-/**
- * モノレポのワークスペースのパターンを読む。pnpm-workspace.yaml を package.json の workspaces より優先する
- * @param targetDir 監査するディレクトリ
- * @param rootPkg ルートの package.json
- * @returns ワークスペースのパターン。モノレポでなければ null
- */
-function workspacePatterns(targetDir: string, rootPkg: PackageJsonSubset | null): string[] | null {
-  const pnpmWsPath = join(targetDir, "pnpm-workspace.yaml");
-  if (existsSync(pnpmWsPath)) return parsePnpmWorkspaceYaml(readFileSync(pnpmWsPath, "utf-8"));
-  const workspaces = packageWorkspaces(rootPkg);
-  return workspaces.length > 0 ? workspaces : null;
+    for (const entry of readdirSync(fullBaseDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const wsDir = join(fullBaseDir, entry.name);
+      if (existsSync(join(wsDir, "package.json"))) {
+        dirs.push(wsDir);
+      }
+    }
+  }
+  return dirs.toSorted();
 }
 
 function buildWorkspaceInfo(targetDir: string): WorkspaceInfo {
-  const rootScope = projectScope(targetDir, "(root)");
-  const patterns = workspacePatterns(targetDir, rootScope.packageJson);
-  if (patterns === null) {
+  const rootPkg = readPackageJson(targetDir);
+  const rootDeps = {
+    ...rootPkg?.dependencies,
+    ...rootPkg?.devDependencies,
+  };
+  const rootTypes = detectProjectTypes(rootDeps);
+
+  // Detect monorepo
+  const pnpmWsPath = join(targetDir, "pnpm-workspace.yaml");
+  const hasPnpmWorkspace = existsSync(pnpmWsPath);
+  const hasPkgWorkspaces = Array.isArray(rootPkg?.workspaces) && rootPkg.workspaces.length > 0;
+  const isMonorepo = hasPnpmWorkspace || hasPkgWorkspaces;
+
+  const rootScope: ProjectContext = {
+    rootDir: targetDir,
+    label: "(root)",
+    types: rootTypes,
+    packageJson: rootPkg,
+  };
+
+  if (!isMonorepo) {
     return { rootDir: targetDir, isMonorepo: false, scopes: [rootScope] };
   }
 
-  const workspaceScopes = resolveWorkspaceGlobs(targetDir, patterns).map((wsDir) =>
-    projectScope(wsDir, relative(targetDir, wsDir)),
-  );
+  // Resolve workspace patterns
+  let patterns: string[] = [];
+  if (hasPnpmWorkspace) {
+    const content = readFileSync(pnpmWsPath, "utf-8");
+    patterns = parsePnpmWorkspaceYaml(content);
+  } else if (hasPkgWorkspaces && rootPkg?.workspaces) {
+    patterns = rootPkg.workspaces;
+  }
+
+  const workspaceDirs = resolveWorkspaceGlobs(targetDir, patterns);
+  const workspaceScopes: ProjectContext[] = workspaceDirs.map((wsDir) => {
+    const wsPkg = readPackageJson(wsDir);
+    const wsDeps = { ...wsPkg?.dependencies, ...wsPkg?.devDependencies };
+    return {
+      rootDir: wsDir,
+      label: relative(targetDir, wsDir),
+      types: detectProjectTypes(wsDeps),
+      packageJson: wsPkg,
+    };
+  });
+
   return {
     rootDir: targetDir,
     isMonorepo: true,
@@ -84,4 +115,4 @@ function buildWorkspaceInfo(targetDir: string): WorkspaceInfo {
   };
 }
 
-export { buildWorkspaceInfo };
+export { buildWorkspaceInfo, detectProjectTypes, parsePnpmWorkspaceYaml };

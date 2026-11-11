@@ -1,6 +1,6 @@
 {
   "source": "https://github.com/masseater/claude-code-plugin.git",
-  "ref": "main",
-  "commit": "9a1e08fcf93f59794080ca4e1273956144f912c5",
-  "pluginCount": 21
+  "ref": "master",
+  "commit": "cc3b48e71f75246b3e270f1440befb8a829eec87",
+  "pluginCount": 23
 }

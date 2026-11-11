@@ -5,7 +5,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.37; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.37: $rel_target\" >&2; exit 127' sh hooks/session-start-wrapper.sh"
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.7; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.7: $rel_target\" >&2; exit 127' sh hooks/install-deps.sh"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.7; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.7: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/check-install.ts"
+          },
+          {
+            "type": "command",
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.7; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.7: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/check-context-version.ts"
           }
         ]
       }
@@ -16,11 +28,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.37; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.37: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/block-unsafe-type-assertion.ts"
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.7; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.7: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/block-unsafe-type-assertion.ts"
           },
           {
             "type": "command",
-            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.37; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.37: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/block-cross-worktree-edit.ts"
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.7; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.7: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/block-cross-worktree-edit.ts"
           }
         ]
       },
@@ -29,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.37; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.37: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/block-husky-bypass.ts"
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.7; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.7: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/block-husky-bypass.ts"
           }
         ]
       }
@@ -40,16 +52,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.37; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.37: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/task-history.ts"
-          }
-        ]
-      },
-      {
-        "matcher": "ScheduleWakeup",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.37; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.37: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/record-schedule-wakeup.ts"
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.7; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.7: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/task-history.ts"
           }
         ]
       }
@@ -59,7 +62,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.37; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.37: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/continue-open-tasks.ts"
+            "command": "sh -c 'set -eu; rel_target=\"$1\"; shift; cache_root=\"${CODEX_HOME:-$HOME/.config/codex}/plugins/cache\"; export PATH=\"$HOME/.local/share/mise/shims:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; for plugin_root in \"$cache_root\"/*/mutils/0.24.7; do [ -d \"$plugin_root\" ] || continue; target=\"$plugin_root/$rel_target\"; if [ -f \"$target\" ]; then export CLAUDE_PLUGIN_ROOT=\"${CLAUDE_PLUGIN_ROOT:-$plugin_root}\"; cd \"$(dirname \"$target\")\"; exec \"$target\" \"$@\"; fi; echo \"error: Codex plugin hook target not found: $target\" >&2; exit 127; done; echo \"error: Codex plugin cache not found for mutils@0.24.7: $rel_target\" >&2; exit 127' sh hooks/codex-hook-runner.sh hooks/entry/send-notification.ts"
           }
         ]
       }

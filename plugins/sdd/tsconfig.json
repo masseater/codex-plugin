@@ -1,3 +1,4 @@
 {
-  "extends": "@repo/ts-config/plugin.json"
+  "extends": "@repo/ts-config/plugin.json",
+  "include": ["hooks/**/*.ts"]
 }

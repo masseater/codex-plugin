@@ -5,69 +5,27 @@ type CheckModule = {
   run: (ctx: ProjectContext) => Promise<Finding[]>;
 };
 
-/**
- * check のモジュールを 1 つ読み込む
- * @param checksDir checks/ ディレクトリ
- * @param entry checks/ からの index.ts のパス
- * @returns check の名前とモジュール。読み込めないか meta / run が無ければ null
- */
-async function loadCheck(checksDir: string, entry: string): Promise<[string, CheckModule] | null> {
-  const checkName = entry.split("/")[0]!;
-  try {
-    const mod = await import(`${checksDir}/${entry}`);
-    if (!mod.meta || !mod.run) {
-      console.error(`[standards-audit] Check ${checkName} missing meta or run export, skipping`);
-      return null;
-    }
-    return [checkName, { meta: mod.meta, run: mod.run }];
-  } catch (err) {
-    // 1 つの check が読み込めなくても他の check は実行できるので、警告して飛ばす
-    console.error(`[standards-audit] Failed to load check ${checkName}: ${String(err)}`);
-    return null;
-  }
-}
-
 async function discoverChecks(checksDir: string): Promise<Map<string, CheckModule>> {
   const checks = new Map<string, CheckModule>();
-  for (const entry of new Bun.Glob("*/index.ts").scanSync({ cwd: checksDir })) {
-    const loaded = await loadCheck(checksDir, entry);
-    if (loaded) checks.set(...loaded);
+  const glob = new Bun.Glob("*/index.ts");
+
+  for (const entry of glob.scanSync({ cwd: checksDir })) {
+    const checkName = entry.split("/")[0]!;
+    const modulePath = `${checksDir}/${entry}`;
+
+    try {
+      const mod = await import(modulePath);
+      if (!mod.meta || !mod.run) {
+        console.error(`[standards-audit] Check ${checkName} missing meta or run export, skipping`);
+        continue;
+      }
+      checks.set(checkName, { meta: mod.meta, run: mod.run });
+    } catch (err) {
+      console.error(`[standards-audit] Failed to load check ${checkName}: ${err}`);
+    }
   }
+
   return checks;
-}
-
-// Filter by appliesTo
-function matchesProjectTypes(meta: CheckMeta, scope: ProjectContext): boolean {
-  return meta.appliesTo.length === 0 || meta.appliesTo.some((t) => scope.types.includes(t));
-}
-
-// Filter by scope: root はルートだけ、workspace はワークスペースだけ、all はどちらでも
-function matchesScope(checkScope: CheckMeta["scope"], isRoot: boolean): boolean {
-  return checkScope === "all" || (checkScope === "root") === isRoot;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-async function runCheck(
-  name: string,
-  check: CheckModule,
-  scope: ProjectContext,
-): Promise<Finding[]> {
-  try {
-    return await check.run(scope);
-  } catch (error) {
-    return [
-      {
-        severity: "warning" as const,
-        rule: name,
-        file: null,
-        line: null,
-        message: `Check failed: ${errorMessage(error)}`,
-      },
-    ];
-  }
 }
 
 async function runChecksForScope(
@@ -75,13 +33,42 @@ async function runChecksForScope(
   checks: Map<string, CheckModule>,
   isRoot: boolean,
 ): Promise<Finding[]> {
-  const applicable = [...checks.entries()].filter(
-    ([, check]) => matchesProjectTypes(check.meta, scope) && matchesScope(check.meta.scope, isRoot),
-  );
-  const results = await Promise.all(
-    applicable.map(([name, check]) => runCheck(name, check, scope)),
-  );
-  return results.flat();
+  const findings: Finding[] = [];
+
+  const tasks = [...checks.entries()].map(async ([name, check]) => {
+    // Filter by appliesTo
+    if (check.meta.appliesTo.length > 0) {
+      const hasMatch = check.meta.appliesTo.some((t) =>
+        scope.types.includes(t as ProjectContext["types"][number]),
+      );
+      if (!hasMatch) return [];
+    }
+
+    // Filter by scope
+    if (check.meta.scope === "root" && !isRoot) return [];
+    if (check.meta.scope === "workspace" && isRoot) return [];
+
+    try {
+      return await check.run(scope);
+    } catch (error) {
+      return [
+        {
+          severity: "warning" as const,
+          rule: name,
+          file: null,
+          line: null,
+          message: `Check failed: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      ];
+    }
+  });
+
+  const results = await Promise.all(tasks);
+  for (const result of results) {
+    findings.push(...result);
+  }
+
+  return findings;
 }
 
 export { discoverChecks, runChecksForScope };

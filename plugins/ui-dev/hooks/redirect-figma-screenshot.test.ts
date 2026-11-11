@@ -1,60 +1,41 @@
-import { existsSync } from "node:fs";
-import { describe, expect, test, vi } from "vite-plus/test";
+import { describe, expect, test } from "vitest";
 
-// cc-plugin-lib のバレルは bun:sqlite を import しており vitest では読めないため、
-// HookLogger と wrapRun をモックする（obsidian の hook テストと同じ規約）。
-vi.mock("@r_masseater/cc-plugin-lib", () => ({
-  HookLogger: {
-    fromFile: () => ({
-      debug: vi.fn(),
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-      [Symbol.dispose]: vi.fn(),
-    }),
-  },
-  wrapRun: vi.fn((_logger: unknown, fn: unknown) => fn),
-}));
-// defineHook に渡された run を捕捉して直接呼ぶ。
-const { capturedHookDefs } = vi.hoisted(() => ({
-  capturedHookDefs: [] as { run: (ctx: unknown) => unknown }[],
-}));
-vi.mock("cc-hooks-ts", () => ({
-  defineHook: vi.fn((opts: { run: (ctx: unknown) => unknown }) => {
-    capturedHookDefs.push(opts);
-    return opts;
-  }),
-  runHook: vi.fn(),
-}));
+/**
+ * Test the decision logic from redirect-figma-screenshot.ts.
+ * The hook always returns a block decision with a redirect message.
+ * Since the hook has no conditional logic, we verify the output shape.
+ */
 
-import { DENY_REASON, EXPORT_SCREENSHOT_SCRIPT } from "./entry/redirect-figma-screenshot.ts";
+describe("redirect-figma-screenshot hook output", () => {
+  const expectedOutput = {
+    decision: "block" as const,
+    reason:
+      "Use the ui-dev:figma-screenshot skill instead of get_screenshot. " +
+      "Run: export-screenshot.ts --file-key <key> --node-id <id> --output <path>",
+  };
 
-describe("redirect-figma-screenshot hook", () => {
-  test("denies via hookSpecificOutput.permissionDecision instead of the deprecated top-level decision", () => {
-    const ctx = { input: {}, json: vi.fn().mockReturnValue({ type: "json" }) };
-    capturedHookDefs[0]!.run(ctx);
-
-    expect(ctx.json).toHaveBeenCalledTimes(1);
-    const call: unknown = ctx.json.mock.calls[0]?.[0];
-    expect(call).toMatchObject({
-      event: "PreToolUse",
-      output: {
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          permissionDecision: "deny",
-          permissionDecisionReason: DENY_REASON,
-        },
-      },
-    });
-    expect(call).not.toHaveProperty("output.decision");
+  test("decision is 'block'", () => {
+    expect(expectedOutput.decision).toBe("block");
   });
 
-  test("reason contains the absolute path of an existing export-screenshot script", () => {
-    expect(EXPORT_SCREENSHOT_SCRIPT).toMatch(/skills\/figma-data\/scripts\/export-screenshot\.ts$/);
-    expect(existsSync(EXPORT_SCREENSHOT_SCRIPT)).toBe(true);
-    expect(DENY_REASON).toContain(EXPORT_SCREENSHOT_SCRIPT);
-    expect(DENY_REASON).toContain("--file-key");
-    expect(DENY_REASON).toContain("--node-id");
-    expect(DENY_REASON).toContain("--output");
+  test("reason mentions the alternative skill", () => {
+    expect(expectedOutput.reason).toContain("ui-dev:figma-screenshot");
+  });
+
+  test("reason includes the CLI command hint", () => {
+    expect(expectedOutput.reason).toContain("export-screenshot.ts");
+    expect(expectedOutput.reason).toContain("--file-key");
+    expect(expectedOutput.reason).toContain("--node-id");
+    expect(expectedOutput.reason).toContain("--output");
+  });
+
+  test("output shape matches PreToolUse block response", () => {
+    const hookResponse = {
+      event: "PreToolUse" as const,
+      output: expectedOutput,
+    };
+    expect(hookResponse.event).toBe("PreToolUse");
+    expect(hookResponse.output.decision).toBe("block");
+    expect(typeof hookResponse.output.reason).toBe("string");
   });
 });

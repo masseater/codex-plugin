@@ -1,36 +1,48 @@
-import { afterEach, describe, expect, test, vi } from "vite-plus/test";
-import { type CapturedHook, hookContext } from "../__tests__/hook-context.ts";
+import { afterEach, describe, expect, test } from "vitest";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { rsort, valid } from "semver";
+import { readdirSync, existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 
-vi.mock("@r_masseater/cc-plugin-lib", () => ({
-  HookLogger: {
-    fromFile: () => ({
-      debug: vi.fn(),
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-      fatal: vi.fn(),
-      [Symbol.dispose]: vi.fn(),
-    }),
-  },
-  wrapRun: vi.fn((_logger: unknown, fn: unknown) => fn),
-}));
-const captured = vi.hoisted(() => ({ hook: undefined as CapturedHook | undefined }));
-vi.mock("cc-hooks-ts", () => ({
-  defineHook: vi.fn((opts: CapturedHook) => {
-    captured.hook = opts;
-    return opts;
-  }),
-  runHook: vi.fn(),
-}));
+/**
+ * Tests for the pure logic in check-context-version.ts.
+ * We replicate getInstalledVersion and getReferencedVersions logic
+ * using temp directories instead of the real HOME-based paths.
+ */
 
-import {
-  buildOutdatedMessage,
-  getInstalledVersion,
-  getReferencedVersions,
-} from "./entry/check-context-version.ts";
+function getInstalledVersion(pluginCacheDir: string): string | null {
+  if (!existsSync(pluginCacheDir)) {
+    return null;
+  }
+
+  const versions = readdirSync(pluginCacheDir).filter((v) => valid(v) !== null);
+  const sorted = rsort(versions);
+  return sorted[0] ?? null;
+}
+
+async function getReferencedVersions(
+  contextFiles: string[],
+  versionPattern: RegExp,
+): Promise<Map<string, string>> {
+  const versions = new Map<string, string>();
+
+  for (const file of contextFiles) {
+    if (!existsSync(file)) {
+      continue;
+    }
+
+    const content = await readFile(file, "utf-8");
+    const match = content.match(versionPattern);
+
+    if (match?.[1]) {
+      versions.set(file, match[1]);
+    }
+  }
+
+  return versions;
+}
 
 function createTmpDir(): string {
   const dir = path.join(
@@ -44,7 +56,6 @@ function createTmpDir(): string {
 const tmpDirs: string[] = [];
 
 afterEach(() => {
-  vi.unstubAllEnvs();
   for (const dir of tmpDirs) {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -103,7 +114,7 @@ describe("getInstalledVersion", () => {
 
 describe("getReferencedVersions", () => {
   const CACHE_BASE = "/fake/cache";
-  const VERSION_PATTERN = `${CACHE_BASE}/masseater-plugins/mutils/`;
+  const VERSION_PATTERN = new RegExp(`${CACHE_BASE}/masseater-plugins/mutils/([\\d.]+)/`);
 
   test("returns empty map when no files exist", async () => {
     const result = await getReferencedVersions(["/nonexistent-file.md"], VERSION_PATTERN);
@@ -158,54 +169,5 @@ describe("getReferencedVersions", () => {
     const result = await getReferencedVersions(["/nonexistent.md", existingFile], VERSION_PATTERN);
     expect(result.size).toBe(1);
     expect(result.get(existingFile)).toBe("1.0.0");
-  });
-});
-
-describe("buildOutdatedMessage", () => {
-  test("tells the user to delete the legacy reference line instead of re-running setup", () => {
-    const message = buildOutdatedMessage(["- /home/u/AGENTS.md: 0.1.0 → 0.2.0"]);
-    expect(message).toContain("参照行は削除してよい");
-    expect(message).toContain("- /home/u/AGENTS.md: 0.1.0 → 0.2.0");
-  });
-});
-
-describe("hook run", () => {
-  const CACHE = ".claude/plugins/cache/masseater-plugins/mutils";
-
-  // HOME はモジュール読み込み時に読まれるため、差し替えてから読み込み直す
-  async function loadHookWithHome(): Promise<{ home: string; run: () => Promise<unknown> }> {
-    const home = createTmpDir();
-    tmpDirs.push(home);
-    vi.stubEnv("HOME", home);
-    vi.resetModules();
-    await import("./entry/check-context-version.ts");
-    return { home, run: async () => captured.hook?.run(hookContext({})) };
-  }
-
-  test("skips when mutils is not installed", async () => {
-    const { run } = await loadHookWithHome();
-    expect(await run()).toEqual({ kind: "success", output: {} });
-  });
-
-  test("passes when references match the installed version", async () => {
-    const { home, run } = await loadHookWithHome();
-    mkdirSync(path.join(home, CACHE, "1.2.0"), { recursive: true });
-    writeFileSync(path.join(home, "AGENTS.md"), `${home}/${CACHE}/1.2.0/assets/a.md`);
-    expect(await run()).toEqual({ kind: "success", output: {} });
-  });
-
-  test("warns about references to an older version", async () => {
-    const { home, run } = await loadHookWithHome();
-    mkdirSync(path.join(home, CACHE, "1.2.0"), { recursive: true });
-    writeFileSync(path.join(home, "AGENTS.md"), `${home}/${CACHE}/1.0.0/assets/a.md`);
-    expect(await run()).toEqual({
-      kind: "json",
-      output: {
-        event: "SessionStart",
-        output: {
-          systemMessage: buildOutdatedMessage([`- ${home}/AGENTS.md: 1.0.0 → 1.2.0`]),
-        },
-      },
-    });
   });
 });

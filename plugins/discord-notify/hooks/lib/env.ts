@@ -1,4 +1,4 @@
-export type DiscordEnv = {
+type DiscordEnv = {
   channelId: string;
   botToken: string;
 };

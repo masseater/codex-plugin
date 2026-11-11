@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { finding } from "../../core/finding.ts";
 import type { CheckMeta, Finding, ProjectContext } from "../../core/types.ts";
 
 const meta: CheckMeta = {
@@ -37,42 +36,43 @@ function checkRoot(ctx: ProjectContext): Finding[] {
   return findings;
 }
 
-function workspaceProtocolFindings(allDeps: Record<string, string>): Finding[] {
-  return Object.entries(allDeps)
-    .filter(([name, version]) => name.startsWith("@repo/") && !version.startsWith("workspace:"))
-    .map(([name, version]) =>
-      finding(
-        "violation",
-        "monorepo",
-        `${name} must use workspace: protocol (found "${version}"). Change to "workspace:*".`,
-        { file: "package.json" },
-      ),
-    );
-}
-
-function missingScriptFindings(scripts: Record<string, string>): Finding[] {
-  return (["check", "typecheck"] as const)
-    .filter((script) => !(script in scripts))
-    .map((script) =>
-      finding(
-        "warning",
-        "monorepo",
-        `Missing "${script}" script. Add it so the monorepo pipeline can run this workspace.`,
-        { file: "package.json" },
-      ),
-    );
-}
-
 function checkWorkspace(ctx: ProjectContext): Finding[] {
   if (ctx.packageJson === null) return [];
+
+  const findings: Finding[] = [];
+
   const allDeps: Record<string, string> = {
     ...ctx.packageJson.dependencies,
     ...ctx.packageJson.devDependencies,
   };
-  return [
-    ...workspaceProtocolFindings(allDeps),
-    ...missingScriptFindings(ctx.packageJson.scripts ?? {}),
-  ];
+
+  for (const [name, version] of Object.entries(allDeps)) {
+    if (name.startsWith("@repo/") && !version.startsWith("workspace:")) {
+      findings.push({
+        severity: "violation",
+        rule: "monorepo",
+        file: "package.json",
+        line: null,
+        message: `${name} must use workspace: protocol (found "${version}"). Change to "workspace:*".`,
+      });
+    }
+  }
+
+  const scripts = ctx.packageJson.scripts ?? {};
+
+  for (const script of ["check", "typecheck"] as const) {
+    if (!(script in scripts)) {
+      findings.push({
+        severity: "warning",
+        rule: "monorepo",
+        file: "package.json",
+        line: null,
+        message: `Missing "${script}" script. Add it so the monorepo pipeline can run this workspace.`,
+      });
+    }
+  }
+
+  return findings;
 }
 
 async function run(ctx: ProjectContext): Promise<Finding[]> {

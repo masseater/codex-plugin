@@ -1,25 +1,24 @@
 #!/usr/bin/env bun
 /**
- * Validate a SKILL.md file against the official skill format and this repository's guidelines.
+ * Validate a SKILL.md file for quality and completeness.
  *
  * Usage: validate.ts <skill-dir>
  *
  * Checks:
- *   - SKILL.md exists and has frontmatter with name and description
- *   - Frontmatter name does not include a plugin prefix
- *   - description (+ when_to_use) fits in the 1,536-character listing budget
- *   - description does not start with the "This skill should be used when" boilerplate
- *   - disable-model-invocation is not set to false (false is the default; omit it)
- *   - Disabled skills do not advertise natural-language triggers
- *   - No unsupported "tools:" field (use allowed-tools)
- *   - No ${CLAUDE_PLUGIN_DIR} (the variable does not exist)
- *   - Body stays under 500 lines
+ *   - SKILL.md exists
+ *   - Frontmatter has name and description
+ *   - Frontmatter name includes the owning plugin name
+ *   - Frontmatter declares the default model invocation policy
+ *   - Description uses third-person
+ *   - Model-invocable descriptions contain trigger phrases
+ *   - Disabled descriptions avoid broad natural-language triggers
+ *   - Body word count is within recommended range
  *   - Body does not use second-person ("You should", "You need")
  *   - Referenced files exist
  *   - Scripts have executable permission
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { pathIn, tryPathIn } from "../../../hooks/lib/path-in.js";
+import path from "node:path";
 
 const skillDir = process.argv[2];
 
@@ -35,7 +34,9 @@ type Issue = {
 
 const issues: Issue[] = [];
 let wordCount = 0;
-const scriptsDir = pathIn(skillDir, "scripts");
+const scriptsDir = path.join(skillDir, "scripts");
+const pluginDir = findPluginRoot(skillDir);
+const pluginName = pluginDir ? readPluginName(pluginDir) : null;
 
 function error(msg: string) {
   issues.push({ severity: "error", message: msg });
@@ -44,7 +45,7 @@ function warn(msg: string) {
   issues.push({ severity: "warn", message: msg });
 }
 
-const skillMdPath = pathIn(skillDir, "SKILL.md");
+const skillMdPath = path.join(skillDir, "SKILL.md");
 if (!existsSync(skillMdPath)) {
   error("SKILL.md not found");
   printResult();
@@ -67,20 +68,23 @@ const body = content.slice(fmMatch[0].length).trim();
 // Check required fields
 const nameMatch = frontmatter.match(/^name:\s*(.+)$/m);
 const descMatch = frontmatter.match(/^description:\s*["']?([\s\S]*?)["']?\s*$/m);
-const whenToUseMatch = frontmatter.match(/^when_to_use:\s*["']?([\s\S]*?)["']?\s*$/m);
 const disableModelInvocationMatch = frontmatter.match(
   /^disable-model-invocation:\s*(true|false)\s*$/m,
 );
-const isModelInvocable = disableModelInvocationMatch?.[1] !== "true";
-
-const DESCRIPTION_BUDGET = 1536;
+const isModelInvocable = !disableModelInvocationMatch || disableModelInvocationMatch[1] === "false";
 
 if (!nameMatch) {
   error("Frontmatter missing 'name' field");
 } else {
   const name = parseFrontmatterValue(nameMatch[1] ?? "");
-  if (name.includes(":")) {
-    warn("Frontmatter name should not include a plugin name prefix. Use the skill name only.");
+  if (pluginName && !name.startsWith(`${pluginName}:`)) {
+    warn(
+      `Frontmatter name should include the owning plugin name prefix: '${pluginName}:<skill-name>'`,
+    );
+  } else if (!pluginName && !name.includes(":")) {
+    warn(
+      "Frontmatter name should include the owning plugin name prefix: '<plugin-name>:<skill-name>'",
+    );
   }
 }
 
@@ -92,57 +96,50 @@ if (!descMatch) {
   if (desc === "" || desc.startsWith("TODO")) {
     error("Description is a placeholder (TODO). Fill in a real description");
   } else {
-    const listingLength = desc.length + (whenToUseMatch?.[1]?.trim().length ?? 0);
-    if (listingLength > DESCRIPTION_BUDGET) {
-      error(
-        `description + when_to_use is ${listingLength} characters; Claude Code truncates it at ${DESCRIPTION_BUDGET}. Put the key use case first and shorten it`,
-      );
+    // Check third-person
+    if (!desc.match(/this skill (should|is|provides|can|helps|manages|enables)/i)) {
+      warn('Description should use third-person (e.g., "This skill should be used when...")');
     }
 
-    if (/^this skill should be used when/i.test(desc)) {
-      warn(
-        'Description starts with "This skill should be used when". Start with what the skill does, then when to use it',
-      );
-    }
-
+    // Check trigger phrases (single or double quoted strings)
+    const doubleQuoted = desc.match(/"[^"]+"/g) ?? [];
+    const singleQuoted = desc.match(/'[^']+'/g) ?? [];
+    const triggerPhraseCount = doubleQuoted.length + singleQuoted.length;
     const naturalTriggerPattern =
       /\b(this skill should be used when|use when|triggered by|when the user asks|when the user says)\b/i;
-    // 日本語の description は `\b` が効かないので、言い回しを別のパターンで検査する
-    const japaneseTriggerPattern = /(頼まれたとき|と聞かれたとき|ときに使う|場合に使う)/;
-    if (
-      !isModelInvocable &&
-      (naturalTriggerPattern.test(desc) || japaneseTriggerPattern.test(desc))
-    ) {
+
+    if (isModelInvocable && triggerPhraseCount < 2) {
       warn(
-        "Disabled skills are not shown to the model, so natural-language triggers in description have no effect; describe what the skill does instead",
+        "Model-invocable description should contain at least 2 quoted trigger phrases (e.g., 'create X', 'configure Y')",
+      );
+    }
+
+    if (!isModelInvocable && naturalTriggerPattern.test(desc)) {
+      warn(
+        "Disabled skills should not advertise broad natural-language triggers in description; use direct invocation or internal reference wording instead",
       );
     }
   }
 }
 
-if (disableModelInvocationMatch?.[1] === "false") {
-  warn("'disable-model-invocation: false' is the default. Omit the field");
-}
-
-if (/^tools:/m.test(frontmatter)) {
-  error("'tools' is not a skill frontmatter field. Use 'allowed-tools' to pre-approve tools");
-}
-
-if (content.includes("${CLAUDE_PLUGIN_DIR}")) {
-  error(
-    "${CLAUDE_PLUGIN_DIR} does not exist. Use ${CLAUDE_SKILL_DIR} for files in this skill or ../../.. for plugin-level files",
+if (!disableModelInvocationMatch) {
+  warn(
+    "Frontmatter should include 'disable-model-invocation: true'. Omit it only when autonomous model invocation is intended and documented in the owning plugin's AGENTS.md.",
+  );
+} else if (disableModelInvocationMatch[1] !== "true") {
+  warn(
+    "Prefer omitting 'disable-model-invocation' over setting it to false when autonomous model invocation is intended and documented in the owning plugin's AGENTS.md.",
   );
 }
 
 // Body checks
 const words = body.split(/\s+/).filter((w) => w.length > 0);
 wordCount = words.length;
-const bodyLines = body.split("\n").length;
 
-if (bodyLines >= 500) {
-  warn(
-    `Body is ${bodyLines} lines. Keep SKILL.md under 500 lines and move details to reference files`,
-  );
+if (wordCount < 50) {
+  warn(`Body is very short (${wordCount} words). Consider adding more detail`);
+} else if (wordCount > 3000) {
+  warn(`Body is long (${wordCount} words). Consider moving detailed content to references/`);
 }
 
 // Second-person check (skip table rows, inline code, code fences, and quoted examples)
@@ -177,9 +174,8 @@ const fileRefs = body.matchAll(/(?:`|'|")((?:scripts|references|assets)\/[^`'"]+
 for (const ref of fileRefs) {
   const refValue = ref[1];
   if (refValue) {
-    // SKILL.md に書かれた参照がスキルの外を指す場合も、見つからない参照として報告する
-    const refPath = tryPathIn(skillDir, refValue);
-    if (refPath === null || !existsSync(refPath)) {
+    const refPath = path.join(skillDir, refValue);
+    if (!existsSync(refPath)) {
       error(`Referenced file not found: ${refValue}`);
     }
   }
@@ -191,7 +187,7 @@ if (existsSync(scriptsDir)) {
     const scripts = readdirSync(scriptsDir);
     for (const script of scripts) {
       if (/\.(test|spec)\.[^.]+$/.test(script)) continue;
-      const scriptPath = pathIn(scriptsDir, script);
+      const scriptPath = path.join(scriptsDir, script);
       const stat = statSync(scriptPath);
       if (stat.isFile()) {
         const mode = stat.mode;
@@ -201,9 +197,8 @@ if (existsSync(scriptsDir)) {
         }
       }
     }
-  } catch (readError) {
-    // 権限チェックは補助的な検査なので、ディレクトリが読めない場合は省いて他の検査結果を返す
-    process.stderr.write(`Skipped executable check: ${String(readError)}\n`);
+  } catch {
+    // Skip if we can't read the directory
   }
 }
 
@@ -220,11 +215,35 @@ function printResult() {
     stats: {
       wordCount,
       hasScripts: existsSync(scriptsDir),
-      hasReferences: existsSync(pathIn(skillDir ?? "", "references")),
+      hasReferences: existsSync(path.join(skillDir ?? "", "references")),
     },
   };
 
   process.stdout.write(JSON.stringify(result, null, 2));
+}
+
+function findPluginRoot(dir: string): string | null {
+  let current = path.resolve(dir);
+  const root = path.parse(current).root;
+
+  while (current !== root) {
+    if (existsSync(path.join(current, "plugin.json"))) {
+      return current;
+    }
+    current = path.dirname(current);
+  }
+  return null;
+}
+
+function readPluginName(pluginDir: string): string | null {
+  try {
+    const pluginJson = JSON.parse(readFileSync(path.join(pluginDir, "plugin.json"), "utf-8"));
+    return typeof pluginJson.name === "string" && pluginJson.name.length > 0
+      ? pluginJson.name
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function parseFrontmatterValue(value: string): string {

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { test as base, describe, expect, vi } from "vite-plus/test";
+import { test as base, describe, expect, vi } from "vitest";
 
 // Capture the run function passed to defineHook
 let capturedRun: ((context: unknown) => Promise<unknown>) | undefined;
@@ -126,11 +126,12 @@ describe("buildDebugMessage", () => {
     expect(message).toContain("CLAUDE_PLUGIN_ROOT: `(unset)`");
   });
 
-  test("is a short bullet list without Markdown tables", () => {
+  test("includes section headers", () => {
     const message = buildDebugMessage("/some/file", "/root");
 
-    expect(message).toContain("debug plugin が有効");
-    expect(message).not.toContain("|");
+    expect(message).toContain("# Debug Plugin Active");
+    expect(message).toContain("## Saved Data");
+    expect(message).toContain("## Environment");
   });
 });
 
@@ -173,6 +174,7 @@ describe("session-start hook integration", () => {
           hookSpecificOutput: {
             hookEventName: "SessionStart",
           },
+          suppressOutput: true,
         },
       });
     } finally {
@@ -207,13 +209,9 @@ describe("session-start hook integration", () => {
       const content = readFileSync(debugFilePath, "utf-8");
       expect(content).toBe("(unset)\n");
 
-      expect(jsonArg).toMatchObject({
-        output: {
-          hookSpecificOutput: {
-            additionalContext: expect.stringContaining("CLAUDE_PLUGIN_ROOT: `(unset)`"),
-          },
-        },
-      });
+      const output = jsonArg?.output as Record<string, unknown>;
+      const hookOutput = output?.hookSpecificOutput as Record<string, unknown>;
+      expect(hookOutput?.additionalContext).toContain("CLAUDE_PLUGIN_ROOT: `(unset)`");
     } finally {
       if (originalXdg === undefined) delete process.env.XDG_STATE_HOME;
       else process.env.XDG_STATE_HOME = originalXdg;

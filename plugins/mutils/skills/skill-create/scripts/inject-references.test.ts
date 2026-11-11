@@ -1,5 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "vite-plus/test";
-import { runScript } from "../../../__tests__/run-script.ts";
+import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -15,21 +14,25 @@ function createTmpSkill(): string {
   return dir;
 }
 
-function run(skillDir?: string) {
-  return runScript(SCRIPT_PATH, skillDir ? [skillDir] : []);
-}
-
-// スクリプトは Bun.write でファイルを書くため、Node の fs で書く代役に差し替える
-beforeEach(() => {
-  vi.stubGlobal("Bun", {
-    write: async (target: string, content: string) => writeFileSync(target, content),
+function run(skillDir: string): {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+} {
+  const result = Bun.spawnSync([SCRIPT_PATH, skillDir], {
+    stdout: "pipe",
+    stderr: "pipe",
   });
-});
+  return {
+    stdout: result.stdout.toString(),
+    stderr: result.stderr.toString(),
+    exitCode: result.exitCode,
+  };
+}
 
 const tmpDirs: string[] = [];
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   for (const dir of tmpDirs) {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -37,7 +40,7 @@ afterEach(() => {
 });
 
 describe("inject-references", () => {
-  test("excludes .test.ts files from scripts/", async () => {
+  test("excludes .test.ts files from scripts/", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
@@ -52,10 +55,10 @@ describe("inject-references", () => {
     );
     writeFileSync(
       path.join(dir, "scripts", "run.test.ts"),
-      'import { test } from "vite-plus/test";\ntest("x", async () => {});\n',
+      'import { test } from "bun:test";\ntest("x", () => {});\n',
     );
 
-    const { stdout, exitCode } = await run(dir);
+    const { stdout, exitCode } = run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
@@ -66,7 +69,7 @@ describe("inject-references", () => {
     expect(skillMd).not.toContain("run.test.ts");
   });
 
-  test("excludes .spec.ts files from scripts/", async () => {
+  test("excludes .spec.ts files from scripts/", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
@@ -81,7 +84,7 @@ describe("inject-references", () => {
     );
     writeFileSync(path.join(dir, "scripts", "validate.spec.ts"), "// spec\n");
 
-    const { stdout, exitCode } = await run(dir);
+    const { stdout, exitCode } = run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
@@ -92,7 +95,7 @@ describe("inject-references", () => {
     expect(skillMd).not.toContain("validate.spec.ts");
   });
 
-  test("requires frontmatter description in references/*.md", async () => {
+  test("requires frontmatter description in references/*.md", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
@@ -103,12 +106,12 @@ describe("inject-references", () => {
     mkdirSync(path.join(dir, "references"));
     writeFileSync(path.join(dir, "references", "guide.md"), "# No frontmatter\n");
 
-    const { exitCode, stderr } = await run(dir);
+    const { exitCode, stderr } = run(dir);
     expect(exitCode).toBe(1);
     expect(stderr).toContain("missing YAML frontmatter");
   });
 
-  test("injects references with frontmatter description", async () => {
+  test("injects references with frontmatter description", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
@@ -122,7 +125,7 @@ describe("inject-references", () => {
       "---\ndescription: A helpful guide\n---\n\n# Guide\n",
     );
 
-    const { stdout, exitCode } = await run(dir);
+    const { stdout, exitCode } = run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
@@ -135,7 +138,7 @@ describe("inject-references", () => {
     expect(skillMd).toContain("REFERENCES_END");
   });
 
-  test("updates existing markers without duplicating", async () => {
+  test("updates existing markers without duplicating", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
@@ -163,7 +166,7 @@ describe("inject-references", () => {
       "---\ndescription: New stuff\n---\n\n# New\n",
     );
 
-    const { exitCode } = await run(dir);
+    const { exitCode } = run(dir);
     expect(exitCode).toBe(0);
 
     const skillMd = readFileSync(path.join(dir, "SKILL.md"), "utf-8");
@@ -174,7 +177,7 @@ describe("inject-references", () => {
     expect(startCount).toBe(1);
   });
 
-  test("empty skill with no resources appends section", async () => {
+  test("empty skill with no resources appends section", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
@@ -183,7 +186,7 @@ describe("inject-references", () => {
       "---\nname: test-skill\ndescription: test\n---\n\n# Test\n",
     );
 
-    const { stdout, exitCode } = await run(dir);
+    const { stdout, exitCode } = run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
@@ -193,17 +196,20 @@ describe("inject-references", () => {
     expect(skillMd).toContain("No bundled resources found");
   });
 
-  test("fails without skill-dir argument", async () => {
-    const result = await run();
+  test("fails without skill-dir argument", () => {
+    const result = Bun.spawnSync([SCRIPT_PATH], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("Usage:");
+    expect(result.stderr.toString()).toContain("Usage:");
   });
 
-  test("fails when SKILL.md does not exist", async () => {
+  test("fails when SKILL.md does not exist", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
-    const { exitCode, stderr } = await run(dir);
+    const { exitCode, stderr } = run(dir);
     expect(exitCode).toBe(1);
     expect(stderr).toContain("SKILL.md not found");
   });

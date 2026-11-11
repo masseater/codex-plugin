@@ -2,8 +2,12 @@
 
 import { join } from "node:path";
 import { defineCommand, runMain } from "citty";
-import { imageUrls } from "./_json.ts";
-import { downloadFile, figmaJson, getToken, log } from "./_lib.ts";
+import { downloadFile, getToken, log } from "./_lib.ts";
+
+type FigmaImagesResponse = {
+  err: string | null;
+  images: Record<string, string | null>;
+};
 
 async function fetchImageUrls(
   fileKey: string,
@@ -12,14 +16,29 @@ async function fetchImageUrls(
   scale: number,
   token: string,
 ): Promise<Record<string, string | null>> {
-  const svgParams = format === "svg" ? { svg_include_id: "true", svg_simplify_stroke: "true" } : {};
-  const data = await figmaJson(
-    ["images", fileKey],
-    { ids: nodeIds.join(","), format, scale: String(scale), ...svgParams },
-    token,
-    "Figma Images API",
-  );
-  return imageUrls(data);
+  const url = new URL(`https://api.figma.com/v1/images/${fileKey}`);
+  url.searchParams.set("ids", nodeIds.join(","));
+  url.searchParams.set("format", format);
+  url.searchParams.set("scale", String(scale));
+  if (format === "svg") {
+    url.searchParams.set("svg_include_id", "true");
+    url.searchParams.set("svg_simplify_stroke", "true");
+  }
+
+  const res = await fetch(url, {
+    headers: { "X-Figma-Token": token },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Figma Images API failed: ${res.status} ${res.statusText}`);
+  }
+
+  const data = (await res.json()) as FigmaImagesResponse;
+  if (data.err) {
+    throw new Error(`Figma Images API error: ${data.err}`);
+  }
+
+  return data.images;
 }
 
 function sanitizeFilename(name: string): string {
@@ -28,36 +47,6 @@ function sanitizeFilename(name: string): string {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .toLowerCase();
-}
-
-type ExportedImage = { nodeId: string; path: string };
-
-/**
- * 画像の URL から各ノードの画像を保存する。URL の無いノードは警告して飛ばす。
- * @param images ノード ID から画像 URL への対応
- * @param outputDir 保存先のディレクトリ
- * @param format 画像の形式（拡張子に使う）
- * @param verbose デバッグログを出すか
- * @returns 保存した画像
- */
-async function downloadImages(
-  images: Record<string, string | null>,
-  outputDir: string,
-  format: string,
-  verbose: boolean,
-): Promise<ExportedImage[]> {
-  const results: ExportedImage[] = [];
-  for (const [nodeId, imageUrl] of Object.entries(images)) {
-    if (!imageUrl) {
-      console.error(`[WARN] No image URL for node ${nodeId}`);
-      continue;
-    }
-    const outputPath = join(outputDir, `${sanitizeFilename(nodeId)}.${format}`);
-    log(verbose, `[DEBUG] Downloading ${nodeId} -> ${outputPath}`);
-    await downloadFile(imageUrl, outputPath);
-    results.push({ nodeId, path: outputPath });
-  }
-  return results;
 }
 
 const main = defineCommand({
@@ -99,17 +88,32 @@ const main = defineCommand({
   },
   async run({ args }) {
     const token = getToken();
-    const verbose = args.verbose;
-    const format = args.format;
-    const scale = Number.parseFloat(args.scale);
-    const nodeIds = args["node-ids"].split(",").map((id) => id.trim());
-    const outputDir = args["output-dir"];
+    const verbose = args.verbose as boolean;
+    const format = args.format as string;
+    const scale = Number.parseFloat(args.scale as string);
+    const nodeIds = (args["node-ids"] as string).split(",").map((id) => id.trim());
+    const outputDir = args["output-dir"] as string;
 
     log(verbose, `[DEBUG] Exporting ${nodeIds.length} node(s) as ${format}...`);
 
     const images = await fetchImageUrls(args["file-key"], nodeIds, format, scale, token);
 
-    const results = await downloadImages(images, outputDir, format, verbose);
+    const results: Array<{ nodeId: string; path: string }> = [];
+
+    for (const [nodeId, imageUrl] of Object.entries(images)) {
+      if (!imageUrl) {
+        console.error(`[WARN] No image URL for node ${nodeId}`);
+        continue;
+      }
+
+      const safeName = sanitizeFilename(nodeId);
+      const ext = format === "svg" ? "svg" : format;
+      const outputPath = join(outputDir, `${safeName}.${ext}`);
+
+      log(verbose, `[DEBUG] Downloading ${nodeId} -> ${outputPath}`);
+      await downloadFile(imageUrl, outputPath);
+      results.push({ nodeId, path: outputPath });
+    }
 
     console.log(`exported=${results.length} format=${format} outputDir=${outputDir}`);
     for (const r of results) {
@@ -118,4 +122,4 @@ const main = defineCommand({
   },
 });
 
-await runMain(main);
+runMain(main);

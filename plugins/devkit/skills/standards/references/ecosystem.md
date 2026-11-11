@@ -1,50 +1,54 @@
 ---
-description: 基盤エコシステム — Node.js、pnpm、Turborepo、tsx、Bun、mise、スクリプト実行の方針、monorepo の構成
+description: Foundation ecosystem — Node.js, pnpm, Turborepo, tsx, Bun, mise, and script execution policy
 ---
 
-# 基盤エコシステム
+# Ecosystem Stack
 
-Web・backend・CLI のどのスタックにも共通する基盤。
+Foundation ecosystem not tied to any specific tech stack (Web/Backend/CLI).
 
-## ツール
+## Tools
 
-- Node.js（最新の LTS か current）: ランタイム
-- pnpm: パッケージマネージャー
-- tsx: プロジェクトのスクリプト実行
-- Turborepo: monorepo のタスクランナーとリモートキャッシュ
-- Bun: プロジェクト外のツール（AI 向け hook、plugin など）のランタイム
+- Node.js (latest LTS or current) — Runtime
+- pnpm — Package manager
+- tsx — TypeScript script runner (for project scripts)
+- Turborepo — Monorepo task runner + remote cache
+- Bun — Runtime for non-project tooling (AI hooks, plugins, etc.)
 
-## ツールのバージョン管理
+## Tool Version Management
 
-[mise](https://mise.jdx.dev/) を使い、プロジェクトルートの `.mise.toml` で Node.js・pnpm などのバージョンを固定する。人と AI が同じバージョンを使うようにするため。環境変数・タスク・ローカル上書き（`.mise.local.toml`）を扱えるので、`.tool-versions` ではなく `.mise.toml` を使う。
+Use [mise](https://mise.jdx.dev/) to manage tool versions. Create `.mise.toml` at the project root to pin Node.js, pnpm, and other CLI tools so all contributors (human and AI) use the same versions. Prefer `.mise.toml` over `.tool-versions` — it supports env vars, tasks, settings, and local overrides (`.mise.local.toml`).
 
 ```toml
-# .mise.toml — セットアップ時点の最新版を使う
+# .mise.toml — use the latest version available at setup time
 [tools]
 node = "25.0.0"
 pnpm = "10.12.1"
 ```
 
-## スクリプト実行の方針
+## Script Execution Policy
 
-- プロジェクトのスクリプト（dev、build、test、マイグレーション）は pnpm + tsx で実行する。プロジェクトの依存グラフの一部であり、lockfile で再現できるため
-- AI コーディングエージェントの hook・plugin・外部ツールは Bun で実行する。プロジェクトの一部としてではなく、lockfile へ依存しない独立したランタイムとして動かすため
+- Project scripts (dev, build, test, migrations) — pnpm + tsx
+  - Why: Part of the project dependency graph; reproducible via lockfile
+- AI coding agent hooks, plugins, external tooling — Bun
+  - Why: Not part of the project; independent runtime, no lockfile dependency
 
-プロジェクトのスクリプトは `pnpm tsx <script>` か package.json の scripts から実行できるようにし、Bun の API に依存させない。
+Project scripts must be executable via `pnpm tsx <script>` or as package.json scripts. They must not depend on Bun APIs.
 
-## デプロイ先
+## Deployment
 
-- Next.js（web）: Vercel
-- CLI ツール: npm publish
-- それ以外: プロジェクトごとに選ぶ
+- Next.js (web) — Vercel
+- CLI tools — npm publish
+- Other — Choose per project
 
-DB とストレージには既定を設けず、サーバーレス対応・コスト・データモデルの適合で選ぶ。
+DB and storage are chosen per project — no default mandated. Evaluate based on project requirements (serverless compatibility, cost, data model fit).
 
-## monorepo
+## Monorepo
 
-Turborepo と pnpm workspace で管理する。
+Use Turborepo for monorepo management with pnpm workspaces.
 
-内部パッケージは `@repo/` スコープにし、`package.json` から `workspace:` プロトコルで参照する。
+### Workspace Package References
+
+Internal packages use the `@repo/` scope. Reference them in `package.json` with the `workspace:` protocol.
 
 ```jsonc
 // package.json
@@ -57,19 +61,21 @@ Turborepo と pnpm workspace で管理する。
 ```
 
 ```typescript
-// workspace パッケージからの import
+// Import from workspace packages
 import { Button } from "@repo/ui";
 import { envSchema } from "@repo/config";
 ```
 
-共有の型・コンポーネント・ユーティリティは `packages/` に、デプロイするアプリケーションは `apps/` に置く。各パッケージの `package.json` の `name` は `@repo/<name>` にする。
+### Package Layout
 
-```text
+```
 packages/
   ui/          → @repo/ui
   config/      → @repo/config
   db/          → @repo/db
 apps/
-  web/         → @repo/* を使う
-  api/         → @repo/* を使う
+  web/         → consumes @repo/*
+  api/         → consumes @repo/*
 ```
+
+Each package has its own `package.json` with `"name": "@repo/<name>"`. Shared types, components, and utilities live in `packages/`; deployable applications live in `apps/`.

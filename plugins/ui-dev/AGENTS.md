@@ -1,38 +1,93 @@
-# ui-dev
+# ui-dev Plugin Development Guide
 
 この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
-Figma のデザインから UI を実装するワークフロー（デザインデータ取得 → 実装 → レビュー → 修正）を提供する。
+Figma x AI UI implementation workflow plugin.
 
-## 開発コマンド
+## Overview
+
+A workflow plugin that structures the entire process from design to implementation, review, and verification.
+Uses figma-data for design data extraction and figma-implement for the implementation workflow.
+
+## Required Plugins
+
+- **Anthropic official Figma plugin** — `figma:implement-design` and other skills + Figma MCP tools
+- **Vercel agent-browser plugin** — Browser automation and screenshot capture
+
+## Development Commands
 
 ```bash
 cd plugins/ui-dev
-vp run check && vp run typecheck && vp run test
+
+bun run check        # lint + format check
+bun run check:fix    # auto-fix
+bun run typecheck    # type check
 ```
 
-## 前提とする plugin
+## Workflow Artifact Location
 
-- Anthropic 公式 Figma plugin（Figma MCP と `figma:implement-design`）。1 画面の実装は公式の implement-design、プロトタイプをたどるフロー全体の実装は `figma-implement` が受け持つ
-- Vercel agent-browser plugin（実装画面のスクリーンショット）
+Config, screen map, etc. are placed under `.agents/ui-dev/{flow-name}/`.
 
-## 構成の要点
+## config.json Structure
 
-- 成果物（config.json、screen map、prototype-chain.json、reports）は利用者のプロジェクトの `.agents/ui-dev/<flowName>/` に置く。config.json の形式は `figma-implement` の SKILL.md と `lib/config.ts` のスキーマが正本
-- Figma REST API のスクリプトは `skills/figma-data/scripts/` に集約する。Figma MCP の `get_design_context`（公式 Figma plugin 経由では `mcp__plugin_figma_figma__get_design_context`）は近似値なので、正確な値はスクリプトで取る
-- `redirect-figma-screenshot` は `hooks/hooks.json` の PreToolUse でグローバルに登録する。`get_screenshot` を `permissionDecision: "deny"` で拒否し、`export-screenshot.ts` の絶対パスを案内する。`figma-implement` を使わないセッションや公式 implement-design の実行中も含めて全セッションで拒否する。Figma のスクリーンショットを常にファイルに残し、画像比較で再利用できるようにするためである。skill の frontmatter には重ねて登録しない（skill 起動後に 2 回発火するため）
-- `notify-phase-status` は `figma-implement` の frontmatter の Stop hook で、ユーザー向けの再開案内を `systemMessage` で出す
-- エージェント（figma-implementer / visual-reviewer / code-reviewer）は `figma-implement` からだけ起動する。親との通信はレポートファイルで行い、レビュアーは絞り込まずに全件を severity と confidence 付きで出す
+```json
+{
+  "flow": {
+    "name": "registration",
+    "currentPhase": "implement",
+    "figma": {
+      "fileKey": "ABC123",
+      "prototypeChainPath": ".agents/ui-dev/registration/prototype-chain.json"
+    },
+    "screens": ["signup", "email-verify", "profile-setup"]
+  },
+  "contextFiles": [".agents/ui-dev/design-rules.md"],
+  "reviewPrompts": {
+    "common": ["Common review instructions"],
+    "visual": ["visual-reviewer specific instructions"],
+    "code": ["code-reviewer specific instructions"]
+  }
+}
+```
+
+## Hooks Implementation
+
+Implemented as TypeScript files in the hooks/ directory using cc-hooks-ts.
+
+- `redirect-figma-screenshot` is registered globally in `hooks/hooks.json` (PreToolUse, matcher `mcp__.*figma.*__get_screenshot`).
+- `notify-phase-status` is wired through skill frontmatter `hooks:` and fires only while the skill is active.
+
+## File Reference Rules
+
+- In hooks.json: `./hooks/xxx.ts`
+- In skills: `@./skills/xxx/reference.md`
+
+## Model Invocation Policy
+
+<!-- BEGIN:model-invocation-policy -->
+
+以下の skill は `disable-model-invocation: true` を付与しない。設計判断: ユーザーが自然文で依頼する主要ワークフロー、または AI がタスク遂行中に自律参照すべき実行リファレンスである。これらの `description` には自然文 trigger、または実行リファレンスとしての参照理由を定義する。
+
+- `ui-dev:figma-data`
+- `ui-dev:figma-implement`
+- `ui-dev:figma-screenshot`
+
+上記以外の skill は、明示呼び出し・内部参照・手動操作・低レベルユーティリティとして扱い、`disable-model-invocation: true` を維持する。disabled skill の `description` には広い自然文 trigger を定義しない。
+
+<!-- END:model-invocation-policy -->
 
 ## Components
 
 <!-- BEGIN:component-list (auto-generated, do not edit) -->
 
-- **skill** `figma-data`: Figma REST API から、実装で使う正確な値（色・余白・角丸・影・タイポグラフィ）とコンポーネントの variant を取得する。プロトタイプの遷移とアニメーション、SVG/PNG アセット、ノードのスクリーンショットも取得する。Figma MCP の get_design_context の近似値では足りないときと、Figma のスクリーンショットをファイルへ保存したいときに使う。
-- **skill** `figma-implement`: Figma のプロトタイプをたどって画面一覧と遷移を洗い出し、画面ごとに実装・ビジュアルレビュー・仕様レビュー・修正をサブエージェントで回してフロー全体を実装する。Figma のプロトタイプ URL を渡されて「このフローを実装して」「Figma の画面を全部実装して」と頼まれたときに使う。1 画面だけなら公式 Figma plugin の implement-design で足りる。
-- **agent** `code-reviewer`: figma-implement skill から起動され、UI の実装コードを screen map と突き合わせて、遷移・状態・バリデーションの過不足を事実として列挙する。
-- **agent** `figma-implementer`: figma-implement skill から起動される。Figma のデザインと screen map をもとに UI の 1 画面を実装するか、レビュー指摘を修正し、結果をレポートファイルに書く。
-- **agent** `visual-reviewer`: figma-implement skill から起動され、Figma のスクリーンショットと実装画面のスクリーンショットを比べて、見た目の差分を事実として列挙する。
-- **hook** `install-deps`: SessionStart
-- **hook** `redirect-figma-screenshot`: PreToolUse (`mcp__.*figma.*__get_screenshot`)
+| Type  | Name                      | Description                                                                                                                                                                                                                                                                                                                                                          |
+| ----- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| skill | ui-dev:dev-command        | Direct manual utility command reference for UI implementation workflows, including design feedback, QA checklist, screen-map updates, checks, scaffolding, and install commands.                                                                                                                                                                                     |
+| skill | ui-dev:figma-data         | This skill should be used when the user asks to "extract Figma design data", "get CSS properties from Figma", "trace prototype chain", "export assets from Figma", "get component variants", or needs exact design values (colors, spacing, typography, interactions) from Figma nodes via API.                                                                      |
+| skill | ui-dev:figma-implement    | This skill should be used when the user asks to "implement Figma screens", "implement this design", "implement the whole flow", "batch implement from Figma", "implement all screens", or provides a Figma prototype URL and wants to build the UI. Traces the prototype graph, plans all screens, then implements one screen at a time with subagent-driven review. |
+| skill | ui-dev:figma-screenshot   | This skill should be used when the user asks to "save a Figma screenshot", "export a Figma node as image", "capture Figma design", or needs to save Figma node screenshots to local files. Prefer this over Figma MCP's get_screenshot.                                                                                                                              |
+| agent | code-reviewer             | Compare UI implementation code against the screen map and list discrepancies as facts. Does not make judgments. Use when reviewing code quality of UI implementation.                                                                                                                                                                                                |
+| agent | figma-implementer         | Implement UI screens from Figma designs and record results in report files. Has two modes: initial implementation and fix. Use when implementing or fixing a UI screen from Figma design.                                                                                                                                                                            |
+| agent | visual-reviewer           | Compare Figma design with implementation screenshots and list visual diffs as facts. Does not make judgments. Use when reviewing visual fidelity of UI implementation.                                                                                                                                                                                               |
+| hook  | redirect-figma-screenshot | PreToolUse (`mcp__.*figma.*__get_screenshot`)                                                                                                                                                                                                                                                                                                                        |
 
 <!-- END:component-list -->

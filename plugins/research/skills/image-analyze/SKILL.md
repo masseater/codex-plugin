@@ -1,29 +1,177 @@
 ---
-name: image-analyze
-description: スクリーンショット・デザイン画像をローカルで比較・加工する（ピクセル差分、重ね合わせ、横並べ、エッジ抽出、切り出しと拡大、メタデータ）。「Figma と実装がずれていないか比較して」「スクショの差分を見て」のように画像の比較や細部の確認を頼まれたときに使う。
+name: research:image-analyze
+description: 'This skill should be used when the user asks to "analyze image", "compare screenshots", "visual diff", "PDFを解析", or wants image/PDF analysis using AI or local processing.'
 ---
 
 # Image Analyze
 
-画像と PDF は Read で直接読んで判断する。image-process.ts は画像（PNG / JPEG / WebP など）だけを受け付け、PDF は読めない。このスクリプトは、目視では見落とす差分を検出したり、細部を拡大したりするための補助として使う。
+Analyze or compare images and PDF documents. Two scripts available:
 
-## image-process.ts（ローカル処理）
+- image-analyze.ts - AI-powered analysis via Gemini API
+- image-process.ts - Local image processing (API不要, offline)
 
-`bun ${CLAUDE_SKILL_DIR}/scripts/image-process.ts <subcommand> ...` で実行する。出力画像は Read で確認する。各サブコマンドの引数は `--help` で確認できる。
+## Scripts
 
-- `diff --image1 <a> --image2 <b> [--threshold 0.1] [--output]`: ピクセル差分画像と一致率を出す。2 枚は同じサイズである必要があり、違うとエラーで止まる。サイズが違うときは先に `info` で確認し、書き出し倍率をそろえるか `overlay` / `side-by-side` を使う
-- `overlay --image1 <base> --image2 <over> [--opacity 0.5]`: 半透明で重ねる。サイズ差は自動でリサイズされる
-- `side-by-side --image1 <left> --image2 <right> [--gap 4]`: 横に並べる。高さは自動でそろえる
-- `edge --image <img>`: Sobel フィルタでエッジを抽出する。色を無視してレイアウト構造だけを比べたいときに使う
-- `crop --image <img> --left <x> --top <y> --width <w> --height <h> [--scale 1]`: 領域を切り出し、`--scale` で拡大する。余白・ボーダー・小さな文字など、全体画像では読み取りにくい細部を確かめるときに使う
-- `info --image <img>`: サイズ・形式・色空間・DPI・アルファの有無を表示する
+Located at `./scripts`.
 
-出力先を省略すると、入力と同じディレクトリに `<name>_<subcommand>.png`（side-by-side は `<name>_sidebyside.png`）で保存される。
+Run every script with `bun <path> ...` (e.g. `bun ./scripts/image-process.ts info --image x.png`).
 
-## image-analyze.ts（任意: Gemini による解析）
+- `image-analyze.ts` — AI analysis / comparison (images + PDF)
+  - Requires API: Yes (Gemini)
+- `image-process.ts` — Pixel diff, edge, overlay, side-by-side, info
+  - Requires API: No
 
-`GEMINI_API_KEY`（または `GOOGLE_API_KEY`）が設定されていて、ユーザーが Gemini での解析を求めたときだけ使う。
+---
+
+### image-analyze.ts
+
+AI-powered image analysis using Gemini API. Requires `GEMINI_API_KEY` (or `GOOGLE_API_KEY`).
+
+Supported formats: PNG, JPEG, GIF, WebP, PDF
+
+Arguments are **named flags** (not positional):
+
+- `--input` — ✓
+  - Description: First image/PDF path
+- `--compare`
+  - Description: Second image/PDF path (enables comparison mode)
+- `--prompt`, `-p`
+  - Description: Custom prompt for analysis/comparison
+
+**Analyze single image:**
 
 ```bash
-bun ${CLAUDE_SKILL_DIR}/scripts/image-analyze.ts --input <image|pdf> [--compare <image|pdf>] [-p "<prompt>"]
+bun ./scripts/image-analyze.ts --input ./screenshot.png
 ```
+
+**Analyze PDF document:**
+
+```bash
+bun ./scripts/image-analyze.ts --input ./document.pdf
+```
+
+**Compare two images:**
+
+```bash
+bun ./scripts/image-analyze.ts --input ./before.png --compare ./after.png
+```
+
+**Compare two PDFs:**
+
+```bash
+bun ./scripts/image-analyze.ts --input ./v1.pdf --compare ./v2.pdf
+```
+
+**With custom prompt:**
+
+```bash
+bun ./scripts/image-analyze.ts --input ./design.png -p "Check if this follows Material Design guidelines"
+```
+
+---
+
+### image-process.ts
+
+Local image processing tool. No API key required.
+
+#### Subcommands
+
+- `diff` — Pixel-level diff between two images
+- `edge` — Edge detection (Sobel filter)
+- `overlay` — Semi-transparent overlay of two images
+- `side-by-side` — Horizontal side-by-side comparison
+- `info` — Display image metadata
+
+#### diff
+
+Compare two **same-size** images pixel by pixel. Outputs a diff image and match rate. Different-size inputs hard-fail with an error (unlike `overlay` / `side-by-side`, which auto-resize).
+
+- `--image1` — ✓
+  - Description: Source image
+- `--image2` — ✓
+  - Description: Target image
+- `--output`
+  - Default: `{image1}_diff.png`
+  - Description: Output path
+- `--threshold`
+  - Default: `0.1`
+  - Description: Sensitivity (0-1, smaller = stricter)
+
+```bash
+bun ./scripts/image-process.ts diff --image1 before.png --image2 after.png --threshold 0.05
+```
+
+#### edge
+
+Extract edges using Sobel filter. Useful for comparing layout structure.
+
+- `--image` — ✓
+  - Description: Input image
+- `--output`
+  - Default: `{image}_edge.png`
+  - Description: Output path
+
+```bash
+bun ./scripts/image-process.ts edge --image screenshot.png
+```
+
+#### overlay
+
+Overlay two images with adjustable opacity to visually spot differences.
+
+- `--image1` — ✓
+  - Description: Base image
+- `--image2` — ✓
+  - Description: Overlay image
+- `--output`
+  - Default: `{image1}_overlay.png`
+  - Description: Output path
+- `--opacity`
+  - Default: `0.5`
+  - Description: Overlay opacity (0-1)
+
+```bash
+bun ./scripts/image-process.ts overlay --image1 before.png --image2 after.png --opacity 0.3
+```
+
+#### side-by-side
+
+Place two images side by side for visual comparison.
+
+- `--image1` — ✓
+  - Description: Left image
+- `--image2` — ✓
+  - Description: Right image
+- `--output`
+  - Default: `{image1}_sidebyside.png`
+  - Description: Output path
+- `--gap`
+  - Default: `4`
+  - Description: Gap between images (px)
+
+```bash
+bun ./scripts/image-process.ts side-by-side --image1 before.png --image2 after.png --gap 8
+```
+
+#### info
+
+Display image metadata (dimensions, format, color space, file size, DPI, alpha).
+
+- `--image` — ✓
+  - Description: Input image
+
+```bash
+bun ./scripts/image-process.ts info --image screenshot.png
+```
+
+---
+
+## Use Cases
+
+- Design review and feedback (AI analysis)
+- PDF document analysis and comparison (AI analysis)
+- Screenshot comparison for UI testing (diff, side-by-side)
+- Visual diff between design iterations (diff, overlay)
+- Layout structure comparison (edge detection)
+- Image metadata inspection (info)
+- Accessibility analysis of UI elements (AI analysis)

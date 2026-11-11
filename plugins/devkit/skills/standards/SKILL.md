@@ -1,38 +1,35 @@
 ---
-name: standards
-description: devkit の TypeScript 技術スタックとコーディング規約（ツール選定、lint/format/test/env の設定方針、CLI・Web・backend の構成、意図的逸脱の記録）。TypeScript プロジェクトでツールやライブラリを選ぶとき、lint・テスト・環境変数・CI の設定を決めるとき、devkit の規約に照らして判断するときに参照する。
-allowed-tools: Bash(bun ${CLAUDE_SKILL_DIR}/scripts/expand-intentional-violations.ts *)
+name: devkit:standards
+description: This skill should be used when the user asks to "set up a project", "choose a tech stack", "establish coding standards", "configure linting", "set up tests", "pick a framework", "review code quality", "set up logging", "configure observability", "choose an ORM", "set up auth", "set up Storybook", "write stories", "visual testing", "CSF", "coverage threshold", or discusses any technology choices for a TypeScript project. Also use when starting a new project, setting up CI/CD, choosing between tools (oxlint vs ESLint, pnpm vs npm), configuring environment variables, or when any other devkit skill needs to reference project conventions. This is the central reference for all devkit technology decisions and coding principles.
 ---
 
 # Standards
 
-TypeScript プロジェクトの技術選定とコーディング原則。いま判断しようとしていることに関係する reference だけを読む。
+Central reference for all technology decisions and coding principles.
 
 ## Philosophy
 
-技術に依存しない上位原則で、すべての reference はこれを前提にしている。
+Technology-agnostic meta principles. All reference files inherit from these.
 
-- 知識はコードに置く。説明が要るなら別文書ではなく、対象コードの隣にコメントで書く
-- 規約は機械的に検出できる形にし、人のレビューに頼らない
-- 文書より test と lint rule を優先する。実行できて違反時に落ちるので腐らない。文書は黙って古くなり AI エージェントを誤らせる（`references/documentation.md`）
-- 新しい規約を作るときは、文章を書く前に型・lint rule・test のどれで強制できるかを先に検討する
-- fail fast。エラーは握りつぶさず、すぐ表に出す
-- ログは多めに、ただし層の責務に合わせて出す（`references/observability.md`）
-- 失敗を隠す暗黙の既定値やサイレントな回復処理を書かない
-- ダミー実装や NO-OP（TODO だけの空関数、常に true を返す検証）を残さない
-- 環境変数は起動時に検証し、`process.env` を直接読まない。不足・不正な値は undefined のまま進めずその場でクラッシュさせる。本番以外で実値が無いときも検証は省かず、ダミー値を注入する。具体的な書き方は `references/coding-standards.md`、ツール（t3-env か valibot）は各スタックの reference に従う
-- 依存の脆弱性監査は、そのリポジトリのパッケージマネージャーに合った audit コマンドを CI で実行する。意図的に別のツールチェーンを使うリポジトリに `pnpm audit` を機械的に持ち込まない。major バージョンは固定し、上げるときはレビューする
-- devkit の規約から意図的に外れる場合は、`docs/devkit-intentional-violation.md` に理由とレビュー日を記録する。記録の無い例外は認めない
-- 配列は `push` で組み立てず `map` / `filter` で書く
-- 使われないオプションや既定値を足さない（YAGNI）
+- Code is the single source of truth — keep knowledge in code, not in separate documents. Prefer inline comments over external docs. If something needs explaining, put the explanation next to the code it describes
+- Make everything mechanically detectable — never rely on human review
+- Prefer tests and lint rules over documentation — tests and lint rules are executable, self-verifying, and fail loudly when wrong. Documentation rots silently and misleads AI agents. See `references/documentation.md`
+- For each new convention, build a lint rule or test first — approach from type-system, lint, and test angles before writing prose
+- Fail fast — don't swallow errors. Let them surface immediately
+- Log aggressively, but at the right layer — see `references/observability.md`
+- No implicit fallbacks — no default values or silent recovery that hide failures
+- No dummy code or NO-OP implementations — no empty functions with TODO comments, no validations that always return true
+- Validate all environment variables at startup — never use `process.env` directly. Validate and type env vars at the module boundary. Missing or invalid vars must crash immediately, not silently produce undefined. Never skip validation — inject dummy values instead when needed in non-production contexts. See `references/coding-standards.md` for the concrete pattern and stack-specific references for tool choice (t3-env or valibot)
+- Audit dependencies in CI — run the audit command that matches the repository's package manager when it provides real signal. Pin major versions and review upgrades, but do not cargo-cult `pnpm audit` into repos that intentionally use a different toolchain
+- Document intentional deviations in the repo — if a project intentionally violates a devkit standard, record it in `docs/devkit-intentional-violation.md` with the reason and the review date. Unwritten exceptions do not exist
+- Functional style — prefer map/filter over array.push
+- No unnecessary options or defaults — YAGNI
 
-## リポジトリ固有の意図的逸脱
+## Project-Specific Overrides
 
-基本規約を適用する前に、対象リポジトリに記録された意図的逸脱を読み込む。
+Inject any documented intentional deviations from the current repository before applying the base standards:
 
-```!
-bun ${CLAUDE_SKILL_DIR}/scripts/expand-intentional-violations.ts "${CLAUDE_PROJECT_DIR}"
-```
+!`bun ${CLAUDE_SKILL_DIR}/scripts/expand-intentional-violations.ts .`
 
 ## Bundled Resources
 
@@ -44,16 +41,15 @@ bun ${CLAUDE_SKILL_DIR}/scripts/expand-intentional-violations.ts "${CLAUDE_PROJE
 
 ### References
 
-- `references/ai-harness.md` — AI ハーネス設計 — hook によるフィードバックループ、quality-check log パターン、エージェント向けエラーメッセージの書き方
-- `references/backend.md` — backend スタック — Hono、Drizzle ORM、better-auth、awilix、環境変数の検証、エラーハンドリングの規約
-- `references/cli.md` — CLI スタックと規約 — Bun、citty、oxlint/oxfmt、TypeScript の書き方、スクリプトの引数規約、ダミー実装の例
-- `references/coding-standards.md` — スタック共通のコーディング規約 — 環境変数の検証パターン（isDummy / DUMMY_ENV）と process.env を読んでよい境界
-- `references/documentation.md` — 文書化の原則 — リポジトリに置くもの・置かないもの、規約を強制する手段の優先順位、意図的逸脱の記録方法
-- `references/ecosystem.md` — 基盤エコシステム — Node.js、pnpm、Turborepo、tsx、Bun、mise、スクリプト実行の方針、monorepo の構成
-- `references/observability.md` — 可観測性の方針 — ログ・メトリクス・トレース・エラートラッキングと、AI エージェントからのログ参照
-- `references/parallel-dev.md` — git worktree による並行開発 — セットアップの自動化、環境ファイルの分離、ポートの動的割り当て
-- `references/quality-automation.md` — 品質自動化 — oxlint、ESLint custom plugin、oxfmt、steiger、tsgo、knip、lefthook、Renovate。CI の必須チェック、claude-code-action による自動修正、チェックは lint rule で書く方針
-- `references/test.md` — テスト方針 — Vitest、CSF factories 形式の Storybook、ファイルの同居配置、モック方針、禁止パターンと test.extend fixture、カバレッジ
-- `references/web.md` — Web スタック — Next.js App Router、TanStack Query/Form、shadcn/ui、FSD のカスタマイズ、dehydrate パターン
-
+- `references/ai-harness.md` — AI harness engineering — Hook feedback loops, error message design for agents, and AGENTS.md design principles
+- `references/backend.md` — Backend tech stack — Hono framework, Drizzle ORM, better-auth, awilix, environment validation, and error handling conventions
+- `references/cli.md` — CLI tech stack and conventions — Bun, citty, Biome, TypeScript conventions, and code quality examples
+- `references/coding-standards.md` — Cross-stack coding standards — environment variable validation patterns and other concrete conventions that apply to all stacks
+- `references/documentation.md` — Documentation principles — what to put in a repository, what not to, and why tests/lint beat prose
+- `references/ecosystem.md` — Foundation ecosystem — Node.js, pnpm, Turborepo, tsx, Bun, mise, and script execution policy
+- `references/observability.md` — Observability policy — logging, metrics, tracing, error tracking, and AI agent access
+- `references/parallel-dev.md` — Parallel development with git worktrees — automated setup, environment isolation, and dynamic port allocation
+- `references/quality-automation.md` — Quality automation tools — oxlint, ESLint custom plugins, oxfmt, steiger, tsgo, knip, lefthook, Renovate, CI required checks, claude-code-action auto-fix, and automation-as-lint policy
+- `references/test.md` — Test policy — Vitest framework, Storybook visual testing with CSF factories, co-located files, what to test, mocking strategy, and coverage expectations
+- `references/web.md` — Web stack — Next.js App Router, TanStack Query/Form, shadcn/ui, FSD customization, and dehydrate pattern
 <!-- REFERENCES_END -->

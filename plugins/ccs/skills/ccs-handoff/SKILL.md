@@ -1,26 +1,57 @@
 ---
-name: ccs-handoff
-description: 別の CCS プロファイルのセッションがレート制限・利用上限・コンテキスト溢れで止まったとき、そのセッションの要約・未完了タスク・直近のやり取りを読み込んで作業を引き継ぐ。「CCS のセッションを引き継いで」「レート制限で止まった作業を続けて」と頼まれたときに使う。引数は `<profile> <sessionId>`。
-argument-hint: "<profile> <sessionId>"
-allowed-tools: Bash(${CLAUDE_SKILL_DIR}/ccs-handoff.ts *), Read, Glob, Grep
+name: ccs:ccs-handoff
+description: 'This skill should be used when the user asks to "handoff from CCS", "Claude Codeの作業を引き継ぐ", "rate limit handoff", "context overflow", or wants to resume interrupted work from another CCS profile session.'
+tools:
+  - Bash(./ccs-handoff.ts *)
+  - Read
+  - Glob
+  - Grep
+  - TodoWrite
 ---
 
-# ccs-handoff
+# CCS Session Handoff
 
-## 手順
+Resume interrupted work from another CCS profile session. Use when a profile hits rate limits, usage caps, or context overflow.
 
-1. `$ARGUMENTS` を空白で分け、1 つ目をプロファイル名、2 つ目をセッション ID とする。足りなければユーザーに聞く
-2. 引き継ぎ情報を取得する
+## Execution Steps
 
-   ```bash
-   ${CLAUDE_SKILL_DIR}/ccs-handoff.ts <profile> <sessionId>
-   ```
+### 1. Parse Arguments
 
-3. 出力をもとに作業状態を戻す
-   - Session Info の Project Path に移動する
-   - Session Info のブランチと現在のブランチを比べ、違えばユーザーに伝える。ブランチは切り替えない（作業ツリーの未コミット変更を巻き込むため）
-   - 「Pending Tasks」「Pending TODOs」の項目を、このセッションのタスクリストに登録し直す
-   - Session Summary、First Prompt、Recent Messages から、何をしていたかを把握する
-   - `git status`、`.agents/workspaces/`（作業ディレクトリ）、`.local-agents/plans/`（計画ファイル）も見て補う
-   - Subagents の節でサブエージェントの存在が検出されていれば、ユーザーに伝える
-4. 進行中だった作業、タスクの状態、ブランチや文脈の食い違い、次の手順を短く報告し、そのまま作業を続ける
+Parse `$ARGUMENTS` by splitting on whitespace: the first token is `<profile>` and the second token is `<sessionId>`.
+
+- IF: arguments are missing; THEN MUST: ask the user for the profile name and session ID
+
+### 2. Run Handoff Script
+
+```bash
+./ccs-handoff.ts <profile> <sessionId>
+```
+
+Read the Markdown output from the script carefully.
+
+### 3. Restore Working Context
+
+From the script output, perform the following:
+
+1. Change directory: `cd` to the Project Path shown in Session Info
+2. Check Git Branch: Compare the branch in Session Info with the current branch.
+   - MUST NOT: checkout or switch branches (prohibited by AGENTS.md; leave the branch as-is instead)
+   - IF: the branches differ; THEN MUST: report the discrepancy to the user
+3. Re-register pending items: From the "Pending Tasks" and "Pending TODOs" sections, re-register all items into the current session using TodoWrite.
+4. Understand interrupted work: Read and internalize the Session Summary, First Prompt, and Recent Messages sections to understand what was being worked on.
+5. Gather additional context: Check the following for supplementary information:
+   - `git status` — current working tree state
+   - `.agents/sessions/` — any session reports from the previous work
+   - `.agents/plans/` — any active plan files
+6. Subagent awareness: If the Subagents section indicates detection, inform the user that the previous session had active subagent sessions.
+
+### 4. Report and Continue
+
+Report a concise handoff summary to the user, including:
+
+- What work was in progress
+- Current TODO/Task status
+- Any branch or context discrepancies
+- Recommended next steps
+
+Then continue the interrupted work.

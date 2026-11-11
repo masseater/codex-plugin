@@ -1,4 +1,3 @@
-import { finding } from "../../core/finding.ts";
 import type { CheckMeta, Finding, ProjectContext } from "../../core/types.ts";
 
 const meta: CheckMeta = {
@@ -14,56 +13,72 @@ function hasDep(devDeps: Record<string, string> | undefined, pkg: string): boole
   return Object.hasOwn(devDeps ?? {}, pkg);
 }
 
-type DevDeps = Record<string, string> | undefined;
-
-/** 品質ツールの規則。violated が true になるとき、その severity と message で報告する */
-const QUALITY_RULES: {
-  severity: Finding["severity"];
-  message: string;
-  violated: (devDeps: DevDeps) => boolean;
-}[] = [
-  // quality/linter — oxlint OR @biomejs/biome
-  {
-    severity: "warning",
-    message: "No linter found in devDependencies. Add oxlint or @biomejs/biome.",
-    violated: (devDeps) => !hasDep(devDeps, "oxlint") && !hasDep(devDeps, "@biomejs/biome"),
-  },
-  // quality/tsgo — @typescript/native-preview
-  {
-    severity: "warning",
-    message:
-      "@typescript/native-preview not found in devDependencies. Add it to enable the native TypeScript compiler (tsgo).",
-    violated: (devDeps) => !hasDep(devDeps, "@typescript/native-preview"),
-  },
-  // quality/vitest — vitest
-  {
-    severity: "warning",
-    message: "vitest not found in devDependencies. Add vitest for testing.",
-    violated: (devDeps) => !hasDep(devDeps, "vitest"),
-  },
-  // quality/knip — knip
-  {
-    severity: "warning",
-    message: "knip not found in devDependencies. Add knip for unused code detection.",
-    violated: (devDeps) => !hasDep(devDeps, "knip"),
-  },
-  // quality/eslint-oxlint — if both oxlint AND eslint exist, eslint-plugin-oxlint must also be present
-  {
-    severity: "violation",
-    message:
-      "Both oxlint and eslint are present in devDependencies, but eslint-plugin-oxlint is missing. Add eslint-plugin-oxlint to avoid rule conflicts.",
-    violated: (devDeps) =>
-      hasDep(devDeps, "oxlint") &&
-      hasDep(devDeps, "eslint") &&
-      !hasDep(devDeps, "eslint-plugin-oxlint"),
-  },
-];
-
 async function run(ctx: ProjectContext): Promise<Finding[]> {
+  const findings: Finding[] = [];
   const devDeps = ctx.packageJson?.devDependencies;
-  return QUALITY_RULES.filter((rule) => rule.violated(devDeps)).map((rule) =>
-    finding(rule.severity, "quality-libs", rule.message),
-  );
+
+  // quality/linter — oxlint OR @biomejs/biome
+  const hasLinter = hasDep(devDeps, "oxlint") || hasDep(devDeps, "@biomejs/biome");
+  if (!hasLinter) {
+    findings.push({
+      severity: "warning",
+      rule: "quality-libs",
+      file: null,
+      line: null,
+      message: "No linter found in devDependencies. Add oxlint or @biomejs/biome.",
+    });
+  }
+
+  // quality/tsgo — @typescript/native-preview
+  if (!hasDep(devDeps, "@typescript/native-preview")) {
+    findings.push({
+      severity: "warning",
+      rule: "quality-libs",
+      file: null,
+      line: null,
+      message:
+        "@typescript/native-preview not found in devDependencies. Add it to enable the native TypeScript compiler (tsgo).",
+    });
+  }
+
+  // quality/vitest — vitest
+  if (!hasDep(devDeps, "vitest")) {
+    findings.push({
+      severity: "warning",
+      rule: "quality-libs",
+      file: null,
+      line: null,
+      message: "vitest not found in devDependencies. Add vitest for testing.",
+    });
+  }
+
+  // quality/knip — knip
+  if (!hasDep(devDeps, "knip")) {
+    findings.push({
+      severity: "warning",
+      rule: "quality-libs",
+      file: null,
+      line: null,
+      message: "knip not found in devDependencies. Add knip for unused code detection.",
+    });
+  }
+
+  // quality/eslint-oxlint — if both oxlint AND eslint exist, eslint-plugin-oxlint must also be present
+  const hasOxlint = hasDep(devDeps, "oxlint");
+  const hasEslint = hasDep(devDeps, "eslint");
+  const hasEslintPluginOxlint = hasDep(devDeps, "eslint-plugin-oxlint");
+  if (hasOxlint && hasEslint && !hasEslintPluginOxlint) {
+    findings.push({
+      severity: "violation",
+      rule: "quality-libs",
+      file: null,
+      line: null,
+      message:
+        "Both oxlint and eslint are present in devDependencies, but eslint-plugin-oxlint is missing. Add eslint-plugin-oxlint to avoid rule conflicts.",
+    });
+  }
+
+  return findings;
 }
 
 export { meta, run };

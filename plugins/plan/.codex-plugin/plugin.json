@@ -1,7 +1,7 @@
 {
   "name": "plan",
-  "version": "0.0.24",
-  "description": "計画ファイルの構造テンプレートと記述規約",
+  "version": "0.0.21",
+  "description": "Plan file structure template and content rules",
   "author": {
     "name": "masseater",
     "url": "https://github.com/masseater"
@@ -15,8 +15,8 @@
   ],
   "interface": {
     "displayName": "Plan",
-    "shortDescription": "計画ファイルの構造テンプレートと記述規約",
-    "longDescription": "計画ファイルの構造テンプレートと記述規約",
+    "shortDescription": "Plan file structure template and content rules",
+    "longDescription": "Plan file structure template and content rules",
     "developerName": "masseater",
     "category": "Productivity"
   },
