@@ -1,6 +1,6 @@
 # swarm - Agent Teams（swarm）支援
 
-Agent Teams のチーム設計と起動・運用を支援するプラグイン。`/swarm:swarm <タスク>` で使う。
+チーム設計・運用・振り返りガイドを提供するプラグイン。
 
 ## インストール
 

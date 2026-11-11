@@ -1,15 +1,34 @@
 #!/usr/bin/env bun
 
 import { defineCommand, runMain } from "citty";
-import {
-  describeNode,
-  numberField,
-  recordArrayField,
-  recordField,
-  stringField,
-  type JsonRecord,
-} from "./_json.ts";
-import { fetchNodeDocument, getToken, log, writeJsonOutput } from "./_lib.ts";
+import { getToken, log, toColon } from "./_lib.ts";
+
+type FigmaNodeResponse = {
+  name: string;
+  nodes: Record<string, { document: Record<string, unknown> | null }>;
+};
+
+async function fetchNode(
+  fileKey: string,
+  nodeId: string,
+  token: string,
+): Promise<Record<string, unknown> | null> {
+  const colonId = toColon(nodeId);
+  const url = new URL(`https://api.figma.com/v1/files/${fileKey}/nodes`);
+  url.searchParams.set("ids", nodeId);
+  url.searchParams.set("geometry", "paths");
+
+  const res = await fetch(url, {
+    headers: { "X-Figma-Token": token },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Figma API failed: ${res.status} ${res.statusText}`);
+  }
+
+  const data = (await res.json()) as FigmaNodeResponse;
+  return data.nodes[colonId]?.document ?? null;
+}
 
 function rgbaToHex(r: number, g: number, b: number, a: number): string {
   const toHex = (v: number) =>
@@ -20,99 +39,61 @@ function rgbaToHex(r: number, g: number, b: number, a: number): string {
   return a < 1 ? `${hex}${toHex(a)}` : hex;
 }
 
-function channel(color: JsonRecord, key: string, fallback: number): number {
-  return numberField(color, key) ?? fallback;
+function formatColor(color: Record<string, unknown>): string {
+  const r = (color.r as number) ?? 0;
+  const g = (color.g as number) ?? 0;
+  const b = (color.b as number) ?? 0;
+  const a = (color.a as number) ?? 1;
+  return rgbaToHex(r, g, b, a);
 }
 
-function formatColor(color: JsonRecord): string {
-  return rgbaToHex(
-    channel(color, "r", 0),
-    channel(color, "g", 0),
-    channel(color, "b", 0),
-    channel(color, "a", 1),
-  );
+function extractFills(doc: Record<string, unknown>): unknown[] | null {
+  const fills = doc.fills as Array<Record<string, unknown>> | undefined;
+  if (!fills || fills.length === 0) return null;
+  return fills
+    .filter((f) => (f.visible as boolean) !== false)
+    .map((f) => {
+      const entry: Record<string, unknown> = { type: f.type };
+      if (f.color) entry.color = formatColor(f.color as Record<string, unknown>);
+      if (f.opacity !== undefined) entry.opacity = f.opacity;
+      if (f.gradientStops) entry.gradientStops = f.gradientStops;
+      if (f.gradientHandlePositions) entry.gradientHandlePositions = f.gradientHandlePositions;
+      if (f.scaleMode) entry.scaleMode = f.scaleMode;
+      if (f.imageRef) entry.imageRef = f.imageRef;
+      return entry;
+    });
 }
 
-/**
- * 値が undefined でないキーだけを写す。
- * @param source 写し元
- * @param keys 写すキー（この順に並べる）
- * @returns 写したキーだけを持つオブジェクト
- */
-function pickDefined(source: JsonRecord, keys: string[]): JsonRecord {
-  return Object.fromEntries(
-    keys.filter((key) => source[key] !== undefined).map((key) => [key, source[key]]),
-  );
+function extractStrokes(doc: Record<string, unknown>): unknown[] | null {
+  const strokes = doc.strokes as Array<Record<string, unknown>> | undefined;
+  if (!strokes || strokes.length === 0) return null;
+  return strokes
+    .filter((s) => (s.visible as boolean) !== false)
+    .map((s) => {
+      const entry: Record<string, unknown> = { type: s.type };
+      if (s.color) entry.color = formatColor(s.color as Record<string, unknown>);
+      if (s.opacity !== undefined) entry.opacity = s.opacity;
+      return entry;
+    });
 }
 
-/**
- * 値が truthy なキーだけを写す。
- * @param source 写し元
- * @param keys 写すキー（この順に並べる）
- * @returns 写したキーだけを持つオブジェクト
- */
-function pickTruthy(source: JsonRecord, keys: string[]): JsonRecord {
-  return Object.fromEntries(keys.filter((key) => source[key]).map((key) => [key, source[key]]));
+function extractEffects(doc: Record<string, unknown>): unknown[] | null {
+  const effects = doc.effects as Array<Record<string, unknown>> | undefined;
+  if (!effects || effects.length === 0) return null;
+  return effects
+    .filter((e) => (e.visible as boolean) !== false)
+    .map((e) => {
+      const entry: Record<string, unknown> = { type: e.type };
+      if (e.radius !== undefined) entry.radius = e.radius;
+      if (e.color) entry.color = formatColor(e.color as Record<string, unknown>);
+      if (e.offset) entry.offset = e.offset;
+      if (e.spread !== undefined) entry.spread = e.spread;
+      return entry;
+    });
 }
 
-function optionalProp(key: string, value: unknown): JsonRecord {
-  return value ? { [key]: value } : {};
-}
-
-function colorProp(paint: JsonRecord): JsonRecord {
-  const color = recordField(paint, "color");
-  return color ? { color: formatColor(color) } : {};
-}
-
-/**
- * 表示されている塗り・線・効果を取り出す。
- * @param doc ノード
- * @param key fills / strokes / effects
- * @returns 表示されている項目。項目が無ければ null
- */
-function visibleItems(doc: JsonRecord, key: string): JsonRecord[] | null {
-  const items = recordArrayField(doc, key);
-  if (!items || items.length === 0) return null;
-  return items.filter((item) => item.visible !== false);
-}
-
-function fillProps(fill: JsonRecord): JsonRecord {
-  return {
-    type: fill.type,
-    ...colorProp(fill),
-    ...pickDefined(fill, ["opacity"]),
-    ...pickTruthy(fill, ["gradientStops", "gradientHandlePositions", "scaleMode", "imageRef"]),
-  };
-}
-
-function strokePaintProps(stroke: JsonRecord): JsonRecord {
-  return { type: stroke.type, ...colorProp(stroke), ...pickDefined(stroke, ["opacity"]) };
-}
-
-function effectProps(effect: JsonRecord): JsonRecord {
-  return {
-    type: effect.type,
-    ...pickDefined(effect, ["radius"]),
-    ...colorProp(effect),
-    ...pickTruthy(effect, ["offset"]),
-    ...pickDefined(effect, ["spread"]),
-  };
-}
-
-function extractFills(doc: JsonRecord): unknown[] | null {
-  return visibleItems(doc, "fills")?.map(fillProps) ?? null;
-}
-
-function extractStrokes(doc: JsonRecord): unknown[] | null {
-  return visibleItems(doc, "strokes")?.map(strokePaintProps) ?? null;
-}
-
-function extractEffects(doc: JsonRecord): unknown[] | null {
-  return visibleItems(doc, "effects")?.map(effectProps) ?? null;
-}
-
-function extractTextStyle(doc: JsonRecord): JsonRecord | null {
-  const style = recordField(doc, "style");
+function extractTextStyle(doc: Record<string, unknown>): Record<string, unknown> | null {
+  const style = doc.style as Record<string, unknown> | undefined;
   if (!style) return null;
   return {
     fontFamily: style.fontFamily,
@@ -129,7 +110,7 @@ function extractTextStyle(doc: JsonRecord): JsonRecord | null {
   };
 }
 
-function extractAutoLayout(doc: JsonRecord): JsonRecord | null {
+function extractAutoLayout(doc: Record<string, unknown>): Record<string, unknown> | null {
   if (doc.layoutMode === undefined && doc.primaryAxisAlignItems === undefined) return null;
   return {
     layoutMode: doc.layoutMode,
@@ -147,8 +128,8 @@ function extractAutoLayout(doc: JsonRecord): JsonRecord | null {
   };
 }
 
-function extractConstraints(doc: JsonRecord): JsonRecord | null {
-  const constraints = recordField(doc, "constraints");
+function extractConstraints(doc: Record<string, unknown>): Record<string, unknown> | null {
+  const constraints = doc.constraints as Record<string, unknown> | undefined;
   if (!constraints) return null;
   return {
     horizontal: constraints.horizontal,
@@ -156,78 +137,81 @@ function extractConstraints(doc: JsonRecord): JsonRecord | null {
   };
 }
 
-// Geometry
-function geometryProps(doc: JsonRecord): JsonRecord {
-  const box = recordField(doc, "absoluteBoundingBox");
-  return box
-    ? { size: { width: box.width, height: box.height }, position: { x: box.x, y: box.y } }
-    : {};
-}
-
-// Opacity & blend（既定値の 1 と PASS_THROUGH は省く）
-function opacityProp(doc: JsonRecord): JsonRecord {
-  return doc.opacity !== undefined && doc.opacity !== 1 ? { opacity: doc.opacity } : {};
-}
-
-function blendModeProp(doc: JsonRecord): JsonRecord {
-  return doc.blendMode && doc.blendMode !== "PASS_THROUGH" ? { blendMode: doc.blendMode } : {};
-}
-
-function strokeProps(doc: JsonRecord): JsonRecord {
-  const strokes = extractStrokes(doc);
-  if (!strokes) return {};
-  return {
-    strokes,
-    ...pickDefined(doc, ["strokeWeight"]),
-    ...pickTruthy(doc, ["strokeAlign", "individualStrokeWeights"]),
-  };
-}
-
-function extractProperties(doc: JsonRecord): JsonRecord {
-  return {
+function extractProperties(doc: Record<string, unknown>): Record<string, unknown> {
+  const props: Record<string, unknown> = {
     id: doc.id,
     name: doc.name,
     type: doc.type,
-    ...geometryProps(doc),
-    // Corner radius
-    ...pickDefined(doc, ["cornerRadius"]),
-    ...pickTruthy(doc, ["rectangleCornerRadii"]),
-    ...opacityProp(doc),
-    ...blendModeProp(doc),
-    ...pickDefined(doc, ["clipsContent"]),
-    // Visual properties
-    ...optionalProp("fills", extractFills(doc)),
-    ...strokeProps(doc),
-    ...optionalProp("effects", extractEffects(doc)),
-    // Text
-    ...optionalProp("textStyle", extractTextStyle(doc)),
-    ...pickDefined(doc, ["characters"]),
-    // Layout
-    ...optionalProp("autoLayout", extractAutoLayout(doc)),
-    ...optionalProp("constraints", extractConstraints(doc)),
-    ...pickTruthy(doc, ["layoutSizingHorizontal", "layoutSizingVertical"]),
-    // Component info
-    ...pickTruthy(doc, ["componentId", "componentProperties"]),
   };
+
+  // Geometry
+  const box = doc.absoluteBoundingBox as Record<string, unknown> | undefined;
+  if (box) {
+    props.size = { width: box.width, height: box.height };
+    props.position = { x: box.x, y: box.y };
+  }
+
+  // Corner radius
+  if (doc.cornerRadius !== undefined) props.cornerRadius = doc.cornerRadius;
+  if (doc.rectangleCornerRadii) props.rectangleCornerRadii = doc.rectangleCornerRadii;
+
+  // Opacity & blend
+  if (doc.opacity !== undefined && doc.opacity !== 1) props.opacity = doc.opacity;
+  if (doc.blendMode && doc.blendMode !== "PASS_THROUGH") props.blendMode = doc.blendMode;
+  if (doc.clipsContent !== undefined) props.clipsContent = doc.clipsContent;
+
+  // Visual properties
+  const fills = extractFills(doc);
+  if (fills) props.fills = fills;
+
+  const strokes = extractStrokes(doc);
+  if (strokes) {
+    props.strokes = strokes;
+    if (doc.strokeWeight !== undefined) props.strokeWeight = doc.strokeWeight;
+    if (doc.strokeAlign) props.strokeAlign = doc.strokeAlign;
+    if (doc.individualStrokeWeights) props.individualStrokeWeights = doc.individualStrokeWeights;
+  }
+
+  const effects = extractEffects(doc);
+  if (effects) props.effects = effects;
+
+  // Text
+  const textStyle = extractTextStyle(doc);
+  if (textStyle) props.textStyle = textStyle;
+  if (doc.characters !== undefined) props.characters = doc.characters;
+
+  // Layout
+  const autoLayout = extractAutoLayout(doc);
+  if (autoLayout) props.autoLayout = autoLayout;
+
+  const constraints = extractConstraints(doc);
+  if (constraints) props.constraints = constraints;
+
+  if (doc.layoutSizingHorizontal) props.layoutSizingHorizontal = doc.layoutSizingHorizontal;
+  if (doc.layoutSizingVertical) props.layoutSizingVertical = doc.layoutSizingVertical;
+
+  // Component info
+  if (doc.componentId) props.componentId = doc.componentId;
+  if (doc.componentProperties) props.componentProperties = doc.componentProperties;
+
+  return props;
 }
 
-/**
- * 子ノードを maxDepth まで再帰的に取り出す。それより深い子は数だけを書く。
- * @param doc ノード
- * @param depth 現在の深さ
- * @param maxDepth 取り出す最大の深さ
- * @returns children か childCount。子が無ければ空
- */
-function childrenProps(doc: JsonRecord, depth: number, maxDepth: number): JsonRecord {
-  const children = recordArrayField(doc, "children");
-  if (!children || children.length === 0) return {};
-  return depth < maxDepth
-    ? { children: children.map((child) => extractTree(child, depth + 1, maxDepth)) }
-    : { childCount: children.length };
-}
+function extractTree(
+  doc: Record<string, unknown>,
+  depth: number,
+  maxDepth: number,
+): Record<string, unknown> {
+  const node = extractProperties(doc);
 
-function extractTree(doc: JsonRecord, depth: number, maxDepth: number): JsonRecord {
-  return { ...extractProperties(doc), ...childrenProps(doc, depth, maxDepth) };
+  const children = doc.children as Array<Record<string, unknown>> | undefined;
+  if (children && children.length > 0 && depth < maxDepth) {
+    node.children = children.map((child) => extractTree(child, depth + 1, maxDepth));
+  } else if (children && children.length > 0) {
+    node.childCount = children.length;
+  }
+
+  return node;
 }
 
 const main = defineCommand({
@@ -264,22 +248,28 @@ const main = defineCommand({
   },
   async run({ args }) {
     const token = getToken();
-    const verbose = args.verbose;
-    const maxDepth = Number.parseInt(args.depth, 10);
+    const verbose = args.verbose as boolean;
+    const maxDepth = Number.parseInt(args.depth as string, 10);
 
     log(verbose, `[DEBUG] Fetching node ${args["node-id"]} with geometry...`);
 
-    const doc = await fetchNodeDocument(args["file-key"], args["node-id"], token, {
-      geometry: "paths",
-    });
+    const doc = await fetchNode(args["file-key"], args["node-id"], token);
     if (!doc) {
       throw new Error(`Node ${args["node-id"]} not found or resolved to null`);
     }
 
-    log(verbose, `[DEBUG] Node: ${describeNode(doc)}, extracting to depth ${maxDepth}...`);
+    log(verbose, `[DEBUG] Node: ${doc.name} (${doc.type}), extracting to depth ${maxDepth}...`);
 
-    await writeJsonOutput(args.output, JSON.stringify(extractTree(doc, 0, maxDepth), null, 2));
+    const result = extractTree(doc, 0, maxDepth);
+    const json = JSON.stringify(result, null, 2);
+
+    if (args.output) {
+      await Bun.write(args.output, json);
+      console.log(`output=${args.output}`);
+    } else {
+      console.log(json);
+    }
   },
 });
 
-await runMain(main);
+runMain(main);

@@ -1,0 +1,23 @@
+{
+  "name": "plugin-github-issue-db",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "oxlint",
+    "check:fix": "oxlint --fix",
+    "typecheck": "tsgo --noEmit",
+    "test": "vitest run && bun test lib/*.bun.test.ts",
+    "test:bun": "bun test lib/*.bun.test.ts",
+    "test:vitest": "vitest run"
+  },
+  "dependencies": {
+    "citty": "^0.2.0",
+    "octokit": "^5.0.5"
+  },
+  "devDependencies": {
+    "@repo/ts-config": "*",
+    "@repo/vitest-config": "*",
+    "@vitest/coverage-v8": "^3.2.0",
+    "vitest": "^3.2.0"
+  }
+}

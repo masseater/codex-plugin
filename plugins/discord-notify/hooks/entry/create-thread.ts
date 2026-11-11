@@ -49,8 +49,7 @@ const hook = defineHook({
         logger.info(`Thread created: ${thread.id} for session ${sessionId}`);
       }
     } catch (error) {
-      // Discord 通知は best-effort。失敗してもセッション開始を止めないため、伝播せず error ログだけ残す
-      logger.error("Failed to handle Discord session event", { err: error });
+      logger.error(`Failed to handle Discord session event: ${error}`);
     } finally {
       db.close();
     }

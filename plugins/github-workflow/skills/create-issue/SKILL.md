@@ -1,60 +1,169 @@
 ---
-name: create-issue
-description: 会話や調査で見つかった 1 件以上の課題を、既存 Issue との重複を確認したうえで GitHub Issue として起票するか、既存 Issue にコメントする。承認を得てから実行する。
-disable-model-invocation: true
-allowed-tools: Bash(../../scripts/issue-db/*)
+name: github-workflow:create-issue
+description: Create a GitHub issue in the current repository with a drafted title, body, and labels, confirming with the user before submission. Use when the user says "issueを作成", "GitHub issueを立てる", "create issue", "新しいissue", "バグ報告issue", or wants to file a new issue from conversation or investigation context.
 ---
 
-# Create Issue
+# Create a GitHub Issue
 
-Issue のタイトル・本文・コメントは英語で書き、ユーザーとの対話は日本語で行う。起票とコメントは外部に公開される操作なので、手順 5 の承認を得てから実行する。
+Draft, confirm, and submit a GitHub issue on the current repository. Always confirm with the user before creating — never auto-create without approval.
 
-## 手順
+## Input Contract
 
-1. 課題（finding）を集める
-   - 会話の文脈から取る。「リポジトリを調査して issue 化して」のように調査から頼まれた場合は、先にコードを調べて課題を洗い出す
-   - 各 finding に、タイトル案・内容・根拠（`path/to/file.ts:42`、エラーメッセージ、再現手順）を持たせる。根拠のない finding は起票しない
-   - 1 回の新規起票は 10 件までにする。超える分はユーザーに優先度を聞いて次回に回す
+Accept either:
 
-2. 対象リポジトリを決める
-   - 既定は現在のリポジトリ（`gh repo view --json nameWithOwner -q .nameWithOwner`）
-   - このプラグイン群（Claude Code plugin marketplace）へのフィードバックなら `masseater/codex-plugin` にし、`claude` ラベルを付ける。このラベルで Claude Code Action が起動する。以降のスクリプトには `--owner masseater --repo claude-code-plugin` を渡す
+- Freeform context from the conversation, OR
+- A finding object from `mutils:investigate-repo`:
+  ```json
+  {
+    "id": "...",
+    "title": "...",
+    "severity": "...",
+    "category": "...",
+    "evidence": ["..."],
+    "suggested_fix": "..."
+  }
+  ```
 
-3. 重複を調べる。ローカルの issue キャッシュ（SQLite FTS5）を同期してから finding ごとに検索する
+## Output Contract
 
-   ```bash
-   ../../scripts/issue-db/sync.ts [--owner <o> --repo <r>]
-   ../../scripts/issue-db/search.ts "<query>" --limit 20 [--owner <o> --repo <r>]
-   ```
+On success, return:
 
-   query はタイトル案、主要なキーワード 3 つ、最も特徴的なファイル名やシンボルをつなげた自然文にする（`is:issue` などの GitHub 検索構文は使えない）。closed の Issue も対象に含める。過去の解決経緯が参考になるため。候補の類似度と推奨の決め方は [references/similarity.md](references/similarity.md) に従う。参照ファイルでは変数が展開されないので、そこにある `<plugin-root>` は `../..` に読み替える。
+```json
+{
+  "number": 42,
+  "url": "https://github.com/OWNER/REPO/issues/42",
+  "title": "...",
+  "labels": ["..."]
+}
+```
 
-4. finding ごとの対応を決める
-   - `duplicate`（open の high がある）: 既存 Issue にコメントする
-   - `closed-duplicate`（high が closed だけにある）: reopen を頼むか、`Related: #<n>` 付きで新規起票するかをユーザーに聞く
-   - `related`（high は無く medium がある。open / closed を問わない）: `Related: #<n>` を付けて新規起票する
-   - `no-match`: 新規起票する
-   - 既存 Issue の最終更新が 90 日以上前なら `[stale]` と示し、コメントか再起票かを選べるようにする
+## Workflow
 
-5. 下書きを作り、一括で承認を取る
-   - タイトル: 72 文字以内、末尾にピリオドを付けない。対象があれば `[<plugin や package 名>] ` を前に付ける
-   - 本文: [assets/issue-body.md](assets/issue-body.md) のテンプレートを使う。会話をそのまま貼らず要点にまとめ、secret・個人情報・内部 URL は入れない
-   - ラベル: `gh label list -R <repo> --limit 100 --json name` で存在するものだけを付ける。種別とラベルの対応は次のとおり
-     - bug→`bug`、機能要望→`enhancement`、技術的負債・lint・型→`tech-debt`、テスト不足→`test`
-     - ドキュメント→`documentation`、依存→`dependencies`、性能→`performance`、セキュリティ→`security`
-   - milestone と assignee は頼まれたときだけ付ける
-   - `AskUserQuestion` で、finding ごとの対応・タイトル・ラベルの一覧を示し、すべて実行 / 個別に修正 / 中止 を選ばせる
+### Step 1: Resolve Repository
 
-6. 承認された分だけ実行する。本文は `mktemp` の一時ファイルで渡す（複数行のエスケープ事故と、並列実行時のファイル衝突を避けるため）
+```bash
+gh repo view --json nameWithOwner,defaultBranchRef -q .
+```
 
-   ```bash
-   BODY_FILE=$(mktemp -t issue-body.XXXXXX.md)
-   cat > "$BODY_FILE" <<'EOF'
-   <本文>
-   EOF
-   gh issue create -R <repo> --title "<title>" --body-file "$BODY_FILE" --label "<a>" --label "<b>"
-   gh issue comment <number> -R <repo> --body-file "$BODY_FILE"   # 既存 Issue へのコメントの場合
-   rm -f "$BODY_FILE"
-   ```
+Confirm with user if the detected repo is not the one they mean.
 
-7. 作成した Issue とコメントの URL、スキップした finding と理由を報告する
+### Step 2: Draft Title
+
+- Concise (≤ 72 chars)
+- English
+- Imperative or descriptive — no leading emoji, no trailing period
+- Include a scope prefix when applicable: `[<plugin-or-package>] <summary>`
+
+### Step 3: Draft Body
+
+Template (Markdown, English):
+
+```markdown
+## Context
+
+<what was being worked on, why this issue was surfaced>
+
+## Description
+
+<clear description of the problem or request>
+
+## Evidence
+
+- `path/to/file.ts:42` — <snippet or note>
+- `path/to/other.ts:13`
+
+## Expected vs Actual (bugs only)
+
+- Expected: <...>
+- Actual: <...>
+
+## Suggested Direction
+
+<one or two sentences, not a full plan>
+
+## Additional Context
+
+- Severity: <blocker|high|medium|low>
+- Category: <bug|tech-debt|...>
+- Related: #<nnn> (if known from `github-issue-db:search-similar-issues`)
+```
+
+### Step 4: Choose Labels
+
+Map category → label (adjust to actual repo labels; query them first):
+
+```bash
+gh label list --repo OWNER/REPO --limit 100 --json name
+```
+
+Default mappings:
+
+- `bug` — `bug`
+- `tech-debt` — `tech-debt`
+- `test-gap` — `test`
+- `doc` — `documentation`
+- `dependency` — `dependencies`
+- `performance` — `performance`
+- `security` — `security`
+- `lint`/`type` — `tech-debt`
+
+Add repo-specific automation labels when they exist (e.g. `claude` triggers Claude Code Action in this repo). Never invent a label that does not exist in the target repo.
+
+### Step 5: Preflight — Duplicate Check
+
+Strongly recommend calling `github-issue-db:search-similar-issues` first if not already done. If `recommendation = duplicate`, STOP and route to `github-issue-db:update-existing-issues` instead (commenting on the existing issue is better than filing a duplicate).
+
+### Step 6: Confirm with User (`AskUserQuestion`)
+
+Show the drafted title, body, and labels. Ask:
+
+- Create as drafted?
+- Edit title/body?
+- Change labels?
+- Cancel?
+
+Never skip this step.
+
+### Step 7: Create
+
+Prefer Octokit (per `references/github-api.md` in `mutils:skill-create`):
+
+```typescript
+await octokit.issues.create({
+  owner,
+  repo,
+  title,
+  body,
+  labels,
+});
+```
+
+`gh` CLI fallback when Octokit is unavailable:
+
+```bash
+BODY_FILE=$(mktemp -t issue-body.XXXXXX.md)
+trap 'rm -f "$BODY_FILE"' EXIT
+cat > "$BODY_FILE" <<'EOF'
+<issue body>
+EOF
+gh issue create \
+  --repo OWNER/REPO \
+  --title "<title>" \
+  --body-file "$BODY_FILE" \
+  --label "<a>" --label "<b>"
+```
+
+Use `--body-file` (not `--body`) to avoid shell-escaping on multi-line content, and use `mktemp` so parallel runs do not collide on a shared path.
+
+### Step 8: Report
+
+Return the JSON contract above and surface the URL to the user.
+
+## Rules
+
+- Never create without explicit user approval
+- English title/body, 日本語 for user conversation
+- No secrets, no internal URLs, no PII in the body
+- Do not include conversation transcripts verbatim — distill the issue
+- Verify labels exist in the target repo before passing them
+- Do not pick a milestone or assignee unless the user asked

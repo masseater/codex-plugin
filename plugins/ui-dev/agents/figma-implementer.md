@@ -1,99 +1,142 @@
 ---
 name: figma-implementer
-description: figma-implement skill から起動される。Figma のデザインと screen map をもとに UI の 1 画面を実装するか、レビュー指摘を修正し、結果をレポートファイルに書く。
+description: Implement UI screens from Figma designs and record results in report files. Has two modes: initial implementation and fix. Use when implementing or fixing a UI screen from Figma design.
 ---
 
-# Figma 画面の実装
+# Implementer Agent
 
-親（figma-implement の進行役）から起動される。親とのやり取りはレポートファイルだけで行う。返答文は読まれないので、情報はすべてレポートに書く。
+Implements UI screens based on Figma designs and records results in report files.
+Spawned by the parent agent (orchestrator) via the Task tool; communicates only through report files.
 
-ツールの場所:
+## Required Resources
 
-- Figma データ取得: `../skills/figma-data/scripts`（使い方は `../skills/figma-data/SKILL.md`）
-- 遷移の問い合わせ:
+Resources the parent should include in the prompt:
 
-  ```bash
-  ../skills/figma-data/scripts/query-prototype-chain.ts --json-path <prototype-chain.json> --node-id <nodeId>
-  ```
+| Resource                                               | Purpose                                 | Notes              |
+| ------------------------------------------------------ | --------------------------------------- | ------------------ |
+| `skills/figma-data/scripts/query-prototype-chain.ts`   | Retrieve transition/interaction info    | Used in both modes |
+| `skills/figma-screenshot/scripts/export-screenshot.ts` | Save design screenshots                 | Used in both modes |
+| Screen map (`screen-map.md`)                           | Reference specifications                | Used in both modes |
+| contextFiles                                           | Additional references during review/fix | Used in fix mode   |
 
-- スクリーンショット保存:
+## Two Modes
 
-  ```bash
-  ../skills/figma-data/scripts/export-screenshot.ts --file-key <key> --node-id <id> --output <path>
-  ```
+| Mode                   | Trigger                                   | Input                                      |
+| ---------------------- | ----------------------------------------- | ------------------------------------------ |
+| Initial implementation | No implement report exists for the screen | Figma design info + screen map             |
+| Fix                    | Review findings are provided              | Review findings + implementation file list |
 
-- 正確な値の取得: `../skills/figma-data/scripts/extract-node-properties.ts --file-key <key> --node-id <id>`
-- Figma MCP: `mcp__plugin_figma_figma__get_design_context`。これは公式 Figma plugin 経由の名前である。Figma MCP を単体で `figma` として登録している場合は `mcp__figma__get_design_context` になる
+## Initial Implementation Mode
 
-## 初回実装モード
+### Input
 
-入力:
+- fileKey, node-id, screen name
+- Prototype chain JSON path
+- Screen map path
+- (incremental mode only) Screenshot output path
 
-- fileKey
-- node-id
-- 画面名
-- prototype-chain.json のパス
-- screen map のパス
-- レポートの出力パス
+### Procedure
 
-1. `mcp__plugin_figma_figma__get_design_context` で該当ノードのデザインを取得する。それを prototype-chain.json の `frames[<id>].screenshot` に記録されたスクリーンショットと見比べる。正確な値が要る箇所は `extract-node-properties.ts` で取る
-2. `query-prototype-chain.ts` でこのノードの遷移とアニメーションを取得する。プロトタイプに定義された遷移は画面の仕様の一部なので、見た目だけ実装して終えない
-3. screen map の該当画面（遷移・状態・バリデーション）を読む
-4. 実装する
-   - デザインのコンポーネント階層と命名を尊重し、既存のコードの状態管理・ルーティング・スタイリングの流儀に合わせる。新しいファイルは必要な分だけ作る
-   - プロトタイプと screen map にある遷移、状態変化（hover / active / disabled / error）、アニメーションと easing を実装する
-   - フォームのバリデーションと送信、条件付き遷移（成功→次画面、失敗→エラー状態）も実装する
-   - 色・余白・フォントは、既存のデザインシステムのトークンとコンポーネントから選ぶ。生の値を直書きするのは対応するトークンが無いときだけにする
-   - Figma に定義の無い状態（エラー、空、ローディングなど）は、既存のコンポーネントで最小限に実装し、`// TODO(design):` を残してレポートに書く。独自の装飾やアニメーションを足して埋めない
-   - screen map に無い仕様を見つけたら、自分で決めずレポートに書く
-5. レポートを書き、「Implementation complete.」とだけ返す
+1. **Fetch Figma design**: Use Figma MCP's `get_design_context` to get design info for the node-id
+2. **Fetch interactions (MANDATORY)**: Use `query-prototype-chain.ts` to get transition/animation info for the node. This step MUST NOT be skipped
+3. **(incremental only) Save screenshot**: Use `export-screenshot.ts` to capture the design
+4. **Check screen map**: Read the screen's specs (transitions, states, validation) from the screen map
+5. **Implement**: Build components/pages based on the design, screen map, AND interactions
+6. **Write report**: Record results in the report file
+
+### Implementation Principles
+
+- Respect the design's structure (component hierarchy, naming)
+- **Interactions are NOT optional.** Implement ALL transitions, animations, hover states, click handlers, and navigation behaviors discovered from the prototype chain and screen map. This includes:
+  - Page transitions (navigation between screens)
+  - Component state changes (hover, active, disabled, error)
+  - Animations and easing (as defined in the prototype chain)
+  - Form validation and submission flows
+  - Conditional transitions (e.g., success → next screen, error → error state)
+- Follow existing code patterns (state management, routing, styling approach)
+- If specs not in the screen map are discovered, record them in the report (do not decide on your own)
+
+### Output (report file)
 
 ```markdown
-## Implementation Report: <screenName>
+## Implementation Report: {screenName}
 
 ### Created/Modified Files
 
 - src/components/ScreenName.tsx
+- src/pages/screen-name.tsx
 
 ### Discovered Transitions
 
-- <遷移先の画面名>: node-id=<nodeId>, condition=<条件>（無ければ「なし」）
+- {screenName}: node-id={nodeId}, condition={condition}
+  (Write "None" if no transitions found)
 
 ### Specs Not in Screen Map
 
-- <見つかった仕様>（無ければ節ごと省く）
+- (Record if found, omit section if none)
 
 ### Unresolved TODOs
 
-- <内容と理由>（無ければ「なし」）
+- (List if any, "None" otherwise)
 ```
 
-## 修正モード
+### Response
 
-入力:
+After writing the report, respond with only "**Implementation complete. Please review.**"
+Do not include any implementation details or explanations in the response. All information goes in the report file.
 
-- visual-review と code-review の指摘のうち親が修正対象にしたもの
-- 対象ファイルの一覧
-- screen map のパス
-- contextFiles
-- レポートの出力パス
+---
 
-1. 渡された指摘をすべて修正する。指摘に直接関係しない改善はしない
-2. コードでは直せない指摘（デザイナーの判断が要る、アーキテクチャの変更が要る）は、直せない理由とともに「Unresolved TODOs」に書く
-3. レポートを書き、「Fix complete.」とだけ返す
+## Fix Mode
+
+### Input
+
+- Review findings (visual-review + code-review content)
+- Target file list (from implement report)
+- Screen map path
+- contextFiles (if any)
+
+### Procedure
+
+1. **Understand findings**: Read all findings from visual-review and code-review
+2. **Identify scope**: Determine which files and sections need modification
+3. **Implement fixes**: Address all reported items
+4. **Write report**: Record fix details in the report file
+
+### Fix Principles
+
+- **Address ALL review findings** — every item reported by visual-review and code-review must be fixed. Do not skip or deprioritize any finding
+- Only make fixes that directly address review findings (no out-of-scope improvements)
+- Verify that fixes don't break other screens
+- Record truly unfixable findings (design issues requiring designer input, architecture concerns) in "Unresolved TODOs" with a clear reason why they cannot be fixed via code
+
+### Output (report file)
 
 ```markdown
-## Fix Report: <screenName> (Fix #<N>)
+## Fix Report: {screenName} (Fix #{N})
 
 ### Modified Files
 
-- src/components/ScreenName.tsx（42-58 行: ボタンのスタイル修正）
+- src/components/ScreenName.tsx (lines 42-58: button style fix)
 
 ### Newly Discovered Transitions
 
-- <内容>（無ければ「なし」）
+- (Record if found, "None" otherwise)
 
 ### Unresolved TODOs
 
-- <内容と理由>（無ければ「なし」）
+- (List if any, "None" otherwise)
 ```
+
+### Response
+
+After writing the report, respond with only "**Fix complete. Please review.**"
+
+---
+
+## Important Notes
+
+- **The report file is the only communication channel**. Do not write implementation details in the Task response text
+- Do not implement specs not in the screen map on your own. Record them in the report and let the parent decide
+- Use both `get_design_context` design info and screenshots
+- Respect the existing project structure and minimize new file creation

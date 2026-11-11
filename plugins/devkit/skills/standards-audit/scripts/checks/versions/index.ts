@@ -1,4 +1,3 @@
-import { finding } from "../../core/finding.ts";
 import type { CheckMeta, Finding, ProjectContext } from "../../core/types.ts";
 
 const meta: CheckMeta = {
@@ -39,17 +38,6 @@ const VERSION_CHECKS: VersionCheck[] = [
   { pkg: "eslint", min: [9, 0, 0], label: "eslint" },
 ];
 
-function versionFindings(check: VersionCheck, range: string | undefined): Finding[] {
-  if (range === undefined || !isBelow(parseVersion(range), check.min)) return [];
-  return [
-    finding(
-      "warning",
-      "versions",
-      `${check.label} must be >= ${check.min.join(".")} (found "${range}"). Upgrade to meet the minimum version requirement.`,
-    ),
-  ];
-}
-
 async function run(ctx: ProjectContext): Promise<Finding[]> {
   if (!ctx.packageJson) return [];
 
@@ -57,7 +45,27 @@ async function run(ctx: ProjectContext): Promise<Finding[]> {
     ...ctx.packageJson.dependencies,
     ...ctx.packageJson.devDependencies,
   };
-  return VERSION_CHECKS.flatMap((check) => versionFindings(check, allDeps[check.pkg]));
+
+  const findings: Finding[] = [];
+
+  for (const check of VERSION_CHECKS) {
+    const range = allDeps[check.pkg];
+    if (range === undefined) continue;
+
+    const actual = parseVersion(range);
+    if (isBelow(actual, check.min)) {
+      const minStr = check.min.join(".");
+      findings.push({
+        severity: "warning",
+        rule: "versions",
+        file: null,
+        line: null,
+        message: `${check.label} must be >= ${minStr} (found "${range}"). Upgrade to meet the minimum version requirement.`,
+      });
+    }
+  }
+
+  return findings;
 }
 
 export { meta, run };

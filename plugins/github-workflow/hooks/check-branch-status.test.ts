@@ -1,11 +1,11 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterAll, beforeEach, describe, expect, test, vi } from "vite-plus/test";
+import { describe, expect, test, vi } from "vitest";
 
-const { capturedHookDefs, mockExecFileSync } = vi.hoisted(() => ({
+const { capturedHookDefs, mockExecFileSync, mockSpawnSync } = vi.hoisted(() => ({
   capturedHookDefs: [] as { run: (ctx: unknown) => unknown }[],
   mockExecFileSync: vi.fn<(...args: unknown[]) => string>(),
+  mockSpawnSync: vi.fn<(...args: unknown[]) => { status: number; stdout: string; stderr: string }>(
+    () => ({ status: 0, stdout: "", stderr: "" }),
+  ),
 }));
 
 vi.mock("@r_masseater/cc-plugin-lib", () => ({
@@ -30,15 +30,10 @@ vi.mock("cc-hooks-ts", () => ({
 
 vi.mock("node:child_process", () => ({
   execFileSync: (...args: unknown[]) => mockExecFileSync(...args),
+  spawnSync: (...args: unknown[]) => mockSpawnSync(...args),
 }));
 
-import {
-  type BranchState,
-  formatBranchState,
-  parseMergeTreeOutput,
-  parseRevListCount,
-  stateKey,
-} from "./entry/check-branch-status.ts";
+import { parseRevListCount, parseMergeTreeOutput } from "./entry/check-branch-status.ts";
 
 describe("parseRevListCount", () => {
   test("parses ahead and behind counts", () => {
@@ -129,80 +124,27 @@ describe("parseMergeTreeOutput", () => {
   });
 });
 
-describe("stateKey", () => {
-  const base: BranchState = {
-    branch: "feature/x",
-    upstream: "origin/feature/x",
-    ahead: 1,
-    behind: 0,
-    conflict: undefined,
-  };
-
-  test("ignores changes in the number of commits", () => {
-    expect(stateKey({ ...base, ahead: 5 })).toBe(stateKey(base));
-  });
-
-  test("changes when the branch becomes up to date or conflicting", () => {
-    expect(stateKey({ ...base, ahead: 0 })).not.toBe(stateKey(base));
-    expect(stateKey({ ...base, conflict: { baseBranch: "main", files: [] } })).not.toBe(
-      stateKey(base),
-    );
-  });
-});
-
-describe("formatBranchState", () => {
-  test("states missing upstream", () => {
-    expect(
-      formatBranchState({
-        branch: "feature/x",
-        upstream: undefined,
-        ahead: 0,
-        behind: 0,
-        conflict: undefined,
-      }),
-    ).toStrictEqual(["[git] feature/x: upstream 未設定（未 push）"]);
-  });
-
-  test("states ahead, behind and conflict as facts", () => {
-    expect(
-      formatBranchState({
-        branch: "feature/x",
-        upstream: "origin/feature/x",
-        ahead: 3,
-        behind: 2,
-        conflict: { baseBranch: "main", files: ["src/index.ts"] },
-      }),
-    ).toStrictEqual([
-      "[git] feature/x: origin/feature/x より 3 コミット先行（未 push）",
-      "[git] feature/x: origin/feature/x より 2 コミット遅れている（未取り込み）",
-      "[git] PR（feature/x → main）が base と conflict している: src/index.ts。解消するまで pull_request トリガーの CI は起動しない。",
-    ]);
-  });
-});
-
 describe("hook run", () => {
-  type HookResult = {
+  type DeferredResult = {
+    event: string;
     output: { systemMessage?: string };
   };
 
-  const stateHome = mkdtempSync(join(tmpdir(), "branch-status-test-"));
-  process.env["XDG_STATE_HOME"] = stateHome;
-  let sessionCounter = 0;
+  function createMockContext() {
+    const successResult = { type: "success" as const };
+    let capturedHandler: (() => Promise<DeferredResult>) | null = null;
 
-  afterAll(() => {
-    rmSync(stateHome, { recursive: true, force: true });
-  });
-
-  beforeEach(() => {
-    mockExecFileSync.mockReset();
-    sessionCounter += 1;
-  });
-
-  function createMockContext(sessionId = `session-${sessionCounter}`) {
     return {
-      input: { stop_hook_active: false, session_id: sessionId },
-      success: vi.fn(() => ({ output: {} })),
-      json: vi.fn((payload: HookResult) => payload),
+      input: { stop_hook_active: false },
+      success: vi.fn(() => successResult),
+      defer: vi.fn((handler: () => Promise<DeferredResult>) => {
+        capturedHandler = handler;
+        return { type: "deferred" as const };
+      }),
+      runDeferred: async (): Promise<DeferredResult> => {
+        if (!capturedHandler) throw new Error("No deferred handler captured");
+        return capturedHandler();
+      },
     };
   }
 
@@ -212,52 +154,13 @@ describe("hook run", () => {
     return hookDef.run;
   }
 
-  function mockRepo(options: {
-    branch?: string;
-    upstream?: string;
-    revList?: string;
-    prBase?: string;
-    mergeTree?: string;
-  }) {
-    mockExecFileSync.mockImplementation((...callArgs) => {
-      const cmd = callArgs[0];
-      const args: readonly unknown[] = Array.isArray(callArgs[1]) ? callArgs[1] : [];
-      if (cmd === "git") {
-        if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
-        if (args[0] === "symbolic-ref") {
-          if (!options.branch) throw new Error("detached HEAD");
-          return options.branch;
-        }
-        if (args[0] === "rev-parse" && args[1] === "--abbrev-ref") {
-          if (!options.upstream) throw new Error("no upstream");
-          return options.upstream;
-        }
-        if (args[0] === "rev-list") return options.revList ?? "0\t0";
-        if (args[0] === "merge-base") return "abc123";
-        if (args[0] === "merge-tree") return options.mergeTree ?? "clean merge output";
-        return "";
-      }
-      if (cmd === "gh") {
-        if (!options.prBase) throw new Error("no PR");
-        return options.prBase;
-      }
-      return "";
-    });
-  }
-
-  // hook は hooks.json で async 実行され、結果の JSON を 1 回だけ返す
-  async function runStop(ctx: ReturnType<typeof createMockContext>): Promise<HookResult> {
-    await getHookRun()(ctx);
-    // json を呼ばずに success で終えた場合は、success の戻り値と同じ空の出力として扱う
-    return ctx.json.mock.calls[0]?.[0] ?? { output: {} };
-  }
-
   test("skips when stop_hook_active is true", () => {
     const ctx = createMockContext();
     ctx.input.stop_hook_active = true;
-    getHookRun()(ctx);
+    const run = getHookRun();
+    run(ctx);
     expect(ctx.success).toHaveBeenCalledWith({});
-    expect(ctx.json).not.toHaveBeenCalled();
+    expect(ctx.defer).not.toHaveBeenCalled();
   });
 
   test("skips when not a git repository", () => {
@@ -265,81 +168,221 @@ describe("hook run", () => {
       throw new Error("not a git repo");
     });
     const ctx = createMockContext();
-    getHookRun()(ctx);
+    const run = getHookRun();
+    run(ctx);
     expect(ctx.success).toHaveBeenCalledWith({});
-    expect(ctx.json).not.toHaveBeenCalled();
+    expect(ctx.defer).not.toHaveBeenCalled();
   });
 
   test("skips on detached HEAD", () => {
-    mockRepo({});
+    mockExecFileSync.mockImplementation((..._args) => {
+      const args = _args[1] as string[];
+      if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
+      if (args[0] === "symbolic-ref") throw new Error("detached HEAD");
+      return "";
+    });
     const ctx = createMockContext();
-    getHookRun()(ctx);
+    const run = getHookRun();
+    run(ctx);
     expect(ctx.success).toHaveBeenCalledWith({});
-    expect(ctx.json).not.toHaveBeenCalled();
   });
 
-  test("reports missing upstream", async () => {
-    mockRepo({ branch: "feature/test" });
-    const result = await runStop(createMockContext());
-    expect(result.output.systemMessage).toContain("upstream 未設定");
+  test("reports no remote tracking branch", async () => {
+    mockExecFileSync.mockImplementation((..._args) => {
+      const args = _args[1] as string[];
+      if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
+      if (args[0] === "symbolic-ref") return "feature/test";
+      if (args[0] === "rev-parse" && args[1] === "--abbrev-ref") throw new Error("no upstream");
+      // gh pr view
+      if (args[0] === "pr") throw new Error("no PR");
+      return "";
+    });
+    const ctx = createMockContext();
+    const run = getHookRun();
+    run(ctx);
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toContain("no remote tracking branch");
   });
 
-  test("stays silent when the branch is up to date", async () => {
-    mockRepo({ branch: "main", upstream: "origin/main" });
-    const result = await runStop(createMockContext());
+  test("defers with no systemMessage when branch is up to date", async () => {
+    mockExecFileSync.mockImplementation((..._args) => {
+      const args = _args[1] as string[];
+      if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
+      if (args[0] === "symbolic-ref") return "main";
+      if (args[0] === "rev-parse" && args[1] === "--abbrev-ref") return "origin/main";
+      if (args[0] === "rev-list") return "0\t0";
+      // gh pr view
+      if (args[0] === "pr") throw new Error("no PR");
+      return "";
+    });
+    const ctx = createMockContext();
+    const run = getHookRun();
+    run(ctx);
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
     expect(result.output.systemMessage).toBeUndefined();
   });
 
-  test("reports ahead once and stays silent until the state changes", async () => {
-    mockRepo({ branch: "feature/x", upstream: "origin/feature/x", revList: "0\t3" });
-    const first = await runStop(createMockContext("same-session"));
-    expect(first.output.systemMessage).toContain("3 コミット先行");
-
-    mockRepo({ branch: "feature/x", upstream: "origin/feature/x", revList: "0\t4" });
-    const second = await runStop(createMockContext("same-session"));
-    expect(second.output.systemMessage).toBeUndefined();
-
-    mockRepo({ branch: "feature/x", upstream: "origin/feature/x", revList: "0\t0" });
-    await runStop(createMockContext("same-session"));
-    mockRepo({ branch: "feature/x", upstream: "origin/feature/x", revList: "0\t1" });
-    const fourth = await runStop(createMockContext("same-session"));
-    expect(fourth.output.systemMessage).toContain("1 コミット先行");
-  });
-
-  test("reports behind without pulling", async () => {
-    mockRepo({ branch: "feature/x", upstream: "origin/feature/x", revList: "2\t0" });
-    const result = await runStop(createMockContext());
-    expect(result.output.systemMessage).toContain("2 コミット遅れている");
-    const pulled = mockExecFileSync.mock.calls.some(
-      (call) => call[0] === "git" && Array.isArray(call[1]) && call[1][0] === "pull",
-    );
-    expect(pulled).toBe(false);
-  });
-
-  test("reports conflicts with the PR base branch", async () => {
-    mockRepo({
-      branch: "feature/x",
-      upstream: "origin/feature/x",
-      prBase: "main",
-      mergeTree: [
-        "changed in both",
-        "  base   100644 abc1234 src/index.ts",
-        "  our    100644 def5678 src/index.ts",
-        "  their  100644 ghi9012 src/index.ts",
-        "+<<<<<<< .our",
-        " code",
-        "+>>>>>>> .their",
-        "",
-      ].join("\n"),
+  test("notifies when no PR exists and branch is ahead without auto-pushing", async () => {
+    mockExecFileSync.mockImplementation((..._args) => {
+      const args = _args[1] as string[];
+      if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
+      if (args[0] === "symbolic-ref") return "feature/x";
+      if (args[0] === "rev-parse" && args[1] === "--abbrev-ref") return "origin/feature/x";
+      if (args[0] === "rev-list") return "0\t3";
+      if (args[0] === "pr") throw new Error("no PR");
+      return "";
     });
-    const result = await runStop(createMockContext());
-    expect(result.output.systemMessage).toContain("feature/x → main");
+    const ctx = createMockContext();
+    const run = getHookRun();
+    run(ctx);
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toContain("3 commit(s) ahead");
+    expect(result.output.systemMessage).toContain("Consider pushing");
+  });
+
+  test("notifies when branch is ahead without auto-pushing", async () => {
+    mockExecFileSync.mockImplementation((..._args) => {
+      const cmd = _args[0];
+      const args = _args[1] as string[];
+      if (cmd === "git") {
+        if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
+        if (args[0] === "symbolic-ref") return "feature/x";
+        if (args[0] === "rev-parse" && args[1] === "--abbrev-ref") return "origin/feature/x";
+        if (args[0] === "rev-list") return "0\t3";
+        if (args[0] === "fetch") return "";
+        if (args[0] === "merge-base") return "abc123";
+        if (args[0] === "merge-tree") return "clean merge output";
+      }
+      if (cmd === "gh") return "main";
+      return "";
+    });
+    const ctx = createMockContext();
+    const run = getHookRun();
+    run(ctx);
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toContain("3 commit(s) ahead");
+    expect(result.output.systemMessage).toContain("Consider pushing");
+    expect(mockSpawnSync).not.toHaveBeenCalledWith(
+      expect.arrayContaining(["push"]),
+      expect.anything(),
+    );
+  });
+
+  test("auto-pulls when behind and notifies via systemMessage", async () => {
+    mockExecFileSync.mockImplementation((..._args) => {
+      const args = _args[1] as string[];
+      if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
+      if (args[0] === "symbolic-ref") return "feature/x";
+      if (args[0] === "rev-parse" && args[1] === "--abbrev-ref") return "origin/feature/x";
+      if (args[0] === "rev-list") return "2\t0";
+      if (args[0] === "pr") throw new Error("no PR");
+      return "";
+    });
+    mockSpawnSync.mockImplementation((..._args) => {
+      const args = _args[1] as string[];
+      if (args[0] === "pull") return { status: 0, stdout: "", stderr: "" };
+      return { status: 0, stdout: "", stderr: "" };
+    });
+    const ctx = createMockContext();
+    const run = getHookRun();
+    run(ctx);
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toContain("Auto-pulled 2 commit(s)");
+    expect(result.output.systemMessage).toContain("origin/feature/x");
+  });
+
+  test("reports pull failure via systemMessage when fast-forward is not possible", async () => {
+    mockExecFileSync.mockImplementation((..._args) => {
+      const args = _args[1] as string[];
+      if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
+      if (args[0] === "symbolic-ref") return "feature/x";
+      if (args[0] === "rev-parse" && args[1] === "--abbrev-ref") return "origin/feature/x";
+      if (args[0] === "rev-list") return "2\t0";
+      if (args[0] === "pr") throw new Error("no PR");
+      return "";
+    });
+    mockSpawnSync.mockImplementation((..._args) => {
+      const args = _args[1] as string[];
+      if (args[0] === "pull") {
+        return {
+          status: 1,
+          stdout: "",
+          stderr: "fatal: Not possible to fast-forward, aborting.",
+        };
+      }
+      return { status: 0, stdout: "", stderr: "" };
+    });
+    const ctx = createMockContext();
+    const run = getHookRun();
+    run(ctx);
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toContain("Auto-pull failed");
+    expect(result.output.systemMessage).toContain("2 commit(s) behind");
+    expect(result.output.systemMessage).toContain("Not possible to fast-forward");
+  });
+
+  test("reports merge conflicts with PR base branch", async () => {
+    const conflictMergeTree = [
+      "changed in both",
+      "  base   100644 abc1234 src/index.ts",
+      "  our    100644 def5678 src/index.ts",
+      "  their  100644 ghi9012 src/index.ts",
+      "+<<<<<<< .our",
+      " code",
+      "+>>>>>>> .their",
+      "",
+    ].join("\n");
+    mockExecFileSync.mockImplementation((..._args) => {
+      const cmd = _args[0];
+      const args = _args[1] as string[];
+      if (cmd === "git") {
+        if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
+        if (args[0] === "symbolic-ref") return "feature/x";
+        if (args[0] === "rev-parse" && args[1] === "--abbrev-ref") return "origin/feature/x";
+        if (args[0] === "rev-list") return "0\t0";
+        if (args[0] === "fetch") return "";
+        if (args[0] === "merge-base") return "abc123";
+        if (args[0] === "merge-tree") return conflictMergeTree;
+      }
+      if (cmd === "gh") return "main";
+      return "";
+    });
+    const ctx = createMockContext();
+    const run = getHookRun();
+    run(ctx);
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
+    expect(result.output.systemMessage).toContain("merge conflicts");
     expect(result.output.systemMessage).toContain("src/index.ts");
   });
 
-  test("stays silent when the PR has no conflicts", async () => {
-    mockRepo({ branch: "feature/x", upstream: "origin/feature/x", prBase: "main" });
-    const result = await runStop(createMockContext());
+  test("defers with no systemMessage when no conflicts with PR base branch", async () => {
+    mockExecFileSync.mockImplementation((..._args) => {
+      const cmd = _args[0];
+      const args = _args[1] as string[];
+      if (cmd === "git") {
+        if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return "true";
+        if (args[0] === "symbolic-ref") return "feature/x";
+        if (args[0] === "rev-parse" && args[1] === "--abbrev-ref") return "origin/feature/x";
+        if (args[0] === "rev-list") return "0\t0";
+        if (args[0] === "fetch") return "";
+        if (args[0] === "merge-base") return "abc123";
+        if (args[0] === "merge-tree") return "clean merge output";
+      }
+      if (cmd === "gh") return "main";
+      return "";
+    });
+    const ctx = createMockContext();
+    const run = getHookRun();
+    run(ctx);
+    expect(ctx.defer).toHaveBeenCalled();
+    const result = await ctx.runDeferred();
     expect(result.output.systemMessage).toBeUndefined();
   });
 });

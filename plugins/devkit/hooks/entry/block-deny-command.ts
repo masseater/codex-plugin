@@ -11,13 +11,15 @@ import { defineHook, runHook } from "cc-hooks-ts";
 using logger = HookLogger.fromFile(import.meta.filename);
 
 /** 禁止コマンドのルール定義 */
-export type DenyRule = {
+type DenyRule = {
   /** コマンド名（正規表現パターン） */
   pattern: RegExp;
   /** 表示名 */
   name: string;
   /** 代替として推奨するコマンド */
   alternative: string;
+  /** ブロック理由の説明 */
+  reason: string;
   /** なぜこのコマンドが禁止されているか */
   why: string;
 };
@@ -26,24 +28,27 @@ export type DenyRule = {
  * 禁止コマンドルール一覧
  * 新しいルールを追加する場合はここに追記する
  */
-export const DENY_RULES: readonly DenyRule[] = [
+const DENY_RULES: readonly DenyRule[] = [
   {
     pattern: /^npx\s/,
     name: "npx",
     alternative: "pnpx",
-    why: "lockfile を参照せず任意のバージョンを取得しうるため",
+    reason: "pnpx を使用すること",
+    why: "npx does not respect lockfiles and may download arbitrary package versions.",
   },
   {
     pattern: /^npm\s/,
     name: "npm",
     alternative: "pnpm",
-    why: "プロジェクトのパッケージマネージャーと食い違い、lockfile が不整合になるため",
+    reason: "pnpm を使用すること",
+    why: "npm conflicts with the project's package manager and creates inconsistent lockfiles.",
   },
   {
     pattern: /^tsc\b/,
     name: "tsc",
     alternative: "tsgo",
-    why: "型チェックは tsgo に統一しており、tsc は設定済みのツールチェーンと合わないため",
+    reason: "tsgo を使用すること",
+    why: "tsgo (native TypeScript 7.x) is the project standard for type checking; tsc is slower and not aligned with the configured toolchain.",
   },
 ] as const;
 
@@ -52,22 +57,10 @@ const ENV_KEY = "DEVKIT_ENFORCE_TOOLS" as const;
 
 /**
  * コマンドが禁止ルールに違反しているかチェック
- *
- * @param command - チェック対象のコマンド文字列
- * @returns マッチした最初の禁止ルール、なければ undefined
  */
-export const findViolation = (command: string): DenyRule | undefined => {
+const findViolation = (command: string): DenyRule | undefined => {
   return DENY_RULES.find((rule) => rule.pattern.test(command));
 };
-
-/**
- * deny 時に Claude へ渡す理由文を組み立てる
- *
- * @param rule - 違反した禁止ルール
- * @returns 理由と代替コマンドを含む 1 行の文
- */
-export const formatDenyReason = (rule: DenyRule): string =>
-  `${rule.name} はこのプロジェクトでは使わない（${rule.why}）。代わりに \`${rule.alternative}\` を使う。`;
 
 const hook = defineHook({
   trigger: {
@@ -82,7 +75,16 @@ const hook = defineHook({
       return context.success({});
     }
 
-    const command = context.input.tool_input.command;
+    const input = context.input;
+    if (!input) {
+      return context.success({});
+    }
+
+    const command = input.tool_input.command;
+    if (!command) {
+      return context.success({});
+    }
+
     logger.debug(`Checking command: ${command}`);
 
     const violation = findViolation(command);
@@ -90,7 +92,12 @@ const hook = defineHook({
       return context.success({});
     }
 
-    const message = formatDenyReason(violation);
+    const message = `🚫 禁止コマンド検出: ${violation.name}
+
+${violation.reason}
+
+WHY: ${violation.why}
+FIX: Use \`${violation.alternative}\` instead of \`${violation.name}\`.`;
 
     logger.warn(`Blocked command: ${violation.name}`, { command });
 

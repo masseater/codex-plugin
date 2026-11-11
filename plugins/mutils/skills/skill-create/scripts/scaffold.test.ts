@@ -1,5 +1,4 @@
-import { afterEach, describe, expect, test, vi } from "vite-plus/test";
-import { runScript } from "../../../__tests__/run-script.ts";
+import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -12,16 +11,24 @@ function createTmpDir(): string {
     `scaffold-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
   mkdirSync(dir, { recursive: true });
-  mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
-  writeFileSync(
-    path.join(dir, ".claude-plugin/plugin.json"),
-    JSON.stringify({ name: "test-plugin" }),
-  );
+  writeFileSync(path.join(dir, "plugin.json"), JSON.stringify({ name: "test-plugin" }));
   return dir;
 }
 
-function run(...args: string[]) {
-  return runScript(SCRIPT_PATH, args);
+function run(...args: string[]): {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+} {
+  const result = Bun.spawnSync([SCRIPT_PATH, ...args], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  return {
+    stdout: result.stdout.toString(),
+    stderr: result.stderr.toString(),
+    exitCode: result.exitCode,
+  };
 }
 
 const tmpDirs: string[] = [];
@@ -34,11 +41,11 @@ afterEach(() => {
 });
 
 describe("scaffold", () => {
-  test("creates skill directory with SKILL.md", async () => {
+  test("creates skill directory with SKILL.md", () => {
     const dir = createTmpDir();
     tmpDirs.push(dir);
 
-    const { stdout, exitCode } = await run("--plugin-dir", dir, "--skill-name", "my-skill");
+    const { stdout, exitCode } = run("--plugin-dir", dir, "--skill-name", "my-skill");
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
@@ -48,16 +55,16 @@ describe("scaffold", () => {
     expect(existsSync(skillDir)).toBe(true);
 
     const skillMd = readFileSync(path.join(skillDir, "SKILL.md"), "utf-8");
-    expect(skillMd).toContain("name: my-skill");
+    expect(skillMd).toContain("name: test-plugin:my-skill");
     expect(skillMd).toContain("description:");
-    expect(skillMd).not.toContain("disable-model-invocation");
+    expect(skillMd).toContain("disable-model-invocation: true");
   });
 
-  test("creates scripts/ directory with --scripts flag", async () => {
+  test("creates scripts/ directory with --scripts flag", () => {
     const dir = createTmpDir();
     tmpDirs.push(dir);
 
-    const { stdout, exitCode } = await run(
+    const { stdout, exitCode } = run(
       "--plugin-dir",
       dir,
       "--skill-name",
@@ -73,11 +80,11 @@ describe("scaffold", () => {
     expect(existsSync(scriptsDir)).toBe(true);
   });
 
-  test("creates references/ directory with --references flag", async () => {
+  test("creates references/ directory with --references flag", () => {
     const dir = createTmpDir();
     tmpDirs.push(dir);
 
-    const { stdout, exitCode } = await run(
+    const { stdout, exitCode } = run(
       "--plugin-dir",
       dir,
       "--skill-name",
@@ -93,38 +100,38 @@ describe("scaffold", () => {
     expect(existsSync(refsDir)).toBe(true);
   });
 
-  test("fails without arguments", async () => {
-    const { exitCode, stderr } = await run();
+  test("fails without arguments", () => {
+    const { exitCode, stderr } = run();
     expect(exitCode).toBe(1);
     expect(stderr).toContain("Missing required option");
   });
 
-  test("rejects non-kebab-case names", async () => {
+  test("rejects non-kebab-case names", () => {
     const dir = createTmpDir();
     tmpDirs.push(dir);
 
-    const { exitCode, stderr } = await run("--plugin-dir", dir, "--skill-name", "MySkill");
+    const { exitCode, stderr } = run("--plugin-dir", dir, "--skill-name", "MySkill");
     expect(exitCode).toBe(1);
     expect(stderr).toContain("kebab-case");
   });
 
-  test("rejects names starting with a digit", async () => {
+  test("rejects names starting with a digit", () => {
     const dir = createTmpDir();
     tmpDirs.push(dir);
 
-    const { exitCode, stderr } = await run("--plugin-dir", dir, "--skill-name", "1-bad");
+    const { exitCode, stderr } = run("--plugin-dir", dir, "--skill-name", "1-bad");
     expect(exitCode).toBe(1);
     expect(stderr).toContain("kebab-case");
   });
 
-  test("fails if skill directory already exists", async () => {
+  test("fails if skill directory already exists", () => {
     const dir = createTmpDir();
     tmpDirs.push(dir);
 
     const skillDir = path.join(dir, "skills", "existing");
     mkdirSync(skillDir, { recursive: true });
 
-    const { exitCode, stderr } = await run("--plugin-dir", dir, "--skill-name", "existing");
+    const { exitCode, stderr } = run("--plugin-dir", dir, "--skill-name", "existing");
     expect(exitCode).toBe(1);
     expect(stderr).toContain("already exists");
   });

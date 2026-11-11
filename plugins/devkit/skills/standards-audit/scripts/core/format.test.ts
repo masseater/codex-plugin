@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect, test } from "bun:test";
 import { formatReport } from "./format.ts";
 import type { Finding, ProjectContext, WorkspaceInfo } from "./types.ts";
 
@@ -131,20 +131,6 @@ describe("formatReport", () => {
     expect(result).toContain("### (root)");
     expect(result).toContain("### apps/web (web)");
     expect(result).toContain("across 2 scopes");
-  });
-
-  test("scopeResults の順序によらず (root) を先頭にして、残りは名前順に並べる", () => {
-    const [root, a, b] = ["(root)", "apps/a", "apps/b"].map((label) => makeScope({ label }));
-    const result = formatReport({
-      workspace: makeWorkspace({ isMonorepo: true, scopes: [root!, a!, b!] }),
-      scopeResults: [b!, a!, root!].map((scope) => ({
-        scope,
-        findings: [makeFinding({ message: `in ${scope.label}` })],
-      })),
-    });
-    const positions = ["in (root)", "in apps/a", "in apps/b"].map((text) => result.indexOf(text));
-    expect(positions).toEqual(positions.toSorted((x, y) => x - y));
-    expect(positions.every((p) => p >= 0)).toBe(true);
   });
 
   test("findings are sorted by file then line", () => {

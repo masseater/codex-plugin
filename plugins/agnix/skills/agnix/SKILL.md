@@ -1,21 +1,89 @@
 ---
-name: agnix
-description: agnix CLI で Claude Code の設定ファイルをベストプラクティス違反の観点で lint し、修正する。対象は CLAUDE.md / AGENTS.md / SKILL.md / hooks.json / plugin.json / settings.json / .mcp.json / .claude/rules である。「AGENTS.md を lint して」「SKILL.md の設定ミスを検査して」と頼まれたときに使う。
+name: agnix:agnix
+description: 'This skill should be used when the user asks to "lint AI assistant config", "check AGENTS.md", "validate SKILL.md", "agnix lint", or wants to detect and fix best-practice violations in Claude Code / agent configuration files.'
 ---
 
 # agnix
 
-この plugin の PostToolUse hook は、上記の設定ファイルを編集するたびに `agnix --format json <file>` を実行し、error か warning があれば結果を返す。ここではまとめて検査・修正するときの使い方を書く。
+AI コーディングアシスタント設定ファイルのリンター。`/agnix:lint` で検証、`/agnix:setup` でインストール。
 
-## コマンド
+## サブコマンド
 
-- 検査: `agnix <path>`（`<path>` はファイルかディレクトリ）。終了コードは error があるときだけ 1 で、warning だけなら 0 になる。`--target` は非推奨で、付けると毎回非推奨の警告が出るので付けない。対象ツールを絞るときは `.agnix.toml` の `tools` 配列で指定する
-- 修正の差分を確認: `agnix --dry-run --show-fixes <path>`
-- 確度の高い修正だけ適用: `agnix --fix-safe <path>`
-- 警告もエラー扱い（CI 向け）: `agnix --strict <path>`
+### /agnix:lint
 
-既定は `--fix-safe` にする。`--fix` の範囲は版によって違う（安全な修正だけの版と、確度が中程度の修正まで含む版がある）。そのため `--fix` や `--fix-unsafe` を使う前に `agnix --help` で意味を確かめ、`--dry-run --show-fixes` で差分を見てから適用する。
+設定ファイルを lint する。
 
-## インストール
+```bash
+# カレントディレクトリを claude-code 向けに検証
+agnix --target claude-code .
 
-`agnix` が PATH に無いと hook は何もしない。`npm install -g agnix` で入れ、`agnix --version` で確認する。
+# 特定ファイルを検証
+agnix --target claude-code CLAUDE.md
+
+# 自動修正（HIGH + MEDIUM confidence）
+agnix --target claude-code --fix .
+
+# 安全な修正のみ（HIGH confidence）
+agnix --target claude-code --fix-safe .
+
+# 修正プレビュー（dry-run）
+agnix --dry-run --show-fixes --target claude-code .
+
+# 警告もエラーとして扱う
+agnix --target claude-code --strict .
+```
+
+**引数:**
+
+- `--target <tool>` — 対象ツール（claude-code, cursor, copilot, mcp, agents-md, agent-skills, gemini-cli）
+- `--fix` — HIGH + MEDIUM confidence の自動修正を適用
+- `--fix-safe` — HIGH confidence のみ修正
+- `--fix-unsafe` — 全 confidence レベルの修正を適用
+- `--dry-run --show-fixes` — 修正のプレビュー（差分表示）
+- `--strict` — 警告をエラーとして扱う
+
+`--target` 未指定時は全ターゲットが対象になる。Claude Code プロジェクトでは `--target claude-code` を推奨。
+
+### /agnix:setup
+
+agnix をインストールする。
+
+```bash
+# npm（推奨）
+npm install -g agnix
+
+# Homebrew
+brew tap avifenesh/agnix && brew install agnix
+
+# Cargo
+cargo install agnix-cli
+```
+
+インストール確認:
+
+```bash
+agnix --version
+```
+
+## 対象ファイル
+
+agnix が検証する設定ファイル:
+
+- `CLAUDE.md`, `AGENTS.md`, `SKILL.md`
+- `hooks.json`, `plugin.json`, `settings.json`
+- `*.mcp.json`
+- `.claude/rules/*.md`
+
+## ルール数
+
+169 ルール（Claude Code: 53, Agent Skills: 31, AGENTS.md: 13, MCP: 12, Cursor: 10, Copilot: 6, Gemini CLI: 3 等）
+
+## CI
+
+GitHub Actions で CI に組み込める:
+
+```yaml
+- uses: avifenesh/agnix@v0
+  with:
+    target: claude-code
+```

@@ -16,98 +16,106 @@ function formatLocation(f: Finding): string {
   return "(project-level)";
 }
 
-function fileKey(finding: Finding): string {
-  return finding.file ?? "\uffff";
-}
-
-function lineKey(finding: Finding): number {
-  return finding.line ?? Number.MAX_SAFE_INTEGER;
-}
-
-function compareFindings(a: Finding, b: Finding): number {
-  const fileA = fileKey(a);
-  const fileB = fileKey(b);
-  return fileA === fileB ? lineKey(a) - lineKey(b) : fileA.localeCompare(fileB);
-}
-
 function sortFindings(findings: Finding[]): Finding[] {
-  return [...findings].toSorted(compareFindings);
-}
-
-function severitySection(findings: Finding[], heading: string): string[] {
-  if (findings.length === 0) return [];
-  return [
-    heading,
-    "",
-    ...sortFindings(findings).map((f) => `- [${f.rule}] ${formatLocation(f)} — ${f.message}`),
-    "",
-  ];
-}
-
-function bySeverity(findings: Finding[]): { violations: Finding[]; warnings: Finding[] } {
-  return {
-    violations: findings.filter((f) => f.severity === "violation"),
-    warnings: findings.filter((f) => f.severity === "warning"),
-  };
+  return [...findings].toSorted((a, b) => {
+    const fileA = a.file ?? "\uffff";
+    const fileB = b.file ?? "\uffff";
+    if (fileA !== fileB) return fileA.localeCompare(fileB);
+    const lineA = a.line ?? Number.MAX_SAFE_INTEGER;
+    const lineB = b.line ?? Number.MAX_SAFE_INTEGER;
+    return lineA - lineB;
+  });
 }
 
 function formatScopeFindings(findings: Finding[], headingPrefix: string): string[] {
-  const { violations, warnings } = bySeverity(findings);
-  return [
-    ...severitySection(violations, `${headingPrefix} Violations`),
-    ...severitySection(warnings, `${headingPrefix} Warnings`),
-  ];
-}
+  const lines: string[] = [];
+  const violations = findings.filter((f) => f.severity === "violation");
+  const warnings = findings.filter((f) => f.severity === "warning");
 
-function singleScopeLines({ scope, findings }: ScopeResult): string[] {
-  const typeStr = scope.types.length > 0 ? scope.types.join(", ") : "unknown";
-  const header = [`Type: ${typeStr}`, ""];
-  if (findings.length === 0) return [...header, "All checks passed."];
-  const { violations, warnings } = bySeverity(findings);
-  return [
-    ...header,
-    ...formatScopeFindings(findings, "###"),
-    `Summary: ${violations.length} violations, ${warnings.length} warnings`,
-  ];
-}
+  if (violations.length > 0) {
+    lines.push(`${headingPrefix} Violations`);
+    lines.push("");
+    for (const f of sortFindings(violations)) {
+      lines.push(`- [${f.rule}] ${formatLocation(f)} — ${f.message}`);
+    }
+    lines.push("");
+  }
 
-// Sort: (root) first, then alphabetical
-function compareScopes(a: ScopeResult, b: ScopeResult): number {
-  if (a.scope.label === "(root)") return -1;
-  if (b.scope.label === "(root)") return 1;
-  return a.scope.label.localeCompare(b.scope.label);
-}
+  if (warnings.length > 0) {
+    lines.push(`${headingPrefix} Warnings`);
+    lines.push("");
+    for (const f of sortFindings(warnings)) {
+      lines.push(`- [${f.rule}] ${formatLocation(f)} — ${f.message}`);
+    }
+    lines.push("");
+  }
 
-function scopeHeading(scope: ProjectContext): string {
-  const typeStr = scope.types.join(", ");
-  return typeStr ? `### ${scope.label} (${typeStr})` : `### ${scope.label}`;
-}
-
-function monorepoScopeLines({ scope, findings }: ScopeResult): string[] {
-  const body =
-    findings.length === 0 ? ["All checks passed.", ""] : formatScopeFindings(findings, "####");
-  return [scopeHeading(scope), "", ...body];
-}
-
-function monorepoLines(scopeResults: ScopeResult[]): string[] {
-  const sorted = scopeResults.toSorted(compareScopes);
-  const { violations, warnings } = bySeverity(sorted.flatMap((result) => result.findings));
-  return [
-    "Type: monorepo",
-    "",
-    ...sorted.flatMap(monorepoScopeLines),
-    `Summary: ${violations.length} violations, ${warnings.length} warnings across ${sorted.length} scopes`,
-  ];
+  return lines;
 }
 
 function formatReport(result: AuditResult): string {
   const { workspace, scopeResults } = result;
-  return [
-    "## Standards Audit Report",
-    "",
-    `Project: ${workspace.rootDir}`,
-    ...(workspace.isMonorepo ? monorepoLines(scopeResults) : singleScopeLines(scopeResults[0]!)),
-  ].join("\n");
+  const lines: string[] = [];
+
+  lines.push("## Standards Audit Report");
+  lines.push("");
+  lines.push(`Project: ${workspace.rootDir}`);
+
+  if (!workspace.isMonorepo) {
+    const { scope, findings } = scopeResults[0]!;
+    const typeStr = scope.types.length > 0 ? scope.types.join(", ") : "unknown";
+    lines.push(`Type: ${typeStr}`);
+    lines.push("");
+
+    if (findings.length === 0) {
+      lines.push("All checks passed.");
+      return lines.join("\n");
+    }
+
+    lines.push(...formatScopeFindings(findings, "###"));
+
+    const violations = findings.filter((f: Finding) => f.severity === "violation");
+    const warnings = findings.filter((f: Finding) => f.severity === "warning");
+    lines.push(`Summary: ${violations.length} violations, ${warnings.length} warnings`);
+  } else {
+    lines.push("Type: monorepo");
+    lines.push("");
+
+    let totalViolations = 0;
+    let totalWarnings = 0;
+
+    // Sort: (root) first, then alphabetical
+    const sorted = [...scopeResults].toSorted((a, b) => {
+      if (a.scope.label === "(root)") return -1;
+      if (b.scope.label === "(root)") return 1;
+      return a.scope.label.localeCompare(b.scope.label);
+    });
+
+    for (const { scope, findings } of sorted) {
+      const typeStr = scope.types.join(", ");
+      const heading = typeStr ? `### ${scope.label} (${typeStr})` : `### ${scope.label}`;
+      lines.push(heading);
+      lines.push("");
+
+      const violations = findings.filter((f) => f.severity === "violation");
+      const warnings = findings.filter((f) => f.severity === "warning");
+      totalViolations += violations.length;
+      totalWarnings += warnings.length;
+
+      if (findings.length === 0) {
+        lines.push("All checks passed.");
+        lines.push("");
+      } else {
+        lines.push(...formatScopeFindings(findings, "####"));
+      }
+    }
+
+    lines.push(
+      `Summary: ${totalViolations} violations, ${totalWarnings} warnings across ${sorted.length} scopes`,
+    );
+  }
+
+  return lines.join("\n");
 }
 
 export { formatReport };

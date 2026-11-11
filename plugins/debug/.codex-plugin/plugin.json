@@ -1,6 +1,6 @@
 {
   "name": "debug",
-  "version": "0.0.30",
+  "version": "0.0.24",
   "description": "plugin debug 用",
   "author": {
     "name": "masseater",
@@ -20,5 +20,6 @@
     "developerName": "masseater",
     "category": "Productivity"
   },
+  "skills": "./skills/",
   "hooks": "./hooks/hooks.json"
 }

@@ -1,37 +1,35 @@
 #!/usr/bin/env bun
 
 import { defineCommand, runMain } from "citty";
-import * as v from "valibot";
-import { figmaJson, getToken, log } from "./_lib.ts";
+import { getToken, log } from "./_lib.ts";
 
-const FigmaFrameSchema = v.looseObject({
-  id: v.string(),
-  name: v.string(),
-  type: v.string(),
-});
+type FigmaDocument = {
+  id: string;
+  name: string;
+  type: string;
+  children?: FigmaDocument[];
+};
 
-const FigmaPageSchema = v.looseObject({
-  id: v.string(),
-  name: v.string(),
-  children: v.optional(v.array(FigmaFrameSchema)),
-});
+type FigmaFileResponse = {
+  name: string;
+  lastModified: string;
+  version: string;
+  document: FigmaDocument;
+};
 
-/** GET /v1/files/:key?depth=2 のレスポンスのうち、このスクリプトが読む部分 */
-const FigmaFileResponseSchema = v.looseObject({
-  name: v.string(),
-  lastModified: v.string(),
-  version: v.string(),
-  document: v.looseObject({
-    children: v.optional(v.array(FigmaPageSchema)),
-  }),
-});
+async function fetchFileTree(fileKey: string, token: string): Promise<FigmaFileResponse> {
+  const url = new URL(`https://api.figma.com/v1/files/${fileKey}`);
+  url.searchParams.set("depth", "2");
 
-async function fetchFileTree(
-  fileKey: string,
-  token: string,
-): Promise<v.InferOutput<typeof FigmaFileResponseSchema>> {
-  const data = await figmaJson(["files", fileKey], { depth: "2" }, token, "Figma API");
-  return v.parse(FigmaFileResponseSchema, data);
+  const res = await fetch(url, {
+    headers: { "X-Figma-Token": token },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Figma API failed: ${res.status} ${res.statusText}`);
+  }
+
+  return (await res.json()) as FigmaFileResponse;
 }
 
 const main = defineCommand({
@@ -59,7 +57,7 @@ const main = defineCommand({
   async run({ args }) {
     const token = getToken();
     const fileKey = args["file-key"];
-    const verbose = args.verbose;
+    const verbose = args.verbose as boolean;
 
     log(verbose, `[DEBUG] Fetching file tree for ${fileKey}...`);
 
@@ -110,4 +108,4 @@ const main = defineCommand({
   },
 });
 
-await runMain(main);
+runMain(main);

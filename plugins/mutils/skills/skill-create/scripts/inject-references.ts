@@ -9,7 +9,7 @@
  * If markers are absent, appends them to the end of SKILL.md.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { pathIn } from "../../../hooks/lib/path-in.js";
+import path from "node:path";
 
 const skillDirArg = process.argv[2];
 
@@ -19,7 +19,7 @@ if (!skillDirArg) {
 }
 
 const skillDir: string = skillDirArg;
-const skillMdPath = pathIn(skillDir, "SKILL.md");
+const skillMdPath = path.join(skillDir, "SKILL.md");
 if (!existsSync(skillMdPath)) {
   process.stderr.write(`Error: SKILL.md not found in ${skillDir}\n`);
   process.exit(1);
@@ -31,59 +31,25 @@ type FileEntry = {
   description: string;
 };
 
-function frontmatterOf(content: string): string | undefined {
-  return /^---\n([\s\S]*?)\n---/.exec(content)?.[1];
-}
-
-function descriptionLine(frontmatter: string): string | undefined {
-  return /^description:\s*["']?(.*?)["']?\s*$/m.exec(frontmatter)?.[1]?.trim();
-}
-
 /** Extract YAML frontmatter description from a markdown file. */
 function extractFrontmatterDescription(content: string): string | null {
-  const frontmatter = frontmatterOf(content);
-  if (frontmatter === undefined) return null;
-  return descriptionLine(frontmatter) || null;
+  const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!fmMatch?.[1]) return null;
+  const descMatch = fmMatch[1].match(/^description:\s*["']?(.*?)["']?\s*$/m);
+  if (!descMatch?.[1]) return null;
+  const desc = descMatch[1].trim();
+  return desc.length > 0 ? desc : null;
 }
-
-const SCRIPT_DESCRIPTION_PATTERNS = [/\/\*\*\s*\n\s*\*\s*(.+)/, /^#\s+(.+)$/m];
 
 /** Extract description from a script file (JSDoc or first comment). */
 function extractScriptDescription(content: string): string {
-  return (
-    SCRIPT_DESCRIPTION_PATTERNS.map((pattern) => pattern.exec(content)?.[1]?.trim()).find(
-      Boolean,
-    ) ?? ""
-  );
-}
+  const jsdocMatch = content.match(/\/\*\*\s*\n\s*\*\s*(.+)/);
+  if (jsdocMatch?.[1]) return jsdocMatch[1].trim();
 
-/**
- * Read a resource file. An unreadable file has no description, which is not fatal.
- */
-function readResource(filePath: string): string | undefined {
-  try {
-    return readFileSync(filePath, "utf-8");
-  } catch (error) {
-    // 読めないファイルは説明なしで一覧に載せる。一覧の生成は続けられるため、原因だけ stderr に残す
-    process.stderr.write(`Skipped description of ${filePath}: ${String(error)}\n`);
-    return undefined;
-  }
-}
+  const headingMatch = content.match(/^#\s+(.+)$/m);
+  if (headingMatch?.[1]) return headingMatch[1].trim();
 
-/** references/*.md must have a frontmatter description; exit with an error otherwise. */
-function requiredReferenceDescription(content: string, relativePath: string): string {
-  const desc = extractFrontmatterDescription(content);
-  if (!desc) {
-    process.stderr.write(
-      `Error: ${relativePath} is missing YAML frontmatter 'description' field.\n` +
-        "References must have frontmatter with a description. Example:\n" +
-        "---\n" +
-        "description: Short summary of what this reference covers\n" +
-        "---\n",
-    );
-    process.exit(1);
-  }
-  return desc;
+  return "";
 }
 
 /**
@@ -93,12 +59,29 @@ function requiredReferenceDescription(content: string, relativePath: string): st
  * - assets/*: best-effort
  */
 function extractDescription(filePath: string, relativePath: string, category: string): string {
-  const content = readResource(filePath);
-  if (content === undefined) return "";
-  if (category === "References" && filePath.endsWith(".md")) {
-    return requiredReferenceDescription(content, relativePath);
+  try {
+    const content = readFileSync(filePath, "utf-8");
+
+    if (category === "References" && filePath.endsWith(".md")) {
+      const desc = extractFrontmatterDescription(content);
+      if (!desc) {
+        process.stderr.write(
+          `Error: ${relativePath} is missing YAML frontmatter 'description' field.\n` +
+            "References must have frontmatter with a description. Example:\n" +
+            "---\n" +
+            "description: Short summary of what this reference covers\n" +
+            "---\n",
+        );
+        process.exit(1);
+      }
+      return desc;
+    }
+
+    return extractScriptDescription(content);
+  } catch {
+    // Fall through
   }
-  return extractScriptDescription(content);
+  return "";
 }
 
 /** Test file patterns to exclude from scripts/ scanning */
@@ -108,34 +91,31 @@ function isTestFile(filename: string): boolean {
   return TEST_PATTERNS.some((p) => p.test(filename));
 }
 
-function listDirectory(dirPath: string): string[] {
-  try {
-    return readdirSync(dirPath).toSorted();
-  } catch (error) {
-    // 読めないディレクトリは同梱リソースなしとして扱い、他のディレクトリの一覧は作る。原因だけ stderr に残す
-    process.stderr.write(`Skipped unreadable directory ${dirPath}: ${String(error)}\n`);
-    return [];
-  }
-}
-
-function isRegularFile(filePath: string): boolean {
-  return statSync(filePath, { throwIfNoEntry: false })?.isFile() === true;
-}
-
 function scanDirectory(dirName: string, category: string): FileEntry[] {
-  const dirPath = pathIn(skillDir, dirName);
+  const dirPath = path.join(skillDir, dirName);
   if (!existsSync(dirPath)) return [];
 
-  return listDirectory(dirPath)
-    .filter((file) => !isTestFile(file) && isRegularFile(pathIn(dirPath, file)))
-    .map((file) => {
+  const entries: FileEntry[] = [];
+  try {
+    const files = readdirSync(dirPath).toSorted();
+    for (const file of files) {
+      if (isTestFile(file)) continue;
+
+      const filePath = path.join(dirPath, file);
+      const stat = statSync(filePath);
+      if (!stat.isFile()) continue;
+
       const relPath = `${dirName}/${file}`;
-      return {
+      entries.push({
         category,
         relativePath: relPath,
-        description: extractDescription(pathIn(dirPath, file), relPath, category),
-      };
-    });
+        description: extractDescription(filePath, relPath, category),
+      });
+    }
+  } catch {
+    // Skip unreadable directories
+  }
+  return entries;
 }
 
 // Scan all resource directories
@@ -145,27 +125,27 @@ const allEntries = [
   ...scanDirectory("assets", "Assets"),
 ];
 
-function groupByCategory(entries: FileEntry[]): Map<string, FileEntry[]> {
-  const grouped = new Map<string, FileEntry[]>();
-  for (const entry of entries) {
-    grouped.set(entry.category, [...(grouped.get(entry.category) ?? []), entry]);
-  }
-  return grouped;
-}
-
-function entryLine(item: FileEntry): string {
-  const desc = item.description ? ` — ${item.description}` : "";
-  return `- \`${item.relativePath}\`${desc}`;
-}
-
 // Generate markdown
 function generateMarkdown(entries: FileEntry[]): string {
   if (entries.length === 0) return "(No bundled resources found)";
-  const lines: string[] = [];
-  for (const [category, items] of groupByCategory(entries)) {
-    lines.push(`### ${category}\n`, ...items.map(entryLine), "");
+
+  const grouped = new Map<string, FileEntry[]>();
+  for (const entry of entries) {
+    const list = grouped.get(entry.category) ?? [];
+    list.push(entry);
+    grouped.set(entry.category, list);
   }
-  return lines.join("\n").trimEnd();
+
+  const sections: string[] = [];
+  for (const [category, items] of grouped) {
+    sections.push(`### ${category}\n`);
+    for (const item of items) {
+      const desc = item.description ? ` — ${item.description}` : "";
+      sections.push(`- \`${item.relativePath}\`${desc}`);
+    }
+    sections.push("");
+  }
+  return sections.join("\n").trimEnd();
 }
 
 const markdown = generateMarkdown(allEntries);
@@ -178,15 +158,15 @@ const START_MARKER =
 const END_MARKER = "<!-- REFERENCES_END -->";
 const fullSection = `${START_MARKER}\n${markdown}\n${END_MARKER}`;
 
-const startIndex = content.indexOf(START_MARKER);
-const endIndex = startIndex === -1 ? -1 : content.indexOf(END_MARKER, startIndex);
-if (endIndex === -1) {
+if (content.includes(START_MARKER) && content.includes(END_MARKER)) {
+  // Update existing markers
+  content = content.replace(
+    new RegExp(`${escapeRegex(START_MARKER)}[\\s\\S]*?${escapeRegex(END_MARKER)}`),
+    fullSection,
+  );
+} else {
   // Append new section
   content = `${content.trimEnd()}\n\n## Bundled Resources\n\n${fullSection}\n`;
-} else {
-  // Update existing markers
-  content =
-    content.slice(0, startIndex) + fullSection + content.slice(endIndex + END_MARKER.length);
 }
 
 await Bun.write(skillMdPath, content);
@@ -198,3 +178,7 @@ const result = {
   categories: [...new Set(allEntries.map((e) => e.category))],
 };
 process.stdout.write(JSON.stringify(result, null, 2));
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

@@ -7,8 +7,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 const SKILL_MD_TEMPLATE = `---
-name: library-knowledge
-description: 過去に調査したライブラリ・フレームワーク・ツールの使い方、API、互換性、比較のナレッジベース。一覧にあるライブラリを使う・選ぶときに参照する。
+description: 過去に調査したライブラリ・フレームワーク・ツールのナレッジベース。ライブラリの使い方、API、互換性、比較情報が必要な時に参照する。「〜の使い方」「〜のAPI」「〜と〜の違い」「前に調べた〜」と言われた時に使用する。
 ---
 
 # Library Knowledge Base

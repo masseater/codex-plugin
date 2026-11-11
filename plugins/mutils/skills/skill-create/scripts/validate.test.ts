@@ -1,32 +1,7 @@
-import { afterEach, describe, expect, test, vi } from "vite-plus/test";
-import { runScript } from "../../../__tests__/run-script.ts";
+import { afterEach, describe, expect, test } from "bun:test";
 import { chmodSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-
-type ValidationResult = { valid: boolean; errors: string[]; warnings: string[] };
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
-
-// validate.ts が stdout に出す JSON を検証して読む
-function parseValidationResult(stdout: string): ValidationResult {
-  const parsed: unknown = JSON.parse(stdout);
-  if (
-    typeof parsed === "object" &&
-    parsed !== null &&
-    "valid" in parsed &&
-    typeof parsed.valid === "boolean" &&
-    "errors" in parsed &&
-    isStringArray(parsed.errors) &&
-    "warnings" in parsed &&
-    isStringArray(parsed.warnings)
-  ) {
-    return { valid: parsed.valid, errors: parsed.errors, warnings: parsed.warnings };
-  }
-  throw new Error(`unexpected validate.ts output: ${stdout}`);
-}
 
 const SCRIPT_PATH = path.join(import.meta.dirname, "validate.ts");
 
@@ -39,8 +14,20 @@ function createTmpSkill(): string {
   return dir;
 }
 
-function run(skillDir?: string) {
-  return runScript(SCRIPT_PATH, skillDir ? [skillDir] : []);
+function run(skillDir: string): {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+} {
+  const result = Bun.spawnSync([SCRIPT_PATH, skillDir], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  return {
+    stdout: result.stdout.toString(),
+    stderr: result.stderr.toString(),
+    exitCode: result.exitCode,
+  };
 }
 
 const tmpDirs: string[] = [];
@@ -53,7 +40,7 @@ afterEach(() => {
 });
 
 describe("validate", () => {
-  test("passes for a well-formed SKILL.md with single-quoted triggers", async () => {
+  test("passes for a well-formed SKILL.md with single-quoted triggers", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
@@ -63,7 +50,7 @@ describe("validate", () => {
       `---\nname: good-skill\ndescription: "This skill should be used when the user asks to 'do X' or 'configure Y'."\ndisable-model-invocation: true\n---\n\n# Good Skill\n\n${body}\n`,
     );
 
-    const { stdout, exitCode } = await run(dir);
+    const { stdout, exitCode } = run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
@@ -71,7 +58,7 @@ describe("validate", () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  test("passes for a well-formed SKILL.md with double-quoted triggers", async () => {
+  test("passes for a well-formed SKILL.md with double-quoted triggers", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
@@ -81,7 +68,7 @@ describe("validate", () => {
       `---\nname: good-skill\ndescription: "This skill should be used when the user asks to \\"do X\\" or \\"configure Y\\"."\ndisable-model-invocation: true\n---\n\n# Good Skill\n\n${body}\n`,
     );
 
-    const { stdout, exitCode } = await run(dir);
+    const { stdout, exitCode } = run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
@@ -89,11 +76,11 @@ describe("validate", () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  test("errors when SKILL.md is missing", async () => {
+  test("errors when SKILL.md is missing", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
-    const { stdout, exitCode } = await run(dir);
+    const { stdout, exitCode } = run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
@@ -101,13 +88,13 @@ describe("validate", () => {
     expect(result.errors).toContain("SKILL.md not found");
   });
 
-  test("errors when frontmatter is missing", async () => {
+  test("errors when frontmatter is missing", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
     writeFileSync(path.join(dir, "SKILL.md"), "# No frontmatter\n");
 
-    const { stdout, exitCode } = await run(dir);
+    const { stdout, exitCode } = run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
@@ -115,13 +102,13 @@ describe("validate", () => {
     expect(result.errors[0]).toContain("frontmatter");
   });
 
-  test("errors when name field is missing", async () => {
+  test("errors when name field is missing", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
     writeFileSync(path.join(dir, "SKILL.md"), "---\ndescription: test\n---\n\n# Test\n");
 
-    const { stdout, exitCode } = await run(dir);
+    const { stdout, exitCode } = run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
@@ -129,89 +116,91 @@ describe("validate", () => {
     expect(result.errors).toContainEqual(expect.stringContaining("name"));
   });
 
-  function write(dir: string, frontmatter: string, body = "# Test\n\nRun the script.\n"): void {
-    writeFileSync(path.join(dir, "SKILL.md"), `---\n${frontmatter}\n---\n\n${body}`);
-  }
-
-  async function validateWith(frontmatter: string, body?: string) {
+  test("warns when description lacks third-person form", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
-    write(dir, frontmatter, body);
-    const { stdout, exitCode } = await run(dir);
+
+    const body = Array.from({ length: 60 }, (_, i) => `word${i}`).join(" ");
+    writeFileSync(
+      path.join(dir, "SKILL.md"),
+      `---\nname: test-skill\ndescription: "Create and manage stuff"\n---\n\n# Test\n\n${body}\n`,
+    );
+
+    const { stdout, exitCode } = run(dir);
     expect(exitCode).toBe(0);
-    return parseValidationResult(stdout);
-  }
 
-  test("accepts a short skill without disable-model-invocation", async () => {
-    const result = await validateWith(
-      "name: short-skill\ndescription: Formats CSV files. Use when the user asks to clean a CSV.",
+    const result = JSON.parse(stdout);
+    expect(result.warnings.some((w: string) => w.includes("third-person"))).toBe(true);
+  });
+
+  test("warns when disable-model-invocation is missing", () => {
+    const dir = createTmpSkill();
+    tmpDirs.push(dir);
+
+    const body = Array.from({ length: 60 }, (_, i) => `word${i}`).join(" ");
+    writeFileSync(
+      path.join(dir, "SKILL.md"),
+      `---\nname: test-skill\ndescription: "This skill should be used when \\"testing\\" or \\"validating\\"."\n---\n\n# Test\n\n${body}\n`,
     );
-    expect(result.errors).toHaveLength(0);
-    expect(result.warnings).toHaveLength(0);
+
+    const { stdout, exitCode } = run(dir);
+    expect(exitCode).toBe(0);
+
+    const result = JSON.parse(stdout);
+    expect(result.warnings.some((w: string) => w.includes("disable-model-invocation"))).toBe(true);
   });
 
-  test("warns on the 'This skill should be used when' boilerplate", async () => {
-    const result = await validateWith(
-      "name: test-skill\ndescription: \"This skill should be used when the user asks to 'do X'.\"",
+  test("does not require trigger phrases for disabled direct-only skills", () => {
+    const dir = createTmpSkill();
+    tmpDirs.push(dir);
+
+    const body = Array.from({ length: 60 }, (_, i) => `word${i}`).join(" ");
+    writeFileSync(
+      path.join(dir, "SKILL.md"),
+      `---\nname: direct-skill\ndescription: "Direct command reference for explicit skill invocation only."\ndisable-model-invocation: true\n---\n\n# Direct Skill\n\n${body}\n`,
     );
-    expect(result.warnings.some((w) => w.includes("This skill should be used when"))).toBe(true);
+
+    const { stdout, exitCode } = run(dir);
+    expect(exitCode).toBe(0);
+
+    const result = JSON.parse(stdout);
+    expect(result.warnings.some((w: string) => w.includes("quoted trigger phrases"))).toBe(false);
   });
 
-  test("warns when disable-model-invocation is explicitly false", async () => {
-    const result = await validateWith(
-      "name: test-skill\ndescription: Does X.\ndisable-model-invocation: false",
+  test("warns when disabled skills advertise natural-language triggers", () => {
+    const dir = createTmpSkill();
+    tmpDirs.push(dir);
+
+    const body = Array.from({ length: 60 }, (_, i) => `word${i}`).join(" ");
+    writeFileSync(
+      path.join(dir, "SKILL.md"),
+      `---\nname: disabled-trigger\ndescription: "This skill should be used when the user asks to 'do X' or 'configure Y'."\ndisable-model-invocation: true\n---\n\n# Disabled Trigger\n\n${body}\n`,
     );
-    expect(result.warnings.some((w) => w.includes("Omit the field"))).toBe(true);
+
+    const { stdout, exitCode } = run(dir);
+    expect(exitCode).toBe(0);
+
+    const result = JSON.parse(stdout);
+    expect(result.warnings.some((w: string) => w.includes("natural-language triggers"))).toBe(true);
   });
 
-  test("warns when disabled skills advertise natural-language triggers", async () => {
-    const result = await validateWith(
-      "name: disabled-trigger\ndescription: Does X. Use when the user asks to do X.\ndisable-model-invocation: true",
+  test("warns when body is very short", () => {
+    const dir = createTmpSkill();
+    tmpDirs.push(dir);
+
+    writeFileSync(
+      path.join(dir, "SKILL.md"),
+      '---\nname: short\ndescription: "This skill is for tests"\n---\n\n# Short\n\nHello world.\n',
     );
-    expect(result.warnings.some((w) => w.includes("natural-language triggers"))).toBe(true);
+
+    const { stdout, exitCode } = run(dir);
+    expect(exitCode).toBe(0);
+
+    const result = JSON.parse(stdout);
+    expect(result.warnings.some((w: string) => w.includes("short"))).toBe(true);
   });
 
-  test("warns when disabled skills advertise Japanese natural-language triggers", async () => {
-    const result = await validateWith(
-      "name: disabled-trigger-ja\ndescription: X をする。X してと頼まれたときに使う。\ndisable-model-invocation: true",
-    );
-    expect(result.warnings.some((w) => w.includes("natural-language triggers"))).toBe(true);
-  });
-
-  test("does not warn about Japanese triggers on model-invocable skills", async () => {
-    const result = await validateWith(
-      "name: invocable-ja\ndescription: X をする。X してと頼まれたときに使う。",
-    );
-    expect(result.warnings.some((w) => w.includes("natural-language triggers"))).toBe(false);
-  });
-
-  test("errors when description exceeds the listing budget", async () => {
-    const result = await validateWith(`name: long\ndescription: ${"x".repeat(1600)}`);
-    expect(result.errors.some((e) => e.includes("1536"))).toBe(true);
-  });
-
-  test("errors on the unsupported tools field", async () => {
-    const result = await validateWith("name: t\ndescription: Does X.\ntools:\n  - Read");
-    expect(result.errors.some((e) => e.includes("allowed-tools"))).toBe(true);
-  });
-
-  test("errors on the nonexistent CLAUDE_PLUGIN_DIR variable", async () => {
-    const result = await validateWith(
-      "name: t\ndescription: Does X.",
-      "Read `${CLAUDE_PLUGIN_DIR}/assets/a.md`.\n",
-    );
-    expect(result.errors.some((e) => e.includes("CLAUDE_PLUGIN_DIR"))).toBe(true);
-  });
-
-  test("warns when the body reaches 500 lines", async () => {
-    const result = await validateWith(
-      "name: t\ndescription: Does X.",
-      Array.from({ length: 510 }, (_, i) => `line ${i}`).join("\n"),
-    );
-    expect(result.warnings.some((w) => w.includes("500 lines"))).toBe(true);
-  });
-
-  test("warns when script lacks executable permission", async () => {
+  test("warns when script lacks executable permission", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
@@ -224,14 +213,14 @@ describe("validate", () => {
     writeFileSync(path.join(dir, "scripts", "run.ts"), "#!/usr/bin/env bun\n");
     chmodSync(path.join(dir, "scripts", "run.ts"), 0o644);
 
-    const { stdout, exitCode } = await run(dir);
+    const { stdout, exitCode } = run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
     expect(result.warnings.some((w: string) => w.includes("executable"))).toBe(true);
   });
 
-  test("warns on second-person writing in prose", async () => {
+  test("warns on second-person writing in prose", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
@@ -241,14 +230,14 @@ describe("validate", () => {
       `---\nname: test-skill\ndescription: "This skill should be used when \\"testing\\""\n---\n\n# Test\n\n${body}\n`,
     );
 
-    const { stdout, exitCode } = await run(dir);
+    const { stdout, exitCode } = run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
     expect(result.warnings.some((w: string) => w.includes("second-person"))).toBe(true);
   });
 
-  test("ignores second-person writing inside code fences", async () => {
+  test("ignores second-person writing inside code fences", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
@@ -267,14 +256,14 @@ describe("validate", () => {
       `---\nname: test-skill\ndescription: "This skill should be used when \\"testing\\""\n---\n\n# Test\n\n${body}\n`,
     );
 
-    const { stdout, exitCode } = await run(dir);
+    const { stdout, exitCode } = run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
     expect(result.warnings.some((w: string) => w.includes("second-person"))).toBe(false);
   });
 
-  test("errors when referenced file does not exist", async () => {
+  test("errors when referenced file does not exist", () => {
     const dir = createTmpSkill();
     tmpDirs.push(dir);
 
@@ -283,7 +272,7 @@ describe("validate", () => {
       '---\nname: test-skill\ndescription: "This skill is for tests"\n---\n\n# Test\n\nSee `scripts/missing.ts` for details.\n',
     );
 
-    const { stdout, exitCode } = await run(dir);
+    const { stdout, exitCode } = run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
@@ -291,9 +280,12 @@ describe("validate", () => {
     expect(result.errors.some((e: string) => e.includes("scripts/missing.ts"))).toBe(true);
   });
 
-  test("fails without arguments", async () => {
-    const result = await run();
+  test("fails without arguments", () => {
+    const result = Bun.spawnSync([SCRIPT_PATH], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("Usage:");
+    expect(result.stderr.toString()).toContain("Usage:");
   });
 });

@@ -1,19 +1,31 @@
 ---
-name: switch
+name: persona:switch
 disable-model-invocation: true
-description: このセッションの persona を planner / worker / idealist / orchestrator / sparring / pathfinder に切り替える。clear で解除、status で現在の persona を表示する。
-argument-hint: "planner|worker|idealist|orchestrator|sparring|pathfinder|clear|status"
-allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/persona-state.ts *)
+description: "Manual persona state command replacement for direct skill invocation only. Switches planner / worker state, clears it, or displays current persona status."
+argument-hint: "planner|worker|clear|status"
+tools:
+  - Bash(${CLAUDE_SKILL_DIR}/scripts/persona-state.ts *)
 ---
 
-# persona の切替
+# Persona Switch
 
-次を実行し、出力の `persona` を 1 行で報告する。引数がなければ `status` を渡す。
+Manual replacement for the removed persona slash commands.
 
-```bash
-${CLAUDE_SKILL_DIR}/scripts/persona-state.ts --project-dir "${CLAUDE_PROJECT_DIR}" --session ${CLAUDE_SESSION_ID} $ARGUMENTS
-```
+## Workflow
 
-- persona 名を渡すとその persona に切り替わり、次のプロンプトで hook がその persona の指示を注入する
-- `clear` は persona を解除し、`status` は現在の persona を表示する（未設定なら `null`）
-- 状態は `${CLAUDE_PROJECT_DIR}/.local-agents/tmp/persona/<session_id>` に保存される
+1. Determine the requested action from the skill argument.
+2. Run `${CLAUDE_SKILL_DIR}/scripts/persona-state.ts <action>`.
+3. Report the resulting persona state concisely.
+
+Supported actions:
+
+- `planner`: switch this Claude Code session to planner persona
+- `worker`: switch this Claude Code session to worker persona
+- `clear`: clear the session persona
+- `status`: print the current session persona
+
+If no action is provided, run `status`.
+
+## Notes
+
+The script requires `CLAUDE_PROJECT_DIR` and `CLAUDE_CODE_SESSION_ID`, matching the persona hooks. It writes session state to `$CLAUDE_PROJECT_DIR/.agents/tmp/persona/<session_id>`.

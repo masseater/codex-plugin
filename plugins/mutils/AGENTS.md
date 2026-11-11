@@ -1,53 +1,88 @@
 # mutils プラグイン開発ガイド
 
-全プラグインの前提となる汎用ユーティリティプラグイン。変更は Auto Version Bump workflow で patch bump される。
+この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
+開発支援コマンド・スキル・Hooksを提供する汎用ユーティリティプラグイン。
 
 ## 開発コマンド
 
 ```bash
 cd plugins/mutils
-vp run check         # fmt・lint・型検査（vp check）
-vp run check:fix     # 自動修正
-vp run typecheck     # 型チェック
-vp run test          # テスト（vp test と skill-create スクリプトの bun test）
+bun run check        # lint + format チェック
+bun run check:fix    # 自動修正
+bun run typecheck    # 型チェック
+bun run knip         # 未使用コード検出
 ```
-
-未使用コードの検出（knip）はリポジトリルートで `vp run knip` を実行する。
 
 ## Hooks 実装
 
-hook の書き方はリポジトリの `.claude/rules/hook-authoring.md` に従う。mutils の hook は複数セッションから同時に実行されることがあるので、共有ファイルへの書き込みは追記にするか、セッション ID ごとにファイルを分ける（共有ファイルを上書きすると他セッションの記録が消える）。共通設定は `lib/config.ts` に置く。
+Hook implementation details: see [docs/hook-implementation-guide.md](docs/hook-implementation-guide.md)
 
-## 配布物
+## 注意事項
 
-`assets/AGENTS.md` は `setup` skill がユーザーの `~/AGENTS.md` にコピーする個人ルールで、毎セッション読み込まれる。200 行未満を保ち、書き方は docs/plugin-authoring-guidelines.md に従う。
+Hooks は複数インスタンスから同時実行される可能性がある。これを前提に:
+
+- IF: Hook 内でファイルに書き込む; THEN MUST: 追記モードを使用する（同時実行による上書き喪失を防ぐため）
+- IF: 共通設定を追加する; THEN MUST: lib/config.ts に配置する
+
+## Model Invocation Policy
+
+<!-- BEGIN:model-invocation-policy -->
+
+以下の skill は `disable-model-invocation: true` を付与しない。設計判断: ユーザーが自然文で依頼する主要ワークフロー、または AI がタスク遂行中に自律参照すべき実行リファレンスである。これらの `description` には自然文 trigger、または実行リファレンスとしての参照理由を定義する。
+
+- `mutils:ccs-handoff`
+- `mutils:conditional-normative-notation`
+- `mutils:consecutive-review-loop`
+- `mutils:dig`
+- `mutils:faithful-migration`
+- `mutils:feedback`
+- `mutils:ideal-driven-design`
+- `mutils:investigate-repo`
+- `mutils:issue-plan`
+- `mutils:issue-status-review`
+- `mutils:loop-prompt`
+- `mutils:multi-angle-perspectives`
+- `mutils:recommended`
+- `mutils:reflection`
+- `mutils:setup`
+- `mutils:skill-create`
+- `mutils:task-history`
+- `mutils:temp-skill`
+
+上記以外の skill は、明示呼び出し・内部参照・手動操作・低レベルユーティリティとして扱い、`disable-model-invocation: true` を維持する。disabled skill の `description` には広い自然文 trigger を定義しない。
+
+<!-- END:model-invocation-policy -->
 
 ## Components
 
 <!-- BEGIN:component-list (auto-generated, do not edit) -->
 
-- **skill** `automation-advisor`: リポジトリの設計（hook・skill・rule・CI）と実際の作業履歴（AI セッション・git log・コード重複）を突き合わせる。そのうえで、まだ自動化されていない繰り返しを提案するレポートを .local-agents/ に出力する。
-- **skill** `codex-guide`: Claude Code から OpenAI Codex CLI（codex exec / codex review）を呼び出す方法。用途は計画やコードのセカンドオピニオンを得ることと、単発タスクや画像生成を任せることである。Codex でレビューしたいとき、Codex の使い方や設定を聞かれたときに使う。
-- **skill** `consecutive-review-loop`: 履歴を含まない固定プロンプトでサブエージェントにレビューさせ、指摘を直しながら N 回連続で合格するまで繰り返す。「3 回連続でレビューが通るまで回して」「サブエージェントで連続レビュー」と頼まれたときに使う。
-- **skill** `faithful-migration`: リポジトリ A の機能をリポジトリ B へ、範囲を黙って縮めずに移植・リライト・フォーク後カスタマイズする。全画面と全 API の 1:1 列挙、構成図、縮小語彙の検査、1 PR = 1 outcome、merge 前のローカル検証で進め、outcome ごとに PR を作る。
-- **skill** `find-masseater-component`: masseater/codex-plugin の skill・agent・hook を検索・一覧表示する。検索元は各 plugin の AGENTS.md の一覧である。「あのスキル何だっけ」「〜する skill はあるか」「どんなスキルがあるか」と聞かれたときに使う。手動呼び出し専用（disable-model-invocation）の skill は description がコンテキストに載らないので、名前を思い出せないときはこれで探す。
-- **skill** `ideal-driven-design`: 手段を含まない理想を先に固定し、複数の設計案がその理想を満たすかを敵対的に検証してから設計を決める。「理想から設計して」「理想駆動で」「手段にとらわれず設計したい」と頼まれたら使う。persona の idealist が理想を明文化するときと、planner が理想から設計案を作り検証するときにも使う。
-- **skill** `instruction-writing`: エージェント向けの指示を書く・直すときの書き方。対象は AGENTS.md / CLAUDE.md / SKILL.md / .claude/rules / サブエージェント定義 / hook がモデルに渡す文言などである。要点は条件→行動→理由、強調を控える、肯定形、状態遷移には疑似コード、旧モデル向けの補助を書かないことである。規約やルールの追加、指示文の書き直し、既存の指示文書の見直しを頼まれたときに使う。
-- **skill** `interview`: AskUserQuestion でユーザーにインタビューし、曖昧な要望を要件にまとめる、または計画・仕様の不明点を詰めて文書に反映する。「やりたいことがうまく言えない」「要件を整理して」「インタビューして」「計画の曖昧な点を詰めて」「深掘りして」と頼まれたときに使う。
-- **skill** `product-review`: プロダクト全体を階層的にスキャンして改善候補を出し、ユーザーが承認した候補を実行して候補ごとに commit する。対象はコード構造、アーキテクチャ、横断的関心事、AI ハーネス、インフラ、ドキュメント、プロダクト設計である。
-- **skill** `session-conflict`: 同じリポジトリで並行稼働する他の Claude Code セッションとの競合を、ccsight で相手の状態を確認し宣言ブロックで合意してから解消する手順。merge conflict・予期しない差分・lock 待ち・push reject・未取得のリモートコミットなどに遭遇したときに使う。
-- **skill** `setup`: mutils の個人ルール（assets/AGENTS.md）を `~/AGENTS.md` に同期し、`~/.claude/CLAUDE.md` から読み込まれるようにして、依存をインストールする。
-- **skill** `skill-create`: Claude Code の skill を scaffold・執筆・検証するワークフロー。ディレクトリと SKILL.md の雛形作成、参照ファイル一覧の注入、frontmatter と本文の検証をスクリプトで行う。「スキル化して」「新しい skill を作って」「この手順を skill にしたい」と頼まれたときに使う。
-- **skill** `task-history`: mutils の task-history hook が記録したタスク・TODO の履歴（TodoWrite / TaskCreate / TaskUpdate）を照会する。過去のセッションで何をしたか、何が未完了のまま残っているかを示す。「前回の続きをやりたい」「前のセッションで残ったタスクを見せて」「過去の作業を振り返って」と頼まれたときに使う。
-- **hook** `block-cross-worktree-edit`: PreToolUse (`Write|Edit`)
-- **hook** `block-husky-bypass`: PreToolUse (`Bash`)
-- **hook** `block-unsafe-type-assertion`: PreToolUse (`Write|Edit`)
-- **hook** `check-context-version`: SessionStart
-- **hook** `check-install`: SessionStart
-- **hook** `continue-open-tasks`: Stop
-- **hook** `install-deps`: SessionStart
-- **hook** `merge-session-start-output`: SessionStart
-- **hook** `record-schedule-wakeup`: PostToolUse (`ScheduleWakeup`)
-- **hook** `task-history`: PostToolUse (`TodoWrite|TaskCreate|TaskUpdate`)
+| Type  | Name                                  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| skill | mutils:conditional-normative-notation | プロジェクト規約（AGENTS.md / CLAUDE.md / .claude/rules）を『条件付き規範記法』で書くための記法ガイド — RFC 2119 の要求度キーワード（MUST / MUST NOT / SHOULD / SHOULD NOT / MAY）と `IF: <条件>; THEN <キーワード>: <行動>` 形式のプロダクションルールで、曖昧な散文をエージェントが一意に解釈できる規範に変換する。Use when the user says 'ルールを書く', '規約を書く', 'AGENTS.md にルールを追加', 'IF/THEN で書いて', '規範記法で書いて', 'RFC 2119 で書いて', 'write a rule', 'add a rule to AGENTS.md', or wants to turn prose into machine-checkable normative rules。規約を執筆・再構成する場面では、ユーザーが記法名を明示しなくても使うこと。         |
+| skill | mutils:consecutive-review-loop        | This skill should be used when the user asks for 'N回連続レビュー', '3回連続成功', 'サブエージェントで連続レビュー', 'streak review', 'consecutive review', 'review until N passes', 'レビューが連続成功するまで', or wants iterative subagent review where past feedback MUST NOT leak into the next review. Runs a subagent review-and-fix loop until N consecutive passes are achieved, resetting the streak on any failure and invoking each subagent review with a flat, history-free prompt.                                                                                                                                                              |
+| skill | mutils:dig                            | This skill should be used when the user asks to "clarify the plan", "ask detailed questions", "曖昧な点を詰めて", "計画を深掘り", or wants structured questions that resolve unclear points in a plan file.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| skill | mutils:faithful-migration             | This skill should be used when the user asks to 'port a feature from repo A to repo B', 'migrate a repository feature faithfully', 'rewrite faithfully', 'fork-and-customize without dropping flows', 'リポジトリ間移植', '別リポジトリの機能を移植', '忠実に移植', 'A の機能を B にそのまま持ってきて', or wants to port / rewrite / re-implement an existing repository's feature set into another codebase without silently shrinking scope. It forces 1:1 enumeration, source/target architecture diagrams reviewed by the consecutive-review-loop skill, a shrink-vocabulary ban, one-outcome-per-PR, and a pre-merge local verification with screenshots. |
+| skill | mutils:feedback                       | Send feedback about this plugin repository as a GitHub issue. Use when the user says "feedback", "send feedback", "report issue", "bug report", "feature request", "フィードバック", "バグ報告", "機能リクエスト", or wants to create an issue for the plugin repository.                                                                                                                                                                                                                                                                                                                                                                                       |
+| skill | mutils:ideal-driven-design            | 理想を絶対に忘れずに、手段にとらわれずに設計案が理想を満たしているかを徹底的に議論してから設計を確定するためのスキル。Use when the user says '理想から設計', '理想駆動', '理想を満たす設計', '手段にとらわれず設計', '本質から設計', 'ideal driven design', 'north star design', or wants to design something starting from the ideal state without being constrained by means.                                                                                                                                                                                                                                                                                 |
+| skill | mutils:investigate-repo               | Investigate the current repository to surface issues, defects, and improvement opportunities. Use when the user says "調査して課題", "リポジトリを調査", "investigate repo", "find issues in repo", "問題を洗い出す", "課題を見つける", or wants a structured report of problems detected in the codebase.                                                                                                                                                                                                                                                                                                                                                      |
+| skill | mutils:issue-plan                     | This skill should be used when the user asks to "make a plan from this issue", "issueから実装計画", "GitHub Issueを計画化", "plan issue #123", or provides a GitHub Issue URL/number and wants an implementation plan.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| skill | mutils:issue-status-review            | Review whether the current code satisfies a GitHub issue, then update the issue status to match. Use when the user asks to 'review an issue', 'check if an issue is done', 'is this issue resolved', 'update issue status', 'issueの対応状況を確認', 'issueが完了しているかレビュー', or 'issueのステータスを更新'.                                                                                                                                                                                                                                                                                                                                             |
+| skill | mutils:loop-prompt                    | loop用の完全実行プロンプトを生成する。Use when the user asks to 'loopプロンプトを生成', 'loop用プロンプト', 'generate loop prompt', 'loop prompt', 'ループ用プロンプト', or wants to create a prompt for /loop that ensures complete execution each iteration without shortcutting.                                                                                                                                                                                                                                                                                                                                                                             |
+| skill | mutils:multi-angle-perspectives       | This skill should be used when the user asks for "multiple perspectives", "一般的・保守的・独創的", "複数観点で提案", "3つの観点", or wants standard, conservative, and creative proposals for a theme.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| skill | mutils:pls-auq                        | AskUserQuestionの制約内で個別に同時に質問するよう指示                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| skill | mutils:recommended                    | This skill should be used when the user asks for "recommended Claude Code settings", "おすすめプラグイン", "おすすめMCP", "what should I install", or wants recommended Claude Code plugins, skills, or MCP servers.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| skill | mutils:reflection                     | This skill should be used when the user asks to "reflect on this session", "振り返って", "何が悪かったか考えて", "self-review the work", or wants an honest process retrospective with lessons.                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| skill | mutils:setup                          | This skill should be used when the user asks to "set up mutils", "mutilsをセットアップ", "install mutils settings", "mutils setup", or wants recommended mutils references and dependencies applied.                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| skill | mutils:skill-create                   | This skill should be used when the user asks to 'create a skill', 'add a new skill', 'make a skill', 'scaffold a skill', 'new skill', 'スキル化して', 'スキルを作成', 'スキルを追加', or wants to create a new Claude Code skill for a plugin or project. Provides a guided workflow with automated scaffolding, validation, and dynamic context injection.                                                                                                                                                                                                                                                                                                     |
+| skill | mutils:task-history                   | This skill should be used when the user asks to "review past work", "過去の作業を確認", "what was done", "TODO履歴", or wants past task and TODO history from previous sessions reviewed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| skill | mutils:temp-skill                     | Save and manage temporary notes across sessions. Triggered by phrases like "save temp", "add temp", "list temp", "search temp", "read temp", "show temp", or their Japanese equivalents ("一時メモ", "temp に保存", "temp 一覧", "temp 検索", "temp 読む", etc.). Saves as Markdown files in ~/.claude/skills/temp/ with index management.                                                                                                                                                                                                                                                                                                                      |
+| hook  | block-cross-worktree-edit             | PreToolUse (`Write\|Edit`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| hook  | block-husky-bypass                    | PreToolUse (`Bash`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| hook  | block-unsafe-type-assertion           | PreToolUse (`Write\|Edit`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| hook  | check-context-version                 | SessionStart                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| hook  | check-install                         | SessionStart                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| hook  | send-notification                     | Stop                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| hook  | task-history                          | PostToolUse (`TodoWrite\|TaskCreate\|TaskUpdate`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 <!-- END:component-list -->

@@ -1,40 +1,80 @@
 ---
-name: validate
-description: SDD の spec 文書（矛盾・ステアリング準拠・実現可能性）か、実装を終えた Phase（ドキュメント・要件・品質）を検証し、指摘を severity 付きで報告する。「仕様書をチェックして」「矛盾がないか見て」「Phase 2 の実装を検証して」「これで完了でいいか確認して」と頼まれたときに使う。
-argument-hint: "<spec|phase> <spec 名> [Phase 番号]"
+name: sdd:validate
+description: 'This skill should be used when the user asks to "validate a phase", "Phase検証", "SDD validate", "実装を検証", or wants docs, requirements, quality, and feasibility checks for an SDD phase.'
 ---
 
-# SDD の検証
+# Phase Validation Skill
 
-引数: `$ARGUMENTS`（先頭が `spec` か `phase`。省略されたら、Phase 番号があれば phase、なければ spec とみなす）
+Phase実装完了後に3つの観点から統合検証を行う。
 
-参照ファイルの `<skill-dir>` は `${CLAUDE_SKILL_DIR}`、`<plugin-root>` は `../..` に読み替える（参照ファイルでは変数が展開されないため）。
+## 検証の3観点
 
-## spec モード: 仕様書を検証する
+- docs — ドキュメント整合性
+  - 詳細: [docs.md](./references/docs.md)
+- requirements — 要件整合性
+  - 詳細: [requirements.md](./references/requirements.md)
+- quality — 品質検証
+  - 詳細: [quality.md](./references/quality.md)
+- feasibility — フィージビリティ検証
+  - 詳細: [feasibility.md](./references/feasibility.md)
 
-spec 文書を書き終えたときや、Phase 構成を決める前に使う。
+## 検証フロー
 
-1. 次の 2 つの agent を 1 つのメッセージで並列に起動する。どちらも修正はせず、指摘だけを返す
-   - `sdd:contradiction-checker` — spec 文書間の矛盾（prompt に spec 名を渡す）
-   - `sdd:steering-reviewer` — ステアリングへの準拠（prompt にレビュー対象として `specs/<spec>/` を渡す）
-2. 待つ間に [references/feasibility.md](references/feasibility.md) に従い、technical-details.md と実際のプロジェクト構造の食い違いを自分で確かめる
-3. 3 つの結果をまとめて報告する
+```
+1. docs検証 → 2. requirements検証 → 3. quality検証
+         ↓              ↓                ↓
+      問題記録        問題記録          問題記録
+                                          ↓
+                               統合レポート出力
+```
 
-## phase モード: 実装を終えた Phase を検証する
+## 総合評価の判定
 
-`/sdd:phase implement` で Phase の全タスクを終えたときに使う。次の 3 観点を順に確かめる。ある観点で問題が見つかっても、残りの観点も最後まで確かめる。
+- ✅: すべての検証が合格
+- ⚠️: 警告あり（対応推奨だが継続可能）
+- ❌: 重大な問題あり（対応必須）
 
-- ドキュメント: [references/docs.md](references/docs.md)
-- 要件: [references/requirements.md](references/requirements.md)
-- 品質: [references/quality.md](references/quality.md)
+## 検証手順
 
-## 指摘の書き方と判定
+1. 引数の確認
+   - タスク名とPhase番号が指定されているか確認
+   - 未指定の場合はAskUserQuestionで確認
 
-- 指摘はすべて `[severity: high|medium|low] [confidence: high|medium|low] <ファイル:行>: <問題と根拠>` の形で列挙する。見つけたものは軽微でも省かない
-  - high: 要件を満たさない、テストや型チェックが落ちる、文書の矛盾で実装が分岐する
-  - medium: 規約・ステアリングからの逸脱、引き継ぎや完了条件の記載漏れ
-  - low: 表記の揺れなど、動作や判断に影響しないもの
-- 判定: severity が high の指摘があれば「不合格」、medium だけなら「要対応」、low だけか指摘なしなら「合格」
-- 検証結果は spec 文書には書かず、ユーザーへの報告として返す
-- 「要対応」以上なら、指摘ごとの対応方針（修正する / 仕様を見直す / 対応しない）を `AskUserQuestion` で聞く（1 回に最大 4 問）。修正すると決まったものはタスクリスト（TodoWrite、または TaskCreate / TaskUpdate）に積む
-- phase モードで「合格」なら、phase ファイルの `status:` を `completed` にしてよいかを確認し、承認されたら書き換えて sdd-webapp に反映する（手順は `/sdd:phase` の「状態を変えたら」）。最後の Phase なら、overview.md の `status:` も `completed` にするかを確認する
+2. 3つのコマンドを順次実行
+   - 各コマンドの実行結果を内部で記録
+   - エラーが発生した場合も継続して次のコマンドを実行
+
+3. 検証結果の内部処理と報告
+   - 3つのコマンドの結果を内部で統合
+   - 総合評価を決定（すべて✅なら✅、1つでも❌なら❌、それ以外は⚠️）
+   - 検証レポートはspecファイルに書かず、ユーザーに直接表示
+
+## 問題への対応
+
+統合検証の結果、問題が見つかった場合：
+
+- 各検証コマンドが個別に対応方針を確認
+- 統合レポートではすべての問題をまとめて表示
+- ユーザーが個別に再検証するか、全体を再検証するかを選択可能
+
+## overview.md更新提案
+
+総合評価が ✅ の場合のみ、AskUserQuestionで確認：
+
+- 「overview.mdのPhase状態を『完了』に更新しますか？」
+- 承認された場合、overview.mdの該当Phaseの状態を「完了」に更新
+
+## 完了報告
+
+```
+✅ Phase {N} の統合検証が完了しました
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 対象: specs/{taskname}/ - Phase {N}
+📊 総合評価: {✅/⚠️/❌}
+🌐 検証結果はsdd-webappで可視化されています
+
+💡 次のアクション:
+   - Phase完了可能: `/sdd:phase implement {taskname} {N+1}.1`
+   - 問題あり: 個別再検証または修正
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```

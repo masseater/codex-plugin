@@ -1,9 +1,0 @@
-{
-  "name": "plugin-swarm",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "check": "vp check --no-error-on-unmatched-pattern",
-    "check:fix": "vp check --fix --no-error-on-unmatched-pattern"
-  }
-}

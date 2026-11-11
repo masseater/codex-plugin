@@ -1,21 +1,19 @@
-<!--
-記載のポイント（書き終えたらこのコメントは消す）
-- Directory Organization: 実際のディレクトリ構造を反映
-- Naming Conventions: 一貫性を保つためのルール
-- Module Boundaries: 循環参照を防ぐための境界定義
--->
+# structure.md テンプレート
 
+プロジェクト構造、命名規則、コード組織原則を定義する。
+
+```markdown
 # Project Structure
 
 ## Directory Organization
 
-```text
+\`\`\`
 [プロジェクト名]/
 ├── [ディレクトリ構造]
 ├── specs/
-│ └── _steering/ # ステアリングドキュメント
+│ └── \_steering/ # ステアリングドキュメント
 └── ...
-```
+\`\`\`
 
 **組織化の原則**:
 
@@ -41,7 +39,7 @@
 
 ## Module Boundaries
 
-[モジュール間の境界定義]。
+[モジュール間の境界定義]
 
 ## File Size Guidelines
 
@@ -58,3 +56,10 @@
 
 - コメント: [コメント規約]
 - 型定義: [型定義の要求]
+```
+
+## 記載のポイント
+
+- Directory Organization: 実際のディレクトリ構造を反映
+- Naming Conventions: 一貫性を保つためのルール
+- Module Boundaries: 循環参照を防ぐための境界定義

@@ -1,64 +1,79 @@
 ---
-description: テスト方針 — Vitest、CSF factories 形式の Storybook、ファイルの同居配置、モック方針、禁止パターンと test.extend fixture、カバレッジ
+description: Test policy — Vitest framework, Storybook visual testing with CSF factories, co-located files, what to test, mocking strategy, and coverage expectations
 ---
 
-# テスト方針
+# Test Policy
 
-## 目次
+## Tools
 
-- ツールと配置
-- 何をテストするか
-- モック
-- 禁止パターン
-- test.extend による fixture
-- カバレッジ
-- Storybook
+- Test framework — Vitest
+- Visual testing — Storybook (CSF factories format)
+- Test file naming — `[name].test.ts` (co-located with source file)
+- Story file naming — `[name].stories.tsx` (co-located with component file)
 
-## ツールと配置
+## Test File Placement
 
-- test フレームワーク: Vitest
-- ビジュアルテスト: Storybook（CSF factories 形式）
-- test ファイルはソースの隣に `[name].test.ts`、story はコンポーネントの隣に `[name].stories.tsx` で置く。例: `foo.ts` → `foo.test.ts`、`button.tsx` → `button.stories.tsx`
-- `__tests__/` や `__test__/` ディレクトリは使わない。同居させると移動が楽になり、dead code も見つけやすくなるため
+Place test files next to the source file they test: `foo.ts` → `foo.test.ts`, `button.tsx` → `button.stories.tsx`. Do NOT use `__tests__/` or `__test__/` directories — co-location keeps navigation simple and makes dead code detection easier.
 
-## 何をテストするか
+## What to Test
 
-各モジュールの公開 API、分岐のあるビジネスロジック、エラーパスとエッジケース（fail fast の挙動を確かめる）、データ変換を優先する。フレームワークの内部、private 関数や内部状態などの実装詳細、ロジックの無い素通し関数はテストしない。
+- Public API of each module — Catches regressions at the boundary others depend on
+- Business logic with branching — Branches are where bugs hide
+- Error paths and edge cases — Verifies fail-fast behavior matches expectations
+- Data transformations — Input → output assertions are cheap and high-value
 
-test 名は期待する振る舞いを書く（例: `test("returns empty array when no items match filter")`）。`test("filter works")` のような曖昧な名前や `test("test1")` は使わない。
+Do NOT test:
 
-## モック
+- Framework internals (React rendering, Next.js routing) — the framework tests these
+- Implementation details (private functions, internal state) — tests should survive refactors
+- Simple pass-through functions with no logic
 
-- 既定は実装をそのまま使う
-- 次に、依存を引数で渡す DI にする
-- `vi.mock()` は最後の手段で、外部 I/O（ネットワーク、ファイルシステム、DB）に限る
+## Mocking Strategy
 
-自分で所有するモジュールはモックしない。内部モジュールをモックしたくなったら結合の問題なので、設計を直す。
+- No mock (real implementation) — Default. Use real code whenever possible
+- Dependency injection — Prefer over mocking. Pass dependencies as arguments
+- `vi.mock()` — Last resort. Only for external I/O (network, filesystem, DB)
 
-## 禁止パターン
+Never mock what you own. If you need to mock an internal module, the design has a coupling problem — fix the design instead.
 
-ESLint で強制する（`references/quality-automation.md`）。
+## Test Naming
 
-曖昧な matcher:
+Use descriptive `test()` or `it()` names that state the expected behavior:
 
-- `toBeTruthy()`: `1`・`"str"`・`[]`・`{}` でも通る。真偽値なら `toBe(true)`、それ以外は具体的な matcher を使う
-- `toBeFalsy()`: `0`・`""`・`null`・`undefined`・`NaN` でも通る。真偽値なら `toBe(false)`、それ以外は具体的な matcher を使う
-- `toBeDefined()`: `!== undefined` しか見ない。期待する値そのものを assert する
+- `test("returns empty array when no items match filter")` — good
+- `test("filter works")` — too vague
+- `test("test1")` — forbidden
 
-共有される可変状態:
+## Prohibited Patterns
 
-- test ファイルの `let`: ある test の変更が次の test に漏れる。`test.extend` の fixture かインラインの setup と `const` を使う
-- `beforeEach` / `afterEach`: setup が test 本体から見えなくなる。共有の setup は `test.extend` の fixture、一度きりのものはインラインにする
-- `beforeAll` / `afterAll`: 同じ理由。重い共有リソースも `test.extend` の fixture にする
+Enforce via ESLint rules in `references/quality-automation.md`.
 
-## test.extend による fixture
+### Vague Matchers
 
-`test.extend` で test ごとの fixture を宣言する。各 test は分割代入で新しいインスタンスを受け取るので、可変状態の共有とライフサイクル hook のどちらも要らない。
+- `toBeTruthy()` — Passes for `1`, `"str"`, `[]`, `{}` — almost never what you mean
+  - Use instead: `toBe(true)` for booleans, or a specific matcher
+- `toBeFalsy()` — Passes for `0`, `""`, `null`, `undefined`, `NaN` — hides which falsy value you expect
+  - Use instead: `toBe(false)` for booleans, or a specific matcher
+- `toBeDefined()` — Only checks `!== undefined` — passes for `null`, `0`, `""`, `false`
+  - Use instead: Assert the specific expected value
+
+### Shared Mutable State
+
+- `let` in test files — Shared mutable state couples tests — one test's mutation leaks into the next
+  - Use instead: `const` with `test.extends` fixtures or inline setup
+- `beforeEach` / `afterEach` — Implicit setup hidden from the test body — reader must scroll to understand context
+  - Use instead: `test.extends` fixtures for shared setup, inline for one-off
+- `beforeAll` / `afterAll` — Same implicit coupling; expensive shared resources should use `test.extends` fixtures
+  - Use instead: `test.extends` fixtures
+
+### test.extends — Fixture Pattern
+
+Use `test.extends` to declare per-test fixtures. Each test receives a fresh instance via destructuring — no shared mutable state, no lifecycle hooks.
 
 ```typescript
 import { test as base, expect } from "vitest";
 
-const test = base.extend<{ db: Database }>({
+const test = base.extends<{ db: Database }>({
   db: async ({}, use) => {
     const db = await createTestDatabase();
     await use(db);
@@ -76,13 +91,16 @@ test("returns null for missing record", async ({ db }) => {
 });
 ```
 
-- setup と teardown は fixture の定義に同居させる
-- test は必要な fixture だけを分割代入する（使わない fixture は生成されない）
-- fixture は拡張済みの `test` をさらに `extend` して合成する
+Key points:
 
-### 自動 fixture（`auto: true`）
+- Each test gets its own `db` — no leaking between tests
+- Setup and teardown are co-located in the fixture definition
+- Tests only destructure the fixtures they need — unused fixtures are not instantiated
+- Compose fixtures by extending an already-extended `test`
 
-DB の seed やメトリクス収集など、全 test で走らせたいが test 本体では参照しない fixture は、タプル構文で `{ auto: true }` を付ける。分割代入しなくても自動で走る。
+### Automatic Fixtures (`auto: true`)
+
+When a fixture must run for every test but is never referenced in the test body (e.g., database seeding, metrics collection), use the tuple syntax with `{ auto: true }`. This makes the fixture run automatically regardless of whether the test destructures it — no underscore-prefixed unused variables needed.
 
 ```typescript
 import { test as base, expect } from "vitest";
@@ -98,34 +116,41 @@ const test = base.extend<{ db: Database }>({
   ],
 });
 
-// test が db を分割代入しなくても setup / teardown は走る
+// db setup/teardown runs even though the test does not destructure it
 test("server responds with 200", async () => {
   const res = await fetch("/api/health");
   expect(res.status).toBe(200);
 });
 ```
 
-参照しない fixture を走らせるために、次の書き方はしない。lint を黙らせるだけで意図が分からなくなるため、`{ auto: true }` で定義する。
+- `test("x", ({ _db }) => {})` — Prohibited
+  - Why: Underscore-prefixed unused variable is a lint-silencing hack — unclear intent
+- `test("x", ({ db: _db }) => {})` — Prohibited
+  - Why: Same — renaming to suppress lint hides the real problem
+- `test("x", ({ db }) => { /* no use */ })` — Prohibited
+  - Why: Destructuring a fixture you never reference is unnecessary noise
+- Define the fixture with `{ auto: true }` — Required
+  - Why: Fixtures not referenced in the test body must use `auto: true`
 
-- `test("x", ({ _db }) => {})`
-- `test("x", ({ db: _db }) => {})`
-- `test("x", ({ db }) => { /* 使わない */ })`
+## Coverage
 
-## カバレッジ
+Set a project-level coverage threshold and enforce it in CI. The threshold is defined per project (e.g., 80% line coverage) and must be met before a PR can merge. Coverage measurement must include both unit tests and Storybook visual tests — a component covered only by stories still counts toward the threshold, and vice versa.
 
-- プロジェクトごとにカバレッジ閾値（例: 行カバレッジ 80%）を決め、CI で強制する。満たさない PR はマージしない
-- 計測には unit test と Storybook の両方を含める。story だけでカバーされたコンポーネントも閾値に数える。`@storybook/addon-vitest` で Storybook の interaction test（`play` 関数）のカバレッジを Vitest に集める
-- 新しいモジュールとバグ修正（回帰テスト）には test を必須にする。新しい `.ts` ソースに対応する `.test.ts` が、新しいコンポーネントに対応する `.stories.tsx` があるかを CI チェックか lint rule で確かめる
+Configure Vitest to collect coverage from Storybook interaction tests via `@storybook/experimental-addon-test`. This ensures stories with `play` functions contribute to the same coverage report as unit tests.
 
-## Storybook
+Require tests for every new module and every bug fix (regression test). Enforce with a CI check or lint rule that verifies new `.ts` source files have a corresponding `.test.ts` file and new component files have a corresponding `.stories.tsx` file.
 
-UI コンポーネントにはすべて、隣に `.stories.tsx` を置く。
+## Storybook — Visual Testing
 
-story はすべて CSF factories 形式で書く。旧来の CSF 1/2/3（`export default { ... }` と `satisfies Meta`）は使わない。
+Use Storybook for component-level visual testing and documentation. Every UI component must have a co-located `.stories.tsx` file.
 
-### セットアップ
+### CSF Factories Format (Required)
 
-1. `package.json` に subpath import を追加する
+All stories must use the CSF factories format. Do NOT use legacy CSF 1/2/3 syntax (`export default { ... }` with `satisfies Meta`).
+
+#### Setup
+
+1. Subpath import — Add to `package.json`:
 
 ```json
 {
@@ -135,51 +160,64 @@ story はすべて CSF factories 形式で書く。旧来の CSF 1/2/3（`export
 }
 ```
 
-2. `.storybook/main.ts` で `defineMain` を使う。framework パッケージは、Next.js（既定の Web スタック、`references/web.md`）なら `@storybook/nextjs-vite` にする。Next.js 以外の React + Vite なら `@storybook/react-vite` にする。interaction test を Vitest で動かす `@storybook/addon-vitest` は Vite 系の framework でしか動かないので、Webpack 系の `@storybook/nextjs` は使わない
+2. Main config — Use `defineMain` in `.storybook/main.ts`. Choose the framework package based on your project:
+
+- Next.js (default web stack) — `@storybook/nextjs`
+- React + Vite — `@storybook/react-vite`
+
+**Next.js projects** (use this by default — see `references/web.md`):
 
 ```typescript
-// .storybook/main.ts（Next.js）
-import { defineMain } from "@storybook/nextjs-vite/node";
+// .storybook/main.ts
+import { defineMain } from "@storybook/nextjs/node";
 
 export default defineMain({
   stories: ["../src/**/*.stories.tsx"],
-  addons: ["@storybook/addon-vitest"], // essentials 相当の機能は storybook 本体に含まれる
+  addons: ["@storybook/addon-essentials", "@storybook/experimental-addon-test"],
 });
 ```
 
+**React + Vite projects** (non-Next.js):
+
 ```typescript
-// .storybook/main.ts（React + Vite）
+// .storybook/main.ts
 import { defineMain } from "@storybook/react-vite/node";
 
 export default defineMain({
   stories: ["../src/**/*.stories.tsx"],
-  addons: ["@storybook/addon-vitest"], // essentials 相当の機能は storybook 本体に含まれる
+  addons: ["@storybook/addon-essentials", "@storybook/experimental-addon-test"],
 });
 ```
 
-3. `.storybook/preview.ts` で `definePreview` を使う。Next.js では `nextjs.appDirectory: true` を設定する。無いと `next/image`・`next/link`・`next/navigation` などを使うコンポーネントが Storybook 上で実行時エラーになる
+3. Preview config — Use `definePreview` in `.storybook/preview.ts`:
+
+**Next.js projects** (use this by default):
 
 ```typescript
-// .storybook/preview.ts（Next.js）
-import { definePreview } from "@storybook/nextjs-vite/preview";
+// .storybook/preview.ts
+import { definePreview } from "@storybook/nextjs/preview";
 
 export default definePreview({
   parameters: {
     nextjs: {
-      appDirectory: true, // App Router を有効にする
+      appDirectory: true, // Enable App Router support
     },
   },
 });
 ```
 
+This ensures `next/image`, `next/link`, `next/navigation`, and other Next.js modules work correctly inside stories. Without this configuration, components using Next.js features will throw runtime errors in Storybook.
+
+**React + Vite projects** (non-Next.js):
+
 ```typescript
-// .storybook/preview.ts（React + Vite）
+// .storybook/preview.ts
 import { definePreview } from "@storybook/react-vite/preview";
 
 export default definePreview({});
 ```
 
-### story の書き方
+#### Writing Stories
 
 ```typescript
 import preview from "#.storybook/preview";
@@ -199,14 +237,16 @@ export const Secondary = meta.story({
   args: { variant: "secondary", children: "Click me" },
 });
 
-// .composed で別の story の args を再利用する
+// Reusing args from another story via .composed
 export const Large = meta.story({
   args: { ...Primary.composed.args, size: "lg" },
 });
 ```
 
-- preview は相対パスではなく subpath import（`#.storybook/preview`）で import する
-- コンポーネントのメタデータは `preview.meta()`、各 story は `meta.story()` で定義する
-- preview → meta → story でマージされた値は `.composed` で参照する
-- `satisfies Meta` や `StoryObj` の型注釈は書かない（自動で推論される）
-- interaction test は `play` 関数で書く。カバレッジに数えられる
+Key rules:
+
+- Import preview via subpath import (`#.storybook/preview`), never relative paths
+- Use `preview.meta()` for component metadata, `meta.story()` for individual stories
+- Access composed values (args merged from preview → meta → story) via `.composed`
+- No manual type annotations (`satisfies Meta`, `StoryObj`) — types are inferred automatically
+- Add `play` functions for interaction tests — these contribute to coverage

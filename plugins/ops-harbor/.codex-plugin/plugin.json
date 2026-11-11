@@ -1,7 +1,7 @@
 {
   "name": "ops-harbor",
-  "version": "0.1.6",
-  "description": "Ops Harbor 連携 — キャッシュされた作業項目の可視化と MCP ファーストワークフロー",
+  "version": "0.1.3",
+  "description": "Ops Harbor integration for cached work item visibility and MCP-first workflows",
   "author": {
     "name": "masseater",
     "url": "https://github.com/masseater"
@@ -15,8 +15,8 @@
   ],
   "interface": {
     "displayName": "Ops Harbor",
-    "shortDescription": "Ops Harbor 連携 — キャッシュされた作業項目の可視化と MCP ファーストワークフロー",
-    "longDescription": "Ops Harbor 連携 — キャッシュされた作業項目の可視化と MCP ファーストワークフロー",
+    "shortDescription": "Ops Harbor integration for cached work item visibility and MCP-first workflows",
+    "longDescription": "Ops Harbor integration for cached work item visibility and MCP-first workflows",
     "developerName": "masseater",
     "category": "Productivity"
   },

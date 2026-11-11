@@ -29,6 +29,7 @@ const hook = defineHook({
           hookEventName: "SessionStart" as const,
           additionalContext: message,
         },
+        suppressOutput: true,
       },
     });
   }),
