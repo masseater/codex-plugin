@@ -1,10 +1,19 @@
 #!/usr/bin/env bun
 import { HookLogger, wrapRun } from "@r_masseater/cc-plugin-lib";
 import { defineHook, runHook } from "cc-hooks-ts";
-import { personaPrompt, resolveProjectDir, resolveStateFile, writePersona } from "../lib/state.ts";
+import {
+  markInjected,
+  personaPrompt,
+  readPersona,
+  resolveProjectDir,
+  resolveStateFile,
+  writePersona,
+} from "../lib/state.ts";
 
 using logger = HookLogger.fromFile(import.meta.filename);
 
+// planner の「実装しない」指示が承認後も残ると実装に入れないため、planner のときだけ worker に切り替える。
+// persona 未設定や他の persona のセッションでは何もしない。
 const hook = defineHook({
   trigger: { PostToolUse: { ExitPlanMode: true } },
   run: wrapRun(logger, (context) => {
@@ -16,7 +25,12 @@ const hook = defineHook({
 
     const sessionId = context.input.session_id;
     const stateFile = resolveStateFile(projectDir, sessionId);
+    if (readPersona(stateFile) !== "planner") {
+      return context.success({});
+    }
+
     writePersona(stateFile, "worker");
+    markInjected(stateFile, "worker");
     logger.info(`Persona switched to worker for session ${sessionId}`);
 
     return context.json({
@@ -27,13 +41,13 @@ const hook = defineHook({
           hookEventName: "PostToolUse" as const,
           additionalContext: personaPrompt("worker"),
         },
-        suppressOutput: true,
       },
     });
   }),
 });
 
-/* v8 ignore next 3 */
+/* v8 ignore start */
 if (import.meta.main) {
   await runHook(hook);
 }
+/* v8 ignore stop */

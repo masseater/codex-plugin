@@ -1,33 +1,18 @@
 ---
-description: "GitHub API guidelines: use gh auth token + Octokit instead of gh CLI directly"
+description: skill の scripts/ から GitHub API を呼ぶときの書き方（gh auth token で認証し Octokit を使う）
 ---
 
-# GitHub API Usage Guidelines
+# スクリプトから GitHub API を呼ぶ
 
-## Principle: Octokit First, gh CLI Last
+ここで扱うのは、skill の `scripts/` に置く TypeScript スクリプトから GitHub API を呼ぶ場合だけ。Claude が対話中に `gh pr view` や `gh issue view` を直接実行するのはこの対象外で、そのままでよい。
 
-Use `gh auth token` to obtain an authentication token and interact with the GitHub API via Octokit. Do NOT call `gh` CLI directly for API operations.
+## 方針
 
-Before resorting to `gh` CLI, first investigate whether the operation is possible via Octokit. Only after confirming that Octokit genuinely cannot accomplish the task should `gh` CLI be used directly.
+スクリプトでは `gh auth token` でトークンを取り、`@octokit/rest` で API を呼ぶ。`gh` CLI の出力は版や環境で形が変わり、パースに依存するスクリプトが壊れやすいため。Octokit は型付きの応答を返し、エラー処理・ページネーション・レート制限も扱える。`gh auth token` を使えば追加の認証設定も要らない。
 
-## Why
+Octokit で実現できないと確かめた操作だけ、スクリプトから `gh` を直接呼ぶ。
 
-- `gh` CLI output varies across versions and environments, making parse-dependent scripts fragile
-- Octokit returns typed, structured responses that enable robust scripting
-- Octokit handles error handling, pagination, and rate limiting properly
-- `gh auth token` requires no additional auth configuration
-
-## Token Acquisition
-
-```typescript
-import { execFileSync } from "node:child_process";
-
-const token = execFileSync("gh", ["auth", "token"], { encoding: "utf-8" }).trim();
-```
-
-Always use `execFileSync` (not `execSync`) to avoid shell injection risks.
-
-## Octokit Usage
+## 書き方
 
 ```typescript
 import { execFileSync } from "node:child_process";
@@ -36,7 +21,6 @@ import { Octokit } from "@octokit/rest";
 const token = execFileSync("gh", ["auth", "token"], { encoding: "utf-8" }).trim();
 const octokit = new Octokit({ auth: token });
 
-// Example: Get PR details
 const { data: pr } = await octokit.pulls.get({
   owner: "org",
   repo: "repo",
@@ -44,9 +28,11 @@ const { data: pr } = await octokit.pulls.get({
 });
 ```
 
-## Anti-patterns
+外部コマンドは `execFileSync` で呼ぶ。`execSync` は文字列をシェルに渡すので、引数にユーザー入力が混ざるとシェルインジェクションになる。
 
-- `gh api /repos/...` for API calls — Use Octokit's typed methods
-- Parsing `gh pr list` output with grep/awk — `octokit.pulls.list()` for structured data
-- Parsing `gh issue list --json` JSON output — Fetch directly via Octokit
-- Calling `gh pr comment` repeatedly in scripts — `octokit.issues.createComment()` in a loop
+## 置き換えの例
+
+- `gh api /repos/...` → Octokit の型付きメソッド
+- `gh pr list` の出力を grep / awk でパース → `octokit.pulls.list()`
+- `gh issue list --json` の出力をパース → Octokit で直接取得
+- スクリプト内で `gh pr comment` を繰り返し呼ぶ → `octokit.issues.createComment()`

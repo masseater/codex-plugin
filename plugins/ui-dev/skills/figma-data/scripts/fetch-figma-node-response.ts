@@ -1,35 +1,20 @@
 #!/usr/bin/env bun
 
 import { defineCommand, runMain } from "citty";
-import { getToken } from "./_lib.ts";
+import { readJsonRecord, type JsonRecord } from "./_json.ts";
+import { figmaGet, getToken } from "./_lib.ts";
 
-type FigmaNodeResponse = {
-  name: string;
-  lastModified: string;
-  thumbnailUrl: string;
-  version: string;
-  role: string;
-  editorType: string;
-  linkAccess: string;
-  nodes: Record<string, { document: unknown; components?: unknown; schemaVersion?: number }>;
-};
-
-async function fetchNode(fileKey: string, nodeId: string): Promise<FigmaNodeResponse> {
+async function fetchNode(fileKey: string, nodeId: string): Promise<JsonRecord> {
   const token = getToken();
 
-  const url = new URL(`https://api.figma.com/v1/files/${fileKey}/nodes`);
-  url.searchParams.set("ids", nodeId);
-
-  const response = await fetch(url, {
-    headers: { "X-Figma-Token": token },
-  });
+  const response = await figmaGet(["files", fileKey, "nodes"], { ids: nodeId }, token);
 
   if (!response.ok) {
     const body = await response.text();
     throw new Error(`Figma API request failed: ${response.status} ${response.statusText}\n${body}`);
   }
 
-  return (await response.json()) as FigmaNodeResponse;
+  return readJsonRecord(response);
 }
 
 const main = defineCommand({
@@ -55,4 +40,4 @@ const main = defineCommand({
   },
 });
 
-runMain(main);
+await runMain(main);

@@ -1,31 +1,29 @@
 ---
-description: Complete context.json() response structures for all hook events — PreToolUse, PostToolUse, UserPromptSubmit, PermissionRequest, Stop, and more
+description: cc-hooks-ts の context.json() で返すイベント別の出力構造（PreToolUse / PostToolUse / UserPromptSubmit / PermissionRequest / Stop / SessionStart）
 ---
 
-# Response Patterns Reference
+# context.json() の出力パターン
 
-Complete reference for `context.json()` response structures by event type.
+## Contents
 
-## Common Output Fields
+- 全イベント共通のフィールド
+- PreToolUse
+- PostToolUse / PostToolUseFailure
+- UserPromptSubmit
+- PermissionRequest
+- Stop / SubagentStop
+- SessionStart
+- additionalContext の書き方
 
-All events share these optional fields:
+## 全イベント共通のフィールド
 
-- `continue` — `boolean`
-  - Default: `true`
-  - Description: Whether to continue processing
-- `stopReason` — `string`
-  - Default: —
-  - Description: Reason for stopping (shown to user, not Claude)
-- `suppressOutput` — `boolean`
-  - Default: `false`
-  - Description: Hide stdout from user
-- `systemMessage` — `string`
-  - Default: —
-  - Description: Warning message displayed to user
+全イベント共通の任意フィールド:
+
+- `continue: false`: Claude の処理を止める。`stopReason` はユーザーに表示され、会話に残るので、会話が続けば Claude も読む
+- `systemMessage`: ユーザーに表示する警告。hooks.json で `"async": true` にした hook では表示されず、次のターンで Claude に渡る
+- `suppressOutput`: Claude Code は受け付けるが効果はないので付けない
 
 ## PreToolUse
-
-Control tool execution before it runs.
 
 ```typescript
 return context.json({
@@ -33,25 +31,19 @@ return context.json({
   output: {
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
-      permissionDecision: "allow" | "ask" | "deny",
-      permissionDecisionReason: "Reason shown to user",
-      updatedInput: {
-        /* modified tool input */
-      },
-      additionalContext: "Context added for Claude",
+      permissionDecision: "deny", // "allow" | "ask" | "deny"（"defer" は claude -p の非対話モードでだけ効き、対話セッションでは無視される）
+      permissionDecisionReason: "理由と代わりにすべきこと",
+      // updatedInput: { ... }   ツール入力を差し替える
+      // additionalContext: "..." ツール結果の隣に Claude への補足を入れる
     },
   },
 });
 ```
 
-- `permissionDecision` — `"allow"` = auto-approve, `"ask"` = prompt user, `"deny"` = block
-- `permissionDecisionReason` — Shown to user (not fed to Claude when `"allow"`)
-- `updatedInput` — Replace tool input before execution
-- `additionalContext` — Extra context injected into Claude's conversation
+- `deny` の `permissionDecisionReason` は Claude に渡る。理由と代替手段を書くと Claude がそのまま直せる
+- トップレベルの `decision: "block"` は PreToolUse では非推奨。`permissionDecision` を使う
 
-## PostToolUse
-
-React to tool output after execution.
+## PostToolUse / PostToolUseFailure
 
 ```typescript
 return context.json({
@@ -59,96 +51,41 @@ return context.json({
   output: {
     hookSpecificOutput: {
       hookEventName: "PostToolUse",
-      additionalContext: "Analysis of tool output for Claude",
-      updatedMCPToolOutput: {
-        /* replace MCP tool output */
-      },
-    },
-    suppressOutput: true,
-  },
-});
-```
-
-- `additionalContext` — Message injected into Claude's context
-- `updatedMCPToolOutput` — Replace MCP tool response content
-- `suppressOutput` — Hide original tool output from user
-
-## PostToolUseFailure
-
-Handle tool execution failures.
-
-```typescript
-return context.json({
-  event: "PostToolUseFailure",
-  output: {
-    hookSpecificOutput: {
-      hookEventName: "PostToolUseFailure",
-      additionalContext: "Guidance for Claude on how to recover",
+      additionalContext: "lint 結果など、ツール結果に添える事実",
     },
   },
 });
 ```
+
+`updatedToolOutput` でツールの出力を差し替えられる（値はツールの出力の形に合わせる）。MCP ツール専用の `updatedMCPToolOutput` より、全ツールに効くこちらを使う。
 
 ## UserPromptSubmit
-
-Intercept or augment user prompts.
 
 ```typescript
 return context.json({
   event: "UserPromptSubmit",
   output: {
-    decision: "approve" | "block",
+    // decision: "block", reason: "..."  プロンプトを処理させない場合だけ付ける
     hookSpecificOutput: {
       hookEventName: "UserPromptSubmit",
-      additionalContext: "Extra context for this prompt",
+      additionalContext: "プロンプトに添える情報",
     },
   },
 });
 ```
 
-- `decision` — `"block"` prevents the prompt from being processed
-- `additionalContext` — Added to context if not blocked
+`decision` は `"block"` か省略のどちらか。additionalContext は毎ターン transcript に積み上がるので、変化があったときだけ返す。
 
 ## PermissionRequest
 
-Programmatically approve or deny permission requests.
-
 ```typescript
-// Auto-approve
 return context.json({
   event: "PermissionRequest",
   output: {
     hookSpecificOutput: {
       hookEventName: "PermissionRequest",
-      decision: {
-        behavior: "allow",
-        updatedInput: {
-          /* optional input modifications */
-        },
-        updatedPermissions: [
-          {
-            type: "addRules",
-            behavior: "allow",
-            destination: "projectSettings",
-            rules: [{ toolName: "Bash", ruleContent: "npm test" }],
-          },
-        ],
-      },
-    },
-  },
-});
-
-// Deny
-return context.json({
-  event: "PermissionRequest",
-  output: {
-    hookSpecificOutput: {
-      hookEventName: "PermissionRequest",
-      decision: {
-        behavior: "deny",
-        interrupt: true,
-        message: "This operation is not allowed",
-      },
+      decision: { behavior: "deny", interrupt: true, message: "許可しない理由" },
+      // 許可する場合: { behavior: "allow", updatedInput?: {...}, updatedPermissions?: [...] }
     },
   },
 });
@@ -156,24 +93,25 @@ return context.json({
 
 ## Stop / SubagentStop
 
-Control whether Claude stops processing.
+継続させる方法は 2 つ。どちらも `stop_hook_active` と連続 8 回の上限の対象になる。
 
 ```typescript
+// 想定どおりの補足（transcript には "Stop hook feedback" と表示される）
 return context.json({
   event: "Stop",
   output: {
-    decision: "block", // Prevent Claude from stopping
-    hookSpecificOutput: {
-      hookEventName: "Stop",
-      additionalContext: "Continue with remaining tasks",
-    },
+    hookSpecificOutput: { hookEventName: "Stop", additionalContext: "残っている作業の事実" },
   },
+});
+
+// エラーとして止める。decision が "block" のとき reason は必須
+return context.json({
+  event: "Stop",
+  output: { decision: "block", reason: "続けるべき理由" },
 });
 ```
 
-## SessionStart / Notification / PreCompact
-
-Add context at session lifecycle events.
+## SessionStart
 
 ```typescript
 return context.json({
@@ -181,17 +119,15 @@ return context.json({
   output: {
     hookSpecificOutput: {
       hookEventName: "SessionStart",
-      additionalContext: "Environment info or session-level instructions",
+      additionalContext: "会話の先頭に入れる環境情報",
     },
+    // systemMessage: "ユーザーにだけ見せる通知"
   },
 });
 ```
 
-## Exit Codes Summary
+SessionStart の plain stdout はそのまま Claude のコンテキストに入る。インストールログなどは stderr に出す。
 
-- 0 — Success
-  - Method: `context.success()`, `context.json()`, `context.defer()`
-- 1 — Non-blocking error (warn and continue)
-  - Method: `context.nonBlockingError()`
-- 2 — Blocking error (stop execution)
-  - Method: `context.blockingError()`
+## additionalContext の書き方
+
+命令ではなく事実として書く（「この repo のテストは `bun test`」）。system 命令風の文面は prompt injection 防御を誘発し、Claude がユーザーに転送するだけになることがある。

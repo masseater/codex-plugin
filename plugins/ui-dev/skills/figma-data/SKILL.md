@@ -1,150 +1,66 @@
 ---
-name: ui-dev:figma-data
-description: 'This skill should be used when the user asks to "extract Figma design data", "get CSS properties from Figma", "trace prototype chain", "export assets from Figma", "get component variants", or needs exact design values (colors, spacing, typography, interactions) from Figma nodes via API.'
+name: figma-data
+description: Figma REST API から、実装で使う正確な値（色・余白・角丸・影・タイポグラフィ）とコンポーネントの variant を取得する。プロトタイプの遷移とアニメーション、SVG/PNG アセット、ノードのスクリーンショットも取得する。Figma MCP の get_design_context の近似値では足りないときと、Figma のスクリーンショットをファイルへ保存したいときに使う。
 ---
 
 # figma-data
 
-Extract precise design data from the Figma REST API — prototype graph traversal (BFS), interactions, exact CSS values, component APIs, and asset export.
+スクリプトは `${CLAUDE_SKILL_DIR}/scripts/` にあり、shebang 付きなので直接実行する。すべて `FIGMA_ACCESS_TOKEN` 環境変数が必要。引数の詳細は各スクリプトの `--help` で確認する。
 
-## Figma MCP vs API Scripts
+fileKey と nodeId は Figma の URL `https://www.figma.com/design/<fileKey>/...?node-id=<nodeId>` から取る。nodeId はコロン（`18067:11823`）とダッシュ（`18067-11823`）のどちらでも受け付けるが、`document: null` が返ったらもう一方の形式を試す。
 
-Use MCP tools for quick overview and visual confirmation. Use API scripts when exact values matter.
+## MCP とスクリプトの使い分け
 
-- Visual reference, approximate code — `get_design_context` (MCP)
-- Screenshot — Do NOT use `get_screenshot` — use `figma-screenshot` skill or API export instead
-- Layer structure overview — `get_metadata` (MCP)
-- Design tokens / variables — `get_variable_defs` (MCP)
-- Exact CSS values (colors, spacing, radius, shadows) — `extract-node-properties.ts` (API)
-- Prototype interactions, transitions, easing — `trace-prototype-chain.ts` + `query-prototype-chain.ts` (API)
-- SVG/PNG asset export — `export-node-images.ts` (API)
-- Component variant props and combinations — `get-component-variants.ts` (API)
-- All pages/frames in a file — `list-file-frames.ts` (API)
+以下は公式 Figma plugin（plugin 名 `figma`、MCP サーバー名 `figma`）経由のツール名。Figma MCP を plugin を使わず単体で `figma` として登録している場合は `mcp__figma__...` になる。
 
-## Recommended Workflow
+- 全体像と参考コード: `mcp__plugin_figma_figma__get_design_context`。値は近似なので、そのまま実装値にしない
+- レイヤー構造の概観: `mcp__plugin_figma_figma__get_metadata`
+- デザイントークン・変数: `mcp__plugin_figma_figma__get_variable_defs`
+- スクリーンショット: `export-screenshot.ts`。`mcp__plugin_figma_figma__get_screenshot` は hook で拒否される
+- 正確な CSS 相当の値: `extract-node-properties.ts`
+- variant の props と組み合わせ: `get-component-variants.ts`
+- アイコン・イラストの書き出し: `export-node-images.ts`
+- 遷移・アニメーション・easing: `trace-prototype-chain.ts` と `query-prototype-chain.ts`
+- ファイル内の全ページとフレーム: `list-file-frames.ts`
+- 単一ノードの生レスポンス確認: `fetch-figma-node-response.ts`
 
-1. Overview: `get_design_context` (MCP) for reference code + screenshot
-2. Structure: `list-file-frames.ts` to discover all pages/frames
-3. Exact values: `extract-node-properties.ts` for the node being implemented
-4. Components: `get-component-variants.ts` if implementing a component with variants
-5. Assets: `export-node-images.ts` for icons/illustrations as SVG
-6. Interactions: `trace-prototype-chain.ts` + `query-prototype-chain.ts` for transitions
+## 今実装しているノードだけを取得する
 
-## Core Principle: Query Only What Is Being Implemented Right Now
+データはノードごとに、使う時点で取得し、全ノードを先にまとめて取らない。取得した JSON はそのままコンテキストに載るので、使わないデータはトークンを浪費するだけになる。
 
-Query data on-demand per node. Never bulk-fetch all nodes upfront — each query loads data into context, and unused data wastes tokens.
+## スクリプト
 
-## Inputs
+- `export-screenshot.ts`: ノードを画像で保存する。細部を比較するときは `--scale 2` にする
 
-- `fileKey` — Yes
-  - Description: Figma file key (from URL path)
-- `nodeId` — Yes
-  - Description: Node ID (colon or dash format accepted)
+  ```text
+  export-screenshot.ts --file-key <key> --node-id <id> --output <path> [--scale 1] [--format png|jpg|svg|pdf]
+  ```
 
-Extract from a Figma URL like `https://www.figma.com/design/<fileKey>/...?node-id=<nodeId>`.
+- `extract-node-properties.ts --file-key <key> --node-id <id> [--depth] [--output]`: 色・余白・角丸・影・フォントなどを CSS 相当の値で出す
+- `get-component-variants.ts --file-key <key> --node-id <id> [--output]`: コンポーネントセットの variant を解析する
+- `export-node-images.ts`: アセットを書き出す
 
-## Mode Selection
+  ```text
+  export-node-images.ts --file-key <key> --node-ids <id,...> --output-dir <dir> [--format svg|png|jpg|pdf] [--scale 2]
+  ```
 
-Choose **one** mode per invocation. Never run Mode B as a prerequisite for Mode A.
+- `list-file-frames.ts --file-key <key> [--output]`: 全ページとトップレベルのフレームを JSON で出す。トレースの開始ノードを探すときに使う
+- `fetch-figma-node-response.ts --file-key <key> --node-id <id>`: 単一ノードの生の API レスポンスを JSON で出す。`document: null` の判定や、1 ノードの `interactions` の確認に使う
 
-- List all pages/frames in a file — C
-- Figma URL with page/frame node (default) — A
-- Landing page with scroll animations — A
-- Multi-step onboarding flow — A
-- Prototype already traced (reuse JSON) — A (query only)
-- Single button or icon interaction — B
-- Verify if a specific node has interactions — B
+## プロトタイプの遷移
 
-## Mode A: Prototype Graph Trace (default)
+1. フローごとに 1 回だけトレースする。開始ノードから `interactions[].actions[].destinationId` を子ノードまで含めて BFS でたどり、見つかった全フレームの PNG を `<output のディレクトリ>/screenshots/` に保存する
 
-### Step 1 — Trace (once per Figma URL)
+   ```bash
+   ${CLAUDE_SKILL_DIR}/scripts/trace-prototype-chain.ts --file-key <key> --node-id <id> --output <path.json>
+   ```
 
-```bash
-./scripts/trace-prototype-chain.ts \
-  --file-key <fileKey> --node-id <nodeId> --output <outputPath>
-```
+   フレームが 1 つしか出ないときは、ページではなくフレームのノードを指定しているか確認する。訪問済みのフレームに戻った時点で探索は止まるので、途中で止まって見えても正常なことが多い
 
-BFS-traverses the entire prototype graph from the starting node. Discovers all connected frames by scanning `interactions[].actions[].destinationId` on any node including children (buttons, instances, etc.).
+2. 実装中に特定ノードの遷移が必要になったら、その都度問い合わせる。`--node-id map` で全フレームのつながりを出せる。出力の Markdown をそのまま使い、グラフの JSON は直接読まない
 
-Saves PNG screenshots of all frames to `<output-dir>/screenshots/` and records file paths in the JSON.
+   ```bash
+   ${CLAUDE_SKILL_DIR}/scripts/query-prototype-chain.ts --json-path <path.json> --node-id <id|map>
+   ```
 
-After the trace completes, confirm frame counts and JSON path. **Stop here.** Return to implementation and only proceed to Step 2 when a specific node's interaction data is needed.
-
-### Step 2 — Query (on-demand, per-node or full page map)
-
-When actively writing code for a specific node and interaction details are needed:
-
-```bash
-./scripts/query-prototype-chain.ts \
-  --json-path <path> --node-id <nodeId>
-```
-
-To view the full page map with all frame connections:
-
-```bash
-./scripts/query-prototype-chain.ts \
-  --json-path <path> --node-id map
-```
-
-Both colon (`18067:11823`) and dash (`18067-11823`) formats are accepted.
-
-Relay the markdown output directly. Never parse the graph JSON manually.
-
-## Mode B: Single Node Inspection
-
-For quick checks on a single isolated node:
-
-```bash
-./scripts/fetch-figma-node-response.ts \
-  --file-key <fileKey> --node-id <nodeId>
-```
-
-Confirm whether the target node resolved to a real `document` or `null`.
-
-## Mode C: List All Pages and Frames
-
-List every page and top-level frame in a Figma file. Use this to discover all node IDs before tracing a specific chain.
-
-```bash
-./scripts/list-file-frames.ts \
-  --file-key <fileKey> [--output <outputPath>]
-```
-
-Without `--output`, prints JSON to stdout. With `--output`, writes JSON to file and prints summary to stdout.
-
-## Scripts
-
-All scripts are standalone executable TypeScript files with a shebang. Do NOT run them via `bun` — execute them directly (e.g., `./scripts/trace-prototype-chain.ts --help`).
-
-- `./scripts/list-file-frames.ts` — List all pages/frames
-  - Input: `--file-key [--output]`
-  - Output: JSON to stdout or file
-- `./scripts/extract-node-properties.ts` — Exact CSS-equivalent properties
-  - Input: `--file-key --node-id [--depth] [--output]`
-  - Output: JSON to stdout or file
-- `./scripts/get-component-variants.ts` — Component variant analysis
-  - Input: `--file-key --node-id [--output]`
-  - Output: JSON to stdout or file
-- `./scripts/export-node-images.ts` — Export SVG/PNG assets
-  - Input: `--file-key --node-ids --output-dir [--format] [--scale]`
-  - Output: Files to directory
-- `./scripts/trace-prototype-chain.ts` — BFS prototype graph trace
-  - Input: `--file-key --node-id --output`
-  - Output: JSON file
-- `./scripts/query-prototype-chain.ts` — Query graph (per-node or `map`)
-  - Input: `--json-path --node-id`
-  - Output: Markdown to stdout
-- `./scripts/fetch-figma-node-response.ts` — Single node raw fetch
-  - Input: `--file-key --node-id`
-  - Output: JSON to stdout
-
-## Error Handling
-
-- `FIGMA_ACCESS_TOKEN is not set` — Missing env var
-  - Resolution: Export the token before running
-- `document: null` for known node — Node ID format mismatch
-  - Resolution: Try both colon and dash formats
-- Single frame (no edges) — No `transitionNodeID` or `interactions` destinations found
-  - Resolution: Verify the correct starting frame in Figma
-- Graph stops early — All reachable frames already visited
-  - Resolution: Expected — BFS stops on revisit
+1 つのボタンやアイコンの遷移を確かめるだけなら、トレースせずに `fetch-figma-node-response.ts` で足りる。

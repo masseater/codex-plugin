@@ -1,103 +1,28 @@
 ---
-name: sdd:steering
-description: 'This skill should be used when the user asks to "define project steering", "プロジェクト方針を定義", "技術スタックを整理", "steering", or wants persistent SDD project context initialized or migrated.'
+name: steering
+description: プロジェクトの方針（プロダクト・技術スタック・構造・開発原則）をステアリング文書として .claude/skills/steering/ に作る、または旧配置から移行する。SDD を始めるとき、「プロジェクト方針を整理したい」「steering を作って」と頼まれたときに使う。
 ---
 
-# ステアリングドキュメント初期化ガイド
+# ステアリング文書の作成
 
-ユーザープロジェクトに `.claude/skills/steering/SKILL.md` を生成するためのガイド。
+ステアリング文書は、SDD の全段階が判断の基準にするプロジェクトの方針。`.claude/skills/steering/` に skill として置くので、Claude は文脈に応じて自動で参照する。
 
-## 概要
+## 新規作成
 
-ステアリングドキュメントはプロジェクト全体の永続的なコンテキスト:
+1. テンプレートをコピーする（既存ファイルは上書きしない）
 
-- Product: プロダクト方針、ビジョン、ターゲットユーザー
-- Tech Stack: 技術スタック、アーキテクチャ、開発標準
-- Structure: プロジェクト構造、命名規則
-- Principles: 開発原則（TDD, SOLID, YAGNI）
+   ```bash
+   ${CLAUDE_SKILL_DIR}/scripts/copy-templates.ts .claude/skills/steering
+   ```
 
-## 配置場所
+   SKILL.md / product.md / tech.md / structure.md / principles.md ができる
 
-**新しい構造**: `.claude/skills/steering/SKILL.md`
+2. README.md・AGENTS.md・package.json など既存の文書とコードを読み、各ファイルをこのプロジェクトに合わせて書く。既存の文書に書いてあることは重ねて書かず、そちらを参照する。具体的なファイル名やコマンドの列挙ではなく、方針の水準で書く。テンプレートに残った一般論（原則の定義など）は、このプロジェクトでの適用方法に置き換えるか消す
 
-Progressive Disclosure により、Claude は文脈に応じて自動的に参照する。
+## 旧配置からの移行
 
-## 初期化手順
+`specs/_steering/` に product.md / tech.md / structure.md / principles.md がある場合は、`.claude/skills/steering/` に `git mv` で移す。テンプレートの SKILL.md だけを追加でコピーする。`specs/_steering/` が空になったら削除する。
 
-### テンプレートコピースクリプト
+## 完了後
 
-```bash
-# テンプレートを .claude/skills/steering/ にコピー
-./scripts/copy-templates.ts .claude/skills/steering
-```
-
-コピーされるファイル:
-
-- `product.md` - プロダクト方針
-- `tech.md` - 技術スタック
-- `structure.md` - プロジェクト構造
-- `principles.md` - 開発原則
-
-### テンプレートの更新
-
-コピー後、各ファイルをプロジェクトに合わせて更新する:
-
-1. 既存ドキュメントの確認: README.md、AGENTS.md、package.json 等に既に記載されている情報をチェック
-2. 重複を避ける: 既存ドキュメントと競合する情報は書かない
-3. 各テンプレートの指示に従う: テンプレート内の「記載のポイント」を参照
-
-### sdd-webapp登録
-
-ステアリング作成後、`sdd_webapp_add_project` でプロジェクトを登録。
-
-### 完了報告
-
-```
-✅ ステアリングドキュメントを作成しました
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📍 作成先: .claude/skills/steering/
-🌐 sdd-webapp: 登録済み
-
-💡 次のアクション:
-   - 内容を確認・編集
-   - SDD コマンドで仕様書作成: `/sdd:spec init`
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-## 移行手順（既存 `specs/_steering/` がある場合）
-
-### 1. 既存ファイルの検出
-
-`specs/_steering/` 配下の4ファイルを読み込み:
-
-- product.md
-- tech.md
-- structure.md
-- principles.md
-
-### 2. 内容の統合
-
-4ファイルの内容を `.claude/skills/steering/SKILL.md` に統合。
-
-### 3. 完了報告
-
-```
-✅ ステアリングドキュメントを移行しました
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📍 移行元: specs/_steering/
-📍 移行先: .claude/skills/steering/SKILL.md
-
-⚠️ 古いファイルは手動で削除してください:
-   rm -rf specs/_steering/
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-## 重要な原則
-
-- Progressive Disclosure: 明示的に読み込む必要なし（Claude が文脈から判断）
-- 唯一の真実の源: プロジェクト方針の矛盾を防ぐ
-- 抽象レベルを維持: 具体的なファイル名やコマンドは列挙しない
-
-## 関連リソース
-
-- steering-reviewer エージェント: ステアリング準拠レビュー
+作ったファイルを伝え、次は `/sdd:spec init <作りたいものの説明>` で spec を作ることを案内する。

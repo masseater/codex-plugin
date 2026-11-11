@@ -1,92 +1,22 @@
 ---
-name: sdd:archive
-argument-hint: ""
-description: 'This skill should be used when the user asks to "archive a completed spec", "specをアーカイブ", "完了タスクをアーカイブ", "archive SDD task", or wants completed/rejected specs moved into the SDD archived specs directory.'
+name: archive
+disable-model-invocation: true
+description: status が completed か rejected の spec を選んで specs/_archived/ に移動し、コミットする。
+argument-hint: "[spec 名]"
 ---
 
-specs/配下のタスクを一覧表示し、選択したタスクを`specs/_archived/`ディレクトリに移動してください。
-アーカイブ理由はoverview.mdのPhase statusから自動判定します。
+# spec のアーカイブ
 
-## 実行手順
+1. 候補を集める。`specs/` 配下（`_archived` と `research` を除く）の各 spec について、overview.md の frontmatter の `status:` を読む。`completed` か `rejected` のものだけを候補にする。`../status/scripts/spec-state.ts specs` の出力の `status` を使ってよい
+2. 候補がなければ、その旨と、各 spec の現在の status を伝えて終える
+3. 引数で spec 名を渡されていなければ、候補を「<spec>（<status>）」の形で `AskUserQuestion` に並べて選んでもらう
+4. `specs/_archived/<spec>/` が既にあれば、既にアーカイブ済みだと伝えて止める
+5. 移動する。Git リポジトリ内なら `git mv`、そうでなければ `mv` を使う
 
-### 1. タスク一覧の取得
+   ```bash
+   mkdir -p specs/_archived
+   git mv specs/<spec> specs/_archived/<spec>
+   ```
 
-1. `specs/`ディレクトリが存在するか確認
-2. 存在しない場合、エラーメッセージを表示して終了
-3. `specs/`配下のディレクトリ一覧を取得（`_archived`を除外）
-4. タスクが存在しない場合、「アーカイブ可能なタスクがありません」と表示して終了
-
-### 2. 各タスクのプロジェクトステータス確認
-
-各タスクについて以下を実行:
-
-1. `specs/[taskname]/overview.md`を読み込む
-2. 「## プロジェクトステータス」セクションの「**ステータス**:」フィールドを読み取る
-3. ステータスが「完了」または「却下」のタスクのみをアーカイブ対象とする
-4. `overview.md`が存在しない、またはプロジェクトステータスが取得できない場合 → アーカイブ対象外
-
-### 3. AskUserQuestionツールでタスクを選択
-
-1. アーカイブ対象タスク（ステータスが「完了」または「却下」）の一覧を「タスク名（ステータス）」の形式で表示
-   - 例: `user-authentication（完了）`、`payment-integration（却下）`
-2. ユーザーに選択させる
-3. 選択されたタスク名とステータスを取得
-
-### 4. アーカイブディレクトリの準備
-
-1. `specs/_archived/`ディレクトリが存在するか確認
-2. 存在しない場合、作成する
-3. `specs/_archived/[taskname]/`が既に存在する場合、エラーメッセージを表示して終了
-   - エラーメッセージ: 「既にアーカイブされています: specs/\_archived/[taskname]/」
-
-### 5. Gitリポジトリの確認と移動
-
-1. `git rev-parse --is-inside-work-tree`を実行して確認
-2. 成功した場合（Gitリポジトリ内）:
-   - `git mv specs/[taskname] specs/_archived/[taskname]`を実行
-   - コミットメッセージ: `Archive spec: [taskname] ([ステータス])`
-3. 失敗した場合（Gitリポジトリ外）:
-   - `mv specs/[taskname] specs/_archived/[taskname]`を実行
-
-### 6. Gitコミット（Gitリポジトリの場合のみ）
-
-Gitリポジトリ内の場合:
-
-```bash
-git commit -m "$(cat <<'EOF'
-Archive spec: [taskname] ([ステータス])
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
-EOF
-)"
-```
-
-### 7. 完了報告
-
-以下を報告:
-
-- アーカイブ先パス: `specs/_archived/[taskname]/`
-- プロジェクトステータス: [完了/却下]
-
-## エラーハンドリング
-
-### specs/ディレクトリが存在しない場合
-
-```
-エラー: specs/ディレクトリが見つかりません
-```
-
-### アーカイブ可能なタスクがない場合
-
-```
-アーカイブ可能なタスクがありません
-```
-
-### 既にアーカイブされている場合
-
-```
-エラー: タスク「[taskname]」は既にアーカイブされています
-specs/_archived/[taskname]/ が既に存在します
-```
+6. Git リポジトリ内なら、移動だけをコミットする。メッセージの言語・形式と末尾の attribution はこのリポジトリとセッションのコミット規約に従い、spec 名と status を含める。規約が無ければ `Archive spec: <spec> (<status>)` とする
+7. アーカイブ先のパスと status を伝える。`specs/_archived/` 配下は hook で編集できなくなる。sdd-webapp のストアにある Phase の状態は消さない。ストアのキーは spec 名と Phase 番号で、ダッシュボードはアーカイブ済みの spec の状態もこの値から表示するため

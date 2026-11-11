@@ -1,7 +1,7 @@
 {
   "name": "research",
-  "version": "0.1.20",
-  "description": "調査・分析ツール（画像解析、ライブラリ調査、Figma連携）",
+  "version": "0.1.31",
+  "description": "調査・分析ツール（画像解析、ライブラリ調査、段階的リサーチ）",
   "author": {
     "name": "masseater",
     "url": "https://github.com/masseater"
@@ -15,10 +15,11 @@
   ],
   "interface": {
     "displayName": "Research",
-    "shortDescription": "調査・分析ツール（画像解析、ライブラリ調査、Figma連携）",
-    "longDescription": "調査・分析ツール（画像解析、ライブラリ調査、Figma連携）",
+    "shortDescription": "調査・分析ツール（画像解析、ライブラリ調査、段階的リサーチ）",
+    "longDescription": "調査・分析ツール（画像解析、ライブラリ調査、段階的リサーチ）",
     "developerName": "masseater",
     "category": "Productivity"
   },
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
 }

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vite-plus/test";
 
 vi.mock("node:child_process", () => ({
   execFileSync: vi.fn(),
@@ -51,18 +51,18 @@ describe("runAgnix", () => {
     mockedExecFileSync.mockReturnValueOnce("no issues found");
     const { runAgnix } = await import("./agnix-runner.js");
 
-    const result = runAgnix(["--target", "claude-code", "/tmp/CLAUDE.md"], mockLogger);
+    const result = runAgnix(["--format", "json", "/tmp/CLAUDE.md"], mockLogger);
 
-    expect(result).toStrictEqual({ exitCode: 0, output: "no issues found" });
+    expect(result).toStrictEqual({ exitCode: 0, stdout: "no issues found", stderr: "" });
     expect(mockedExecFileSync).toHaveBeenCalledWith(
       "agnix",
-      ["--target", "claude-code", "/tmp/CLAUDE.md"],
+      ["--format", "json", "/tmp/CLAUDE.md"],
       { stdio: "pipe", encoding: "utf-8", timeout: 30_000 },
     );
     expect(mockLogger.debug).toHaveBeenCalledWith("agnix exited with code 0");
   });
 
-  test("returns exit code and combined stdout+stderr on failure", async () => {
+  test("returns exit code with stdout and stderr separately on failure", async () => {
     const error = Object.assign(new Error("agnix failed"), {
       status: 2,
       stdout: "line 1: warning",
@@ -73,11 +73,12 @@ describe("runAgnix", () => {
     });
     const { runAgnix } = await import("./agnix-runner.js");
 
-    const result = runAgnix(["--target", "claude-code", "/tmp/AGENTS.md"], mockLogger);
+    const result = runAgnix(["--format", "json", "/tmp/AGENTS.md"], mockLogger);
 
     expect(result).toStrictEqual({
       exitCode: 2,
-      output: "line 1: warning\nline 2: error",
+      stdout: "line 1: warning",
+      stderr: "line 2: error",
     });
     expect(mockLogger.debug).toHaveBeenCalledWith("agnix exited with code 2");
   });
@@ -96,12 +97,8 @@ describe("runAgnix", () => {
     expect(result.exitCode).toBe(1);
   });
 
-  test("returns empty output when both stdout and stderr are falsy", async () => {
-    const error = Object.assign(new Error("agnix failed"), {
-      status: 1,
-      stdout: "",
-      stderr: "",
-    });
+  test("returns empty strings when stdout and stderr are missing", async () => {
+    const error = Object.assign(new Error("agnix failed"), { status: 1 });
     mockedExecFileSync.mockImplementationOnce(() => {
       throw error;
     });
@@ -109,6 +106,55 @@ describe("runAgnix", () => {
 
     const result = runAgnix(["check"], mockLogger);
 
-    expect(result.output).toBe("");
+    expect(result).toStrictEqual({ exitCode: 1, stdout: "", stderr: "" });
+  });
+});
+
+describe("parseAgnixJson", () => {
+  test("extracts diagnostics from agnix JSON output", async () => {
+    const { parseAgnixJson } = await import("./agnix-runner.js");
+    const stdout = JSON.stringify({
+      diagnostics: [
+        {
+          level: "warning",
+          rule: "XP-003",
+          file: "AGENTS.md",
+          line: 4,
+          column: 79,
+          message: "Hard-coded path",
+          suggestion: "Use relative paths",
+        },
+      ],
+      summary: { errors: 0, warnings: 1, info: 0 },
+    });
+
+    expect(parseAgnixJson(stdout)).toStrictEqual([
+      {
+        level: "warning",
+        rule: "XP-003",
+        line: 4,
+        column: 79,
+        message: "Hard-coded path",
+        suggestion: "Use relative paths",
+      },
+    ]);
+  });
+
+  test("returns empty array when there are no diagnostics", async () => {
+    const { parseAgnixJson } = await import("./agnix-runner.js");
+
+    expect(parseAgnixJson(JSON.stringify({ diagnostics: [] }))).toStrictEqual([]);
+  });
+
+  test("returns null for non-JSON output", async () => {
+    const { parseAgnixJson } = await import("./agnix-runner.js");
+
+    expect(parseAgnixJson("Error: Validation root not found")).toBeNull();
+  });
+
+  test("returns null when diagnostics is missing", async () => {
+    const { parseAgnixJson } = await import("./agnix-runner.js");
+
+    expect(parseAgnixJson(JSON.stringify({ version: "0.56.5" }))).toBeNull();
   });
 });

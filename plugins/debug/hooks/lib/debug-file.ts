@@ -15,17 +15,9 @@ export function writeDebugFile(debugFilePath: string, pluginRoot: string): void 
 }
 
 export function buildDebugMessage(debugFilePath: string, pluginRoot: string): string {
-  return `# Debug Plugin Active
-
-The debug plugin is enabled for this session.
-
-## Saved Data
-
-| File | Content |
-|------|---------|
-| \`${debugFilePath}\` | CLAUDE_PLUGIN_ROOT path |
-
-## Environment
-
-- CLAUDE_PLUGIN_ROOT: \`${pluginRoot}\``;
+  return [
+    "debug plugin が有効。",
+    `- CLAUDE_PLUGIN_ROOT: \`${pluginRoot}\``,
+    `- 同じ値を \`${debugFilePath}\` に保存した`,
+  ].join("\n");
 }

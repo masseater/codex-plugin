@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "agnix": {
-      "command": "bunx",
-      "args": ["agnix-mcp"]
-    }
-  }
-}

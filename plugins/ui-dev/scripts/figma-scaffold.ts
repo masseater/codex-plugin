@@ -7,26 +7,8 @@
 import { writeFileSync } from "node:fs";
 import { defineCommand, runMain } from "citty";
 import { env } from "../env.js";
-
-type FigmaNode = {
-  id: string;
-  name: string;
-  type: string;
-  children?: FigmaNode[];
-};
-
-type FigmaFileResponse = {
-  document: FigmaNode;
-  name: string;
-};
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isFigmaFileResponse(value: unknown): value is FigmaFileResponse {
-  return isRecord(value) && "document" in value && "name" in value;
-}
+import { type FigmaNode, parseFigmaFileResponse } from "../lib/figma-schemas.js";
+import { figmaGet } from "../skills/figma-data/scripts/_lib.ts";
 
 function extractFileKey(url: string): string {
   const match = url.match(/figma\.com\/(?:design|file)\/([a-zA-Z0-9]+)/);
@@ -38,26 +20,31 @@ function extractFileKey(url: string): string {
   return match[1];
 }
 
+/**
+ * --page を指定したとき、別のページ（CANVAS）は探さない
+ * @param node 調べるノード
+ * @param pageName --page で指定したページ名
+ * @returns 指定と別のページなら true
+ */
+function isOtherPage(node: FigmaNode, pageName: string | undefined): boolean {
+  return node.type === "CANVAS" && Boolean(pageName) && node.name !== pageName;
+}
+
+function frameItself(node: FigmaNode): FigmaNode[] {
+  return node.type === "FRAME" && node.children ? [node] : [];
+}
+
+// ページ名での絞り込みは DOCUMENT 直下のページにだけ当てる
+function childPageName(node: FigmaNode, pageName: string | undefined): string | undefined {
+  return node.type === "DOCUMENT" ? pageName : undefined;
+}
+
 function findFrames(node: FigmaNode, pageName?: string): FigmaNode[] {
-  const frames: FigmaNode[] = [];
-
-  if (node.type === "CANVAS") {
-    if (pageName && node.name !== pageName) {
-      return frames;
-    }
-  }
-
-  if (node.type === "FRAME" && node.children) {
-    frames.push(node);
-  }
-
-  if (node.children) {
-    for (const child of node.children) {
-      frames.push(...findFrames(child, node.type === "DOCUMENT" ? pageName : undefined));
-    }
-  }
-
-  return frames;
+  if (isOtherPage(node, pageName)) return [];
+  return [
+    ...frameItself(node),
+    ...(node.children ?? []).flatMap((child) => findFrames(child, childPageName(node, pageName))),
+  ];
 }
 
 function nodeIdToUrlFormat(nodeId: string): string {
@@ -110,6 +97,58 @@ function generateScreenMap(fileName: string, frames: FigmaNode[]): string {
   return lines.join("\n");
 }
 
+type FileResponse = ReturnType<typeof parseFigmaFileResponse>;
+
+function requireToken(): string {
+  const token = env.FIGMA_ACCESS_TOKEN;
+  if (!token) {
+    console.error("Error: FIGMA_ACCESS_TOKEN environment variable is required");
+    process.exit(1);
+  }
+  return token;
+}
+
+function parseFileOrExit(raw: unknown): FileResponse {
+  try {
+    return parseFigmaFileResponse(raw);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    return process.exit(1);
+  }
+}
+
+/**
+ * ファイルのページとトップレベルのフレームを取得する。失敗したら exit code 1 で終了する
+ * @param fileKey Figma のファイルキー
+ * @param token Figma のアクセストークン
+ * @returns ファイルの内容
+ */
+async function fetchFile(fileKey: string, token: string): Promise<FileResponse> {
+  const response = await figmaGet(["files", fileKey], { depth: "2" }, token);
+  if (!response.ok) {
+    console.error(`Figma API error ${response.status}: ${await response.text()}`);
+    process.exit(1);
+  }
+  return parseFileOrExit(await response.json());
+}
+
+function requireFrames(frames: FigmaNode[], page: string | undefined): FigmaNode[] {
+  if (frames.length === 0) {
+    console.error(page ? `No frames found in page "${page}"` : "No frames found in the file");
+    process.exit(1);
+  }
+  return frames;
+}
+
+function emitScreenMap(output: string | undefined, markdown: string, frameCount: number): void {
+  if (!output) {
+    console.log(markdown);
+    return;
+  }
+  writeFileSync(output, markdown, "utf-8");
+  console.log(JSON.stringify({ success: true, output, frameCount }));
+}
+
 const main = defineCommand({
   meta: {
     name: "figma-scaffold",
@@ -133,55 +172,11 @@ const main = defineCommand({
     },
   },
   async run({ args }) {
-    const token = env.FIGMA_ACCESS_TOKEN;
-    if (!token) {
-      console.error("Error: FIGMA_ACCESS_TOKEN environment variable is required");
-      process.exit(1);
-    }
-
-    const fileKey = extractFileKey(args.url);
-    const apiUrl = `https://api.figma.com/v1/files/${fileKey}?depth=2`;
-
-    const response = await fetch(apiUrl, {
-      headers: { "X-Figma-Token": token },
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      console.error(`Figma API error ${response.status}: ${text}`);
-      process.exit(1);
-    }
-
-    const raw: unknown = await response.json();
-    if (!isFigmaFileResponse(raw)) {
-      console.error("Unexpected Figma API response format");
-      process.exit(1);
-    }
-
-    const frames = findFrames(raw.document, args.page);
-
-    if (frames.length === 0) {
-      console.error(
-        args.page ? `No frames found in page "${args.page}"` : "No frames found in the file",
-      );
-      process.exit(1);
-    }
-
-    const markdown = generateScreenMap(raw.name, frames);
-
-    if (args.output) {
-      writeFileSync(args.output, markdown, "utf-8");
-      console.log(
-        JSON.stringify({
-          success: true,
-          output: args.output,
-          frameCount: frames.length,
-        }),
-      );
-    } else {
-      console.log(markdown);
-    }
+    const token = requireToken();
+    const fileResponse = await fetchFile(extractFileKey(args.url), token);
+    const frames = requireFrames(findFrames(fileResponse.document, args.page), args.page);
+    emitScreenMap(args.output, generateScreenMap(fileResponse.name, frames), frames.length);
   },
 });
 
-runMain(main);
+await runMain(main);

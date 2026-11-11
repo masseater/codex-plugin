@@ -4,35 +4,42 @@ import { HookLogger, wrapRun } from "@r_masseater/cc-plugin-lib";
  * ファイル編集時に危険な型アサーション・型エラー抑制ディレクティブを検出してブロックするフック
  */
 import { defineHook, runHook } from "cc-hooks-ts";
+import { denyToolUse } from "../lib/pre-tool-use.js";
 
 using logger = HookLogger.fromFile(import.meta.filename);
 
-const FORBIDDEN_PATTERNS = [
+export const FORBIDDEN_PATTERNS = [
   { pattern: /\bas\s+unknown\b/g, name: "as unknown" },
   { pattern: /\bas\s+any\b/g, name: "as any" },
   { pattern: /\bas\s+\{\s*\}/g, name: "as {}" },
   { pattern: /:\s*any\b/g, name: ": any" },
-  { pattern: new RegExp("@ts-expect" + "-error", "g"), name: "@ts-expect" + "-error" },
+  // 文字クラスで書き、このファイル自身の本文がディレクティブそのものを含まないようにする
+  { pattern: /@ts-expect[-]error/g, name: "@ts-expect" + "-error" },
 ] as const;
 
-// Build WHY/FIX strings with concatenation to avoid triggering our own pattern detection
-const WHY = [
-  "WHY: Unsafe type assertions and type-error suppression directives (`a",
-  "s an",
-  "y`, `a",
-  "s unknow",
-  "n a",
-  "s T`, `@ts-expect" +
-    "-error`) bypass TypeScript's type safety, hiding bugs that the compiler would otherwise catch.",
-].join("");
-const FIX =
-  "FIX: Use proper type guards, generic type parameters, or `satisfies` instead of type assertions. For type errors, fix the root cause instead of suppressing with directives.";
+/**
+ * deny の理由文。パターン名そのものを文字列に書くとこのファイルの編集がこの hook に止められるので、
+ * 個々のパターンは違反一覧（FORBIDDEN_PATTERNS の name）で示し、理由文では一般化して書く。
+ *
+ * @param violations - findForbiddenPatterns の結果
+ * @returns permissionDecisionReason の文字列
+ */
+export function formatDenyReason(violations: Array<{ name: string; matches: string[] }>): string {
+  const details = violations.map((v) => `- ${v.name}: ${v.matches.length} 件`).join("\n");
+  return [
+    "型アサーション・any 型・型エラー抑制ディレクティブを含む編集を止めた:",
+    details,
+    "これらは TypeScript の型検査を迂回し、コンパイラが見つけるはずの不具合を隠すため。型ガード・ジェネリクス・`satisfies` で型を表し、型エラーは抑制せず原因を直す。",
+  ].join("\n");
+}
 
-const isTypeScriptFile = (filePath: string): boolean => {
+export const isTypeScriptFile = (filePath: string): boolean => {
   return /\.(ts|tsx|mts|cts)$/.test(filePath);
 };
 
-const findForbiddenPatterns = (content: string): Array<{ name: string; matches: string[] }> => {
+export const findForbiddenPatterns = (
+  content: string,
+): Array<{ name: string; matches: string[] }> => {
   const found: Array<{ name: string; matches: string[] }> = [];
 
   for (const { pattern, name } of FORBIDDEN_PATTERNS) {
@@ -44,6 +51,29 @@ const findForbiddenPatterns = (content: string): Array<{ name: string; matches: 
 
   return found;
 };
+
+type Violation = { name: string; matches: string[] };
+
+/**
+ * 編集内容から、止めるべき型アサーション・型エラー抑制を探す
+ *
+ * @param filePath - 編集するファイル
+ * @param content - Write の content か Edit の new_string
+ * @returns 見つかった違反。TypeScript 以外か本文が無ければ空
+ */
+function violationsToBlock(filePath: string, content: string | undefined): Violation[] {
+  if (!isTypeScriptFile(filePath)) {
+    logger.debug("Skipping: not a TypeScript file");
+    return [];
+  }
+  if (!content) {
+    logger.debug("Skipping: no content to check");
+    return [];
+  }
+  const violations = findForbiddenPatterns(content);
+  if (violations.length === 0) logger.debug("No forbidden patterns found");
+  return violations;
+}
 
 const hook = defineHook({
   trigger: {
@@ -62,50 +92,17 @@ const hook = defineHook({
     const filePath = input.tool_input.file_path;
     logger.debug(`Hook triggered: tool=${toolName}, file=${filePath}`);
 
-    if (!isTypeScriptFile(filePath)) {
-      logger.debug("Skipping: not a TypeScript file");
-      return context.success({});
-    }
-
     // Write: content, Edit: new_string
-    const contentToCheck =
-      toolName === "Write" ? input.tool_input.content : input.tool_input.new_string;
-
-    if (!contentToCheck) {
-      logger.debug("Skipping: no content to check");
-      return context.success({});
-    }
-
-    const violations = findForbiddenPatterns(contentToCheck);
-
+    const content = toolName === "Write" ? input.tool_input.content : input.tool_input.new_string;
+    const violations = violationsToBlock(filePath, content);
     if (violations.length === 0) {
-      logger.debug("No forbidden patterns found");
       return context.success({});
     }
-
-    const violationDetails = violations.map((v) => `  - ${v.name}: ${v.matches.length}`).join("\n");
-
-    const fullMessage = `Unsafe type assertion detected. Edit blocked.
-
-${violationDetails}
-
-${WHY}
-${FIX}`;
 
     logger.warn(`Blocked unsafe type assertion in ${filePath}`, {
       violations: violations.map((v) => v.name),
     });
-
-    return context.json({
-      event: "PreToolUse" as const,
-      output: {
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse" as const,
-          permissionDecision: "deny" as const,
-          permissionDecisionReason: fullMessage,
-        },
-      },
-    });
+    return context.json(denyToolUse(formatDenyReason(violations)));
   }),
 });
 

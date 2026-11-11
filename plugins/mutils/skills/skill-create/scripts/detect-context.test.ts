@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vite-plus/test";
+import { runScript } from "../../../__tests__/run-script.ts";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -14,21 +15,8 @@ function createTmpDir(): string {
   return dir;
 }
 
-function run(dir?: string): {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-} {
-  const args = dir ? [SCRIPT_PATH, dir] : [SCRIPT_PATH];
-  const result = Bun.spawnSync(args, {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  return {
-    stdout: result.stdout.toString(),
-    stderr: result.stderr.toString(),
-    exitCode: result.exitCode,
-  };
+function run(dir?: string) {
+  return runScript(SCRIPT_PATH, dir ? [dir] : []);
 }
 
 const tmpDirs: string[] = [];
@@ -41,18 +29,22 @@ afterEach(() => {
 });
 
 describe("detect-context", () => {
-  test("detects plugin root with plugin.json", () => {
+  test("detects plugin root with plugin.json", async () => {
     const dir = createTmpDir();
     tmpDirs.push(dir);
 
-    writeFileSync(path.join(dir, "plugin.json"), JSON.stringify({ name: "test-plugin" }));
+    mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
+    writeFileSync(
+      path.join(dir, ".claude-plugin/plugin.json"),
+      JSON.stringify({ name: "test-plugin" }),
+    );
     mkdirSync(path.join(dir, "skills", "my-skill"), { recursive: true });
     writeFileSync(
       path.join(dir, "skills", "my-skill", "SKILL.md"),
       "---\nname: my-skill\ndescription: test\n---\n",
     );
 
-    const { stdout, exitCode } = run(dir);
+    const { stdout, exitCode } = await run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
@@ -61,15 +53,19 @@ describe("detect-context", () => {
     expect(result.existingSkills).toContain("my-skill");
   });
 
-  test("detects plugin root from subdirectory", () => {
+  test("detects plugin root from subdirectory", async () => {
     const dir = createTmpDir();
     tmpDirs.push(dir);
 
-    writeFileSync(path.join(dir, "plugin.json"), JSON.stringify({ name: "parent-plugin" }));
+    mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
+    writeFileSync(
+      path.join(dir, ".claude-plugin/plugin.json"),
+      JSON.stringify({ name: "parent-plugin" }),
+    );
     const subDir = path.join(dir, "some", "nested", "dir");
     mkdirSync(subDir, { recursive: true });
 
-    const { stdout, exitCode } = run(subDir);
+    const { stdout, exitCode } = await run(subDir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
@@ -77,11 +73,11 @@ describe("detect-context", () => {
     expect(result.pluginName).toBe("parent-plugin");
   });
 
-  test("returns isPlugin false when no plugin.json found", () => {
+  test("returns isPlugin false when no plugin.json found", async () => {
     const dir = createTmpDir();
     tmpDirs.push(dir);
 
-    const { stdout, exitCode } = run(dir);
+    const { stdout, exitCode } = await run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
@@ -91,11 +87,15 @@ describe("detect-context", () => {
     expect(result.existingSkills).toEqual([]);
   });
 
-  test("ignores directories without SKILL.md in skills/", () => {
+  test("ignores directories without SKILL.md in skills/", async () => {
     const dir = createTmpDir();
     tmpDirs.push(dir);
 
-    writeFileSync(path.join(dir, "plugin.json"), JSON.stringify({ name: "test-plugin" }));
+    mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
+    writeFileSync(
+      path.join(dir, ".claude-plugin/plugin.json"),
+      JSON.stringify({ name: "test-plugin" }),
+    );
     mkdirSync(path.join(dir, "skills", "no-skill-md"), { recursive: true });
     mkdirSync(path.join(dir, "skills", "valid-skill"), { recursive: true });
     writeFileSync(
@@ -103,20 +103,21 @@ describe("detect-context", () => {
       "---\nname: valid\ndescription: test\n---\n",
     );
 
-    const { stdout, exitCode } = run(dir);
+    const { stdout, exitCode } = await run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);
     expect(result.existingSkills).toEqual(["valid-skill"]);
   });
 
-  test("handles malformed plugin.json gracefully", () => {
+  test("handles malformed plugin.json gracefully", async () => {
     const dir = createTmpDir();
     tmpDirs.push(dir);
 
-    writeFileSync(path.join(dir, "plugin.json"), "not valid json");
+    mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
+    writeFileSync(path.join(dir, ".claude-plugin/plugin.json"), "not valid json");
 
-    const { stdout, exitCode } = run(dir);
+    const { stdout, exitCode } = await run(dir);
     expect(exitCode).toBe(0);
 
     const result = JSON.parse(stdout);

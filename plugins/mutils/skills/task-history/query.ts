@@ -1,38 +1,15 @@
 #!/usr/bin/env bun
 import { parseArgs } from "node:util";
 import { findGitRoot, MutilsDB } from "@r_masseater/cc-plugin-lib";
+import { asRecord } from "../../hooks/lib/json-value.js";
+import { openTasks } from "../../hooks/lib/open-tasks.js";
+import {
+  TASK_EVENTS_SCHEMA,
+  type TaskEvent as TaskEventBase,
+} from "../../hooks/lib/task-events-schema.js";
 
-type TaskEvent = {
-  id: number;
-  event_type: string;
-  tool_name: string;
-  subject: string | null;
-  status: string | null;
-  session_id: string;
-  project_path: string;
-  raw_input: string;
-  raw_response: string | null;
-  created_at: string;
-};
-
-const TASK_EVENTS_SCHEMA = {
-  columns: `
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		event_type TEXT NOT NULL,
-		tool_name TEXT NOT NULL,
-		subject TEXT,
-		status TEXT,
-		session_id TEXT NOT NULL,
-		project_path TEXT NOT NULL,
-		raw_input TEXT NOT NULL,
-		raw_response TEXT,
-		created_at TEXT NOT NULL
-	`,
-  indexes: [
-    "CREATE INDEX IF NOT EXISTS idx_task_events_session ON task_events(session_id)",
-    "CREATE INDEX IF NOT EXISTS idx_task_events_created ON task_events(created_at)",
-  ],
-} as const;
+// クエリ結果は常に DB に保存済みの行のため、id は必須
+type TaskEvent = TaskEventBase & { id: number };
 
 const { values } = parseArgs({
   args: process.argv.slice(2),
@@ -41,6 +18,7 @@ const { values } = parseArgs({
     session: { type: "string" },
     status: { type: "string" },
     since: { type: "string" },
+    open: { type: "boolean", default: false },
   },
 });
 
@@ -52,6 +30,61 @@ if (!gitRoot) {
 
 using db = MutilsDB.open(gitRoot);
 const table = db.table<TaskEvent>("task_events", TASK_EVENTS_SCHEMA);
+
+if (values.open) {
+  printOpenTasks();
+  process.exit(0);
+}
+
+/**
+ * 最近更新されたセッションの ID を新しい順に返す
+ *
+ * @param limit - 返すセッションの数
+ * @returns セッション ID
+ */
+function recentSessionIds(limit: number): string[] {
+  return db
+    .all(
+      "SELECT session_id FROM task_events GROUP BY session_id ORDER BY MAX(created_at) DESC LIMIT ?",
+      [limit],
+    )
+    .flatMap((row) => {
+      const sessionId = asRecord(row).session_id;
+      return typeof sessionId === "string" ? [sessionId] : [];
+    });
+}
+
+function sessionIdsToShow(): string[] {
+  return values.session
+    ? [values.session]
+    : recentSessionIds(Number.parseInt(values.recent ?? "50", 10));
+}
+
+/**
+ * 1 セッションの未完了タスクを出す
+ *
+ * @param sessionId - 対象のセッション
+ * @returns 未完了タスクがあって出力したなら true
+ */
+function printSessionOpenTasks(sessionId: string): boolean {
+  const sessionEvents = table.findAll("session_id = ? ORDER BY created_at, id", [sessionId]);
+  const open = openTasks(sessionEvents);
+  if (open.length === 0) return false;
+  const lastDate = sessionEvents.at(-1)?.created_at.slice(0, 16) ?? "";
+  console.log(`## Session ${sessionId} (last update ${lastDate})\n`);
+  for (const task of open) console.log(`- [${task.status}] ${task.subject}`);
+  console.log();
+  return true;
+}
+
+// セッションごとに未完了のタスクを出す（直近のセッションから --recent 件）
+function printOpenTasks(): void {
+  let printed = 0;
+  for (const sessionId of sessionIdsToShow()) {
+    if (printSessionOpenTasks(sessionId)) printed++;
+  }
+  if (printed === 0) console.log("No open tasks found.");
+}
 
 const conditions: string[] = [];
 const params: (string | number)[] = [];

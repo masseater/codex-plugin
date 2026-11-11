@@ -1,79 +1,39 @@
 #!/usr/bin/env bun
 import { findGitRoot, HookLogger, MutilsDB, wrapRun } from "@r_masseater/cc-plugin-lib";
 import { defineHook, runHook } from "cc-hooks-ts";
+import { asRecord } from "../lib/json-value.js";
+import { TASK_EVENTS_SCHEMA, type TaskEvent } from "../lib/task-events-schema.js";
 
 using logger = HookLogger.fromFile(import.meta.filename);
 
-type TaskEvent = {
-  id?: number;
-  event_type: string;
-  tool_name: string;
-  subject: string | null;
-  status: string | null;
-  session_id: string;
-  project_path: string;
-  raw_input: string;
-  raw_response: string | null;
-  created_at: string;
-};
-
-const TASK_EVENTS_SCHEMA = {
-  columns: `
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		event_type TEXT NOT NULL,
-		tool_name TEXT NOT NULL,
-		subject TEXT,
-		status TEXT,
-		session_id TEXT NOT NULL,
-		project_path TEXT NOT NULL,
-		raw_input TEXT NOT NULL,
-		raw_response TEXT,
-		created_at TEXT NOT NULL
-	`,
-  indexes: [
-    "CREATE INDEX IF NOT EXISTS idx_task_events_session ON task_events(session_id)",
-    "CREATE INDEX IF NOT EXISTS idx_task_events_created ON task_events(created_at)",
-  ],
-} as const;
-
-type Todo = {
+export type Todo = {
   content: string;
   status: "pending" | "in_progress" | "completed";
   activeForm: string;
 };
 
-function diffTodos(
-  oldTodos: Todo[],
-  newTodos: Todo[],
-): { eventType: string; subject: string; status: string }[] {
-  const events: { eventType: string; subject: string; status: string }[] = [];
+export type TodoEvent = { eventType: string; subject: string; status: string };
 
-  const oldMap = new Map<string, Todo>();
-  for (const todo of oldTodos) {
-    oldMap.set(todo.content, todo);
-  }
-
-  for (const newTodo of newTodos) {
-    const old = oldMap.get(newTodo.content);
-    if (!old) {
-      events.push({
-        eventType: "todo_create",
-        subject: newTodo.content,
-        status: newTodo.status,
-      });
-    } else if (old.status !== newTodo.status) {
-      events.push({
-        eventType: newTodo.status === "completed" ? "todo_complete" : "todo_update",
-        subject: newTodo.content,
-        status: newTodo.status,
-      });
-    }
-  }
-
-  return events;
+/**
+ * 1 つの todo について、前回の状態との差を表すイベントを作る。
+ *
+ * @param old - 前回の同じ内容の todo（無ければ新規）
+ * @param todo - 今回の todo
+ * @returns イベント。状態が変わっていなければ空
+ */
+function todoEvent(old: Todo | undefined, todo: Todo): TodoEvent[] {
+  const change = { subject: todo.content, status: todo.status };
+  if (!old) return [{ eventType: "todo_create", ...change }];
+  if (old.status === todo.status) return [];
+  return [{ eventType: todo.status === "completed" ? "todo_complete" : "todo_update", ...change }];
 }
 
-function isTodoArray(value: unknown): value is Todo[] {
+export function diffTodos(oldTodos: Todo[], newTodos: Todo[]): TodoEvent[] {
+  const oldMap = new Map(oldTodos.map((todo) => [todo.content, todo]));
+  return newTodos.flatMap((todo) => todoEvent(oldMap.get(todo.content), todo));
+}
+
+export function isTodoArray(value: unknown): value is Todo[] {
   return (
     Array.isArray(value) &&
     value.every(
@@ -82,9 +42,100 @@ function isTodoArray(value: unknown): value is Todo[] {
   );
 }
 
-function extractString(obj: Record<string, unknown>, key: string): string | null {
+export function extractString(obj: Record<string, unknown>, key: string): string | null {
   const val = obj[key];
   return typeof val === "string" ? val : null;
+}
+
+const TARGET_TOOLS: ReadonlySet<string> = new Set(["TodoWrite", "TaskCreate", "TaskUpdate"]);
+
+/** task_events に保存する 1 件のうち、ツールごとに決まる部分 */
+type EventFields = Pick<TaskEvent, "event_type" | "subject" | "status">;
+
+/** task_events に保存する 1 件のうち、hook の呼び出しごとに共通の部分 */
+type EventContext = Omit<TaskEvent, "id" | keyof EventFields>;
+
+function todosOf(response: unknown, key: "oldTodos" | "newTodos"): Todo[] {
+  const value = asRecord(response)[key];
+  return isTodoArray(value) ? value : [];
+}
+
+/**
+ * TodoWrite の前後の todo を比べ、変化をイベントにする。
+ *
+ * @param response - TodoWrite の tool_response
+ * @returns 変化した todo のイベント
+ */
+function todoWriteEvents(response: unknown): EventFields[] {
+  return diffTodos(todosOf(response, "oldTodos"), todosOf(response, "newTodos")).map((event) => ({
+    event_type: event.eventType,
+    subject: event.subject,
+    status: event.status,
+  }));
+}
+
+/**
+ * TaskCreate / TaskUpdate の入力をイベントにする（入力の型は保証されないため防御的に読む）。
+ *
+ * @param toolName - TaskCreate か TaskUpdate
+ * @param toolInput - tool_input
+ * @returns 1 件のイベント
+ */
+function taskEvents(toolName: string, toolInput: unknown): EventFields[] {
+  const input = asRecord(toolInput);
+  return [
+    {
+      event_type: toolName === "TaskCreate" ? "task_create" : "task_update",
+      subject: extractString(input, "subject") ?? extractString(input, "content"),
+      status: extractString(input, "status"),
+    },
+  ];
+}
+
+function eventsFor(input: { tool_name: string; tool_input: unknown }): EventFields[] {
+  if (input.tool_name !== "TodoWrite") return taskEvents(input.tool_name, input.tool_input);
+  return todoWriteEvents("tool_response" in input ? input.tool_response : undefined);
+}
+
+function rawResponseOf(input: object): string {
+  return "tool_response" in input ? (JSON.stringify(input.tool_response) ?? "") : "";
+}
+
+function persistEvents(gitRoot: string, events: EventFields[], context: EventContext): void {
+  using db = MutilsDB.open(gitRoot);
+  const table = db.table<TaskEvent>("task_events", TASK_EVENTS_SCHEMA);
+  for (const event of events) {
+    table.upsert({ ...context, ...event });
+  }
+}
+
+/**
+ * イベントを task_events に保存する。保存に失敗してもツール呼び出しは妨げない
+ *
+ * @param gitRoot - mutils DB のあるリポジトリ
+ * @param events - 保存するイベント
+ * @param input - PostToolUse 入力
+ */
+function recordEvents(
+  gitRoot: string,
+  events: EventFields[],
+  input: { tool_name: string; tool_input: unknown; session_id: string },
+): void {
+  try {
+    persistEvents(gitRoot, events, {
+      tool_name: input.tool_name,
+      session_id: input.session_id,
+      project_path: gitRoot,
+      raw_input: JSON.stringify(input.tool_input),
+      raw_response: rawResponseOf(input),
+      created_at: new Date().toISOString(),
+    });
+    logger.info(`Persisted ${events.length} ${input.tool_name} event(s)`);
+  } catch (error) {
+    // 履歴の記録は補助機能で、失敗しても元のツール呼び出しは成功している。
+    // hook の失敗として伝えるとツールの結果を妨げるため、error ログに残して処理を続ける
+    logger.error("Failed to persist task event", { err: error });
+  }
 }
 
 const hook = defineHook({
@@ -92,95 +143,24 @@ const hook = defineHook({
     PostToolUse: true,
   },
   run: wrapRun(logger, (context) => {
-    const toolName = context.input.tool_name;
-
-    const targetTools = ["TodoWrite", "TaskCreate", "TaskUpdate"];
-    if (!targetTools.includes(toolName)) {
+    const { input } = context;
+    if (!TARGET_TOOLS.has(input.tool_name)) {
       return context.success({});
     }
 
-    const gitRoot = findGitRoot(context.input.cwd);
+    const gitRoot = findGitRoot(input.cwd);
     if (gitRoot === null) {
       logger.debug("Skipping: not a git repository");
       return context.success({});
     }
 
-    const sessionId = context.input.session_id;
-    const now = new Date().toISOString();
-    const rawInput = JSON.stringify(context.input.tool_input);
-    const rawResponse =
-      "tool_response" in context.input ? JSON.stringify(context.input.tool_response) : null;
-
-    try {
-      using db = MutilsDB.open(gitRoot);
-      const table = db.table<TaskEvent>("task_events", TASK_EVENTS_SCHEMA);
-
-      if (toolName === "TodoWrite") {
-        const response = context.input.tool_response;
-        const oldTodos =
-          typeof response === "object" &&
-          response !== null &&
-          "oldTodos" in response &&
-          isTodoArray(response.oldTodos)
-            ? response.oldTodos
-            : [];
-        const newTodos =
-          typeof response === "object" &&
-          response !== null &&
-          "newTodos" in response &&
-          isTodoArray(response.newTodos)
-            ? response.newTodos
-            : [];
-
-        const events = diffTodos(oldTodos, newTodos);
-        if (events.length === 0) {
-          logger.debug("No todo changes detected");
-          return context.success({});
-        }
-
-        for (const event of events) {
-          table.upsert({
-            event_type: event.eventType,
-            tool_name: toolName,
-            subject: event.subject,
-            status: event.status,
-            session_id: sessionId,
-            project_path: gitRoot,
-            raw_input: rawInput,
-            raw_response: rawResponse ?? "",
-            created_at: now,
-          });
-        }
-
-        logger.info(`Persisted ${events.length} todo event(s)`);
-      } else {
-        // TaskCreate / TaskUpdate (untyped, defensive access)
-        const input =
-          typeof context.input.tool_input === "object" && context.input.tool_input !== null
-            ? (context.input.tool_input as Record<string, unknown>)
-            : {};
-        const subject = extractString(input, "subject") ?? extractString(input, "content") ?? null;
-        const status = extractString(input, "status") ?? null;
-        const eventType = toolName === "TaskCreate" ? "task_create" : "task_update";
-
-        table.upsert({
-          event_type: eventType,
-          tool_name: toolName,
-          subject,
-          status,
-          session_id: sessionId,
-          project_path: gitRoot,
-          raw_input: rawInput,
-          raw_response: rawResponse ?? "",
-          created_at: now,
-        });
-
-        logger.info(`Persisted ${eventType} event: ${subject ?? "(no subject)"}`);
-      }
-    } catch (error) {
-      logger.error(`Failed to persist task event: ${error}`);
+    const events = eventsFor(input);
+    if (events.length === 0) {
+      logger.debug("No todo changes detected");
+      return context.success({});
     }
 
+    recordEvents(gitRoot, events, input);
     return context.success({});
   }),
 });

@@ -2,20 +2,21 @@
 
 ユーザープロジェクトに生成されるファイル:
 
-```
-.claude/skills/steering/   # プロジェクト全体のステアリング（Progressive Disclosure）
-├── SKILL.md               # ステアリングスキル本体
+```text
+.claude/skills/steering/   # プロジェクトのステアリング（/sdd:steering が作る）
+├── SKILL.md
 ├── product.md             # プロダクト方針
 ├── tech.md                # 技術スタック
 ├── structure.md           # プロジェクト構造
 └── principles.md          # 開発原則
 
 specs/
-├── research/            # 調査結果
-├── {spec}/              # 仕様書ディレクトリ
-│   ├── overview.md
+├── research/              # 調査結果（/sdd:spec research が作る）
+├── {spec}/
+│   ├── overview.md        # frontmatter の status、調査項目、Phase 構成
 │   ├── specification.md
 │   ├── technical-details.md
 │   └── phases/
-└── _archived/           # アーカイブ済みspec
+│       └── phase{N}-{name}.md   # frontmatter の status、タスクのチェックボックス
+└── _archived/             # アーカイブ済み spec（hook で編集不可）
 ```

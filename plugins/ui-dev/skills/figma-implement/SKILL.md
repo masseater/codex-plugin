@@ -1,218 +1,139 @@
 ---
-name: ui-dev:figma-implement
-description: 'This skill should be used when the user asks to "implement Figma screens", "implement this design", "implement the whole flow", "batch implement from Figma", "implement all screens", or provides a Figma prototype URL and wants to build the UI. Traces the prototype graph, plans all screens, then implements one screen at a time with subagent-driven review.'
+name: figma-implement
+description: Figma のプロトタイプをたどって画面一覧と遷移を洗い出し、画面ごとに実装・ビジュアルレビュー・仕様レビュー・修正をサブエージェントで回してフロー全体を実装する。Figma のプロトタイプ URL を渡されて「このフローを実装して」「Figma の画面を全部実装して」と頼まれたときに使う。1 画面だけなら公式 Figma plugin の implement-design で足りる。
 argument-hint: "[flowName] [Figma URL]"
+allowed-tools: Bash(ls *) Bash(echo *)
 hooks:
-  PreToolUse:
-    - matcher: "mcp__.*figma.*__get_screenshot"
-      hooks:
-        - type: command
-          command: "../../hooks/entry/redirect-figma-screenshot.ts"
   Stop:
     - hooks:
         - type: command
           command: "../../hooks/entry/notify-phase-status.ts"
 ---
 
-# Figma UI Implementation
+# Figma フロー実装
 
-Trace prototype graph to plan all screens, then implement one screen at a time with subagent-driven implementation and review.
-The parent acts as an orchestrator, delegating implementation and review to subagents.
+親エージェントは全体の進行役になり、画面の実装とレビューはサブエージェントに任せる。画面ごとに文脈を切り離すことで、多数の画面を実装しても親のコンテキストが Figma データで埋まらないようにするため。1〜2 行で済む軽微な修正は親が直接行ってよい。
 
-## Prerequisites
+成果物はすべて `.agents/ui-dev/<flowName>/` に置く。
 
-- Figma designs are marked as Ready for Dev
-- Working branch is isolated via git worktree (recommended)
-- Anthropic official Figma plugin is installed
-
-## Injections
-
-- `!.agents/ui-dev/$ARGUMENTS/config.json` — existing config (resume if present)
-- `!git worktree list` — worktree status
-
----
-
-## Phase 1: Preparation (only if config.json does not exist)
-
-If config.json already exists, skip to Phase 2 and resume. Resume position is determined by the state of the reports/ directory:
-
-- No `{screen}-implement.md` → Start from Step 1 (implementation)
-- `{screen}-implement.md` exists but no `{screen}-visual-review.md` or `{screen}-code-review.md` → Start from Step 2 (review)
-- Review reports exist, `{screen}-fix-{N}.md` is the latest (no corresponding re-review) → Start from Step 2 (treat fix-N as the implement report)
-- Review reports exist, no fix → Start from Step 3 (auto-classify and fix if needed)
-
-### Step 1: URL Parsing
-
-1. Extract flow name and Figma URL from `$ARGUMENTS` (e.g., `registration https://figma.com/design/...?node-id=xxx`)
-2. Extract fileKey and nodeId from the URL
-3. Create artifact directories:
-   - `.agents/ui-dev/{flowName}/`
-   - `.agents/ui-dev/{flowName}/screenshots/`
-   - `.agents/ui-dev/{flowName}/reports/`
-
-### Step 2: Prototype Graph Trace + Screenshots
-
-```bash
-../figma-data/scripts/trace-prototype-chain.ts \
-  --file-key <fileKey> --node-id <nodeId> \
-  --output .agents/ui-dev/{flowName}/prototype-chain.json
-```
-
-BFS-traverses the prototype graph and automatically saves PNG screenshots for all discovered frames to `<output-dir>/screenshots/`. Screenshot paths are recorded in the graph JSON under `frames[id].screenshot`.
-
-Check the frame count and JSON path. If only 1 frame, confirm with the user whether the start node is correct.
-
-Use `query-prototype-chain.ts --json-path <path> --node-id map` to view the full page map with all frame connections — useful as a reference when creating the screen map.
-
-### Step 3: Create Screen Map (All Screens)
-
-Create a screen map based on the prototype chain:
-
-1. Generate `.agents/ui-dev/{flowName}/screen-map.md` from the screen map template
-2. Fill in all screen information (transitions, states, validation, etc.)
-3. Confirm with the user; mark unclear items with `⚠️ Unconfirmed`
-
-Screen map template: @./references/screen-map-template.md
-
-### Step 4: Generate config.json
-
-```json
-{
-  "flow": {
-    "name": "{flowName}",
-    "currentPhase": "implement",
-    "figma": {
-      "fileKey": "{fileKey}",
-      "prototypeChainPath": ".agents/ui-dev/{flowName}/prototype-chain.json"
-    },
-    "screens": ["{screen1}", "{screen2}", "..."]
-  },
-  "contextFiles": [],
-  "reviewPrompts": {
-    "common": [],
-    "visual": [],
-    "code": []
-  }
-}
-```
-
-Suggest customizing `reviewPrompts` and `contextFiles` (files to reference during review, e.g., design system documentation).
-
----
-
-## Phase 2: Implementation Loop
-
-### Critical Rules
-
-- The parent is an orchestrator ONLY. The parent MUST NOT write any implementation code itself. ALL implementation and review work MUST be delegated to subagents via the Task tool
-- Do not ask the user for confirmation at each step. Complete all screens autonomously and report the results at the end
-- All review findings must be addressed — fix every issue reported by reviewers. If a finding cannot be fixed via code (spec ambiguity, design issue, architecture concern), record it as a TODO and move on
-- Interactions are mandatory. Every screen's transitions, animations, and interactive behaviors from the prototype chain and screen map MUST be implemented. Skipping interactions is not acceptable
-
-```
-for (screen in screens) {
-  1. Spawn implementation subagent (via Task tool) -> write to report
-  2. Spawn review subagents in parallel (via Task tool)
-  3. Auto-classify findings and spawn fix subagent (via Task tool) if needed -> return to 2
-  4. When no fixable findings remain, move to next screen
-}
-```
-
-### Step 1: Spawn Implementation Subagent
-
-Spawn via the Task tool. See `@../../agents/implementer.md` for the agent definition, input/output format, and report structure.
-
-When the subagent returns, **read the report file** to get information. Do not use the subagent's return text. If the report does not exist, restart with the same prompt once. If it fails twice in a row, report to the user.
-
-### Step 2: Spawn Review Subagents (Parallel)
-
-Read the implementation file list from the report and spawn two review agents **in parallel** via the Task tool.
-See `@../../agents/visual-reviewer.md` and `@../../agents/code-reviewer.md` for review agent definitions.
-
-If one review agent returns without writing a report, restart only that agent once. If both fail, report to the user.
-
-### Step 3: Auto-Classify and Fix
-
-Read both review reports and auto-classify findings. **Do not ask the user for judgment.** Address all findings autonomously:
-
-#### Issue Classification Guide (A/B/C/D)
-
-- A. Fixable via code — Bugs, style mismatches, missing implementation
-  - Action: Fix -> re-run Step 2
-- B. Spec ambiguity/gap — Undefined retry limits, missing timeout handling, etc.
-  - Action: Make a reasonable assumption, fix, and record the assumption in the report
-- C. Design change needed — Undefined error states, layout breaks with real data, etc.
-  - Action: `// TODO(design):` + mark screen map with `⚠️ Unconfirmed`
-- D. Architecture change needed — State management rethink, API call timing change, etc.
-  - Action: Record in "Unresolved TODOs" in the report
-
-- A and B findings: Spawn fix subagent to address all of them. All reviewer findings must be fixed
-- C and D findings: Record as TODOs and proceed (these require human decisions)
-- No fixable findings (A/B): Screen passes. Go to Step 4
-
-### Step 4: Spawn Fix Subagent
-
-Spawn a new subagent in fix mode. See `@../../agents/implementer.md` for fix mode details.
-
-If the fix subagent returns without writing a report, restart once (same as implementation subagent).
-
-After fix completion, return to Step 2. Re-reviews overwrite the same filenames (`{screenName}-visual-review.md`, `{screenName}-code-review.md`).
-
-If the fix loop exceeds 3 iterations for the same screen, record remaining findings as TODOs and move to the next screen.
-
-### Step 5: Move to Next Screen
-
-Move to the next incomplete screen and return to Step 1.
-
-### Screen Pass Criteria
-
-- No critical visual diffs in visual-review (or all addressed)
-- No missing transitions or states in code-review (or all addressed)
-- Any unresolvable items are recorded as TODOs + in the screen map
-
----
-
-## Phase 3: Completion
-
-When the implementation loop completes for all screens:
-
-1. Update config.json `currentPhase` to `"done"`
-2. Present a **comprehensive completion summary** to the user, including:
-   - List of all implemented screens and their status
-   - All fix iterations performed per screen
-   - All remaining TODOs (categorized by C/D type)
-   - Any assumptions made during B-type fixes
-
-This is the only point where the user receives a full report. Make it thorough.
-
----
-
-## Directory Structure
-
-```
-.agents/ui-dev/{flowName}/
+```text
+.agents/ui-dev/<flowName>/
 ├── config.json
 ├── screen-map.md
 ├── prototype-chain.json
-├── screenshots/
-│   ├── {screen1}.png
-│   ├── {screen2}.png
-│   └── ...
+├── screenshots/            (trace が保存。パスは prototype-chain.json の frames[<id>].screenshot)
 └── reports/
-    ├── {screen1}-implement.md
-    ├── {screen1}-visual-review.md
-    ├── {screen1}-code-review.md
-    ├── {screen1}-fix-1.md          (if fixes were made)
-    ├── {screen2}-implement.md
-    └── ...
+    ├── <screen>-implement.md
+    ├── <screen>-visual-review.md
+    ├── <screen>-code-review.md
+    └── <screen>-fix-<N>.md
 ```
 
----
+## 現在の状態
 
-## Troubleshooting
+既存のフロー（`.agents/ui-dev` の一覧）は次のとおり。
 
-- Prototype chain trace returns only 1 frame — Confirm with user that the start node is correct. Verify a frame node (not page node) is specified
-- Prototype chain trace fails — Check `FIGMA_ACCESS_TOKEN` setup. Try both node-id formats (colon/dash)
-- Subagent returns without writing a report — Restart with the same prompt once. If it fails twice, report to the user
-- get_design_context returns empty — Verify the node-id is correct. Check that the node is Ready for Dev in Figma
-- Fix loop is dragging on — Present remaining issues summary to user and ask whether to skip or proceed
+```!
+ls .agents/ui-dev 2>/dev/null || echo "なし"
+```
+
+依頼のフロー名（無ければ Figma URL）に当たるフローが既存のフローにあれば、その `config.json` と `reports/` を読み、準備を飛ばして画面ごとに再開する。引数の置換は自然文で呼ばれたときに働かないので、フローの特定はこの一覧と依頼内容から行う。既存のフローに対して準備をやり直すと config.json と prototype-chain.json を上書きしてしまうため、該当がなければ新規フローとして準備から始める。再開した画面の `fix_round` は既存の `<screen>-fix-<N>.md` の最大 N から始める（下の疑似コード）。
+
+- `<screen>-implement.md` が無い → 実装から
+- implement はあるがレビューが無い → レビューから
+- 最大 N の `<screen>-fix-<N>.md` より更新時刻の新しいレビューが無い → fix-N を実装レポートとみなしてレビューから（レビューは同名で上書きされるので、前後関係は `ls -lt` の更新時刻で判定する）
+- レビュー済みで修正が無い → 指摘の分類から
+
+## 準備
+
+screen map で不明な項目に付ける未確認マーカーは `⚠️ Unconfirmed` である。
+
+1. 引数からフロー名と Figma URL を取り、URL から fileKey と nodeId を取り出す。フロー名が無ければ Figma のページ名か開始フレーム名から kebab-case で決め、ユーザーに伝える
+2. プロトタイプをたどり、全フレームのスクリーンショットを保存する。フレームが 1 つしか出なければ、開始ノードがページではなくフレームを指しているかユーザーに確認する
+
+   ```bash
+   ../figma-data/scripts/trace-prototype-chain.ts \
+     --file-key <fileKey> --node-id <nodeId> \
+     --output .agents/ui-dev/<flowName>/prototype-chain.json
+   ```
+
+3. 画面のつながりを次のコマンドで見ながら、[references/screen-map-template.md](references/screen-map-template.md) をもとに `screen-map.md` を作る。遷移・状態・バリデーションを埋め、不明な項目には未確認マーカーを付けてユーザーに確認する
+
+   ```bash
+   ../figma-data/scripts/query-prototype-chain.ts \
+     --json-path .agents/ui-dev/<flowName>/prototype-chain.json --node-id map
+   ```
+
+   プロトタイプが無くページ単位で始めたいときは、次のコマンドで骨組みを作れる。
+
+   ```bash
+   ../../scripts/figma-scaffold.ts --url <URL> --page <page> --output <screen-map.md>
+   ```
+
+4. config.json を作る。`contextFiles`（レビューで参照するデザインシステムの文書など）と `reviewPrompts` はユーザーに追加を提案する
+
+   ```json
+   {
+     "flow": {
+       "name": "<flowName>",
+       "currentPhase": "implement",
+       "figma": {
+         "fileKey": "<fileKey>",
+         "prototypeChainPath": ".agents/ui-dev/<flowName>/prototype-chain.json"
+       },
+       "screens": ["<screen1>", "<screen2>"]
+     },
+     "contextFiles": [],
+     "reviewPrompts": { "common": [], "visual": [], "code": [] }
+   }
+   ```
+
+## 実装ループ
+
+画面ごとに次を回す。途中でユーザーに確認を求めず、全画面を終えてからまとめて報告する。
+
+```text
+for screen in config.flow.screens:
+  if reports/<screen>-implement.md does not exist:
+    spawn figma-implementer(initial)        -> reports/<screen>-implement.md
+  fix_round = max N of reports/<screen>-fix-<N>.md (0 if none)
+  loop:
+    spawn visual-reviewer and code-reviewer in parallel
+    classify findings into A / B / C / D
+    fixable = A/B findings except those with low severity and low confidence
+    if fixable is empty: break               -> screen passes
+    if fix_round >= 3:
+      record remaining fixable findings as TODOs in the latest report; break
+    fix_round += 1
+    spawn figma-implementer(fix, fixable)   -> reports/<screen>-fix-<fix_round>.md
+```
+
+- サブエージェントは Agent ツールで `ui-dev:figma-implementer`、`ui-dev:visual-reviewer`、`ui-dev:code-reviewer` を起動する。入力と出力形式は各エージェント定義にある
+- 結果はサブエージェントの返答文ではなくレポートファイルから読む。レポートが無ければ同じ指示で 1 回だけ再起動し、2 回続けて失敗したらユーザーに報告する
+- 再レビューは同じファイル名（`<screen>-visual-review.md`、`<screen>-code-review.md`）を上書きする
+
+## 指摘の分類
+
+レビューの指摘は親が分類する。ユーザーには判断を求めない。
+
+- A. コードで直せる（バグ、スタイルのずれ、実装漏れ）→ 修正する
+- B. 仕様の穴（リトライ上限やタイムアウトが未定義など）→ 妥当な仮定を置いて修正し、仮定をレポートに書く
+- C. デザインの変更が要る（Figma に無いエラー状態、実データでレイアウトが崩れるなど）→ コードに `// TODO(design):` を残し、screen map の該当箇所に未確認マーカーを付ける
+- D. アーキテクチャの変更が要る（状態管理の見直し、API 呼び出しタイミングの変更など）→ レポートの「Unresolved TODOs」節に書く
+
+severity と confidence がともに low の指摘は、A/B でも修正対象にせず記録だけにする。誤検知の可能性が高い指摘で修正ループを回さないため。
+
+## 完了
+
+全画面が終わったら config.json の `currentPhase` を `"done"` にし、次をまとめて報告する。
+
+- 画面ごとの状態と修正の回数
+- 残った TODO（C / D 別）
+- B の修正で置いた仮定
+
+デザイナーへのフィードバックや手動 QA のチェックリストを求められたら、[references/handoff.md](references/handoff.md) の形式で作る。
+
+## 困ったとき
+
+- trace が失敗する: `FIGMA_ACCESS_TOKEN` を確認する。node-id はコロン（`1:2`）とダッシュ（`1-2`）の両方を試す
+- `get_design_context`（ツール名は figma-data skill を参照）が空を返す: node-id と、Figma 側で Ready for Dev になっているかを確認する

@@ -1,45 +1,27 @@
 ---
-description: CLI tech stack and conventions — Bun, citty, Biome, TypeScript conventions, and code quality examples
+description: CLI スタックと規約 — Bun、citty、oxlint/oxfmt、TypeScript の書き方、スクリプトの引数規約、ダミー実装の例
 ---
 
-# CLI Stack
+# CLI スタック
 
-Tech stack and conventions for CLI tool development.
+CLI ツール開発の技術スタックと規約。
 
-## Tech Stack
+## 技術スタック
 
-All required. Use the latest version at or above the specified minimum.
+すべて必須。最低バージョンの指定があるものは、それ以上の最新版を使う。欠けている項目は重大な違反として報告する。
 
-- Language — TypeScript
-  - Version: -
-  - Notes: -
-- Runtime — Bun
-  - Version: -
-  - Notes: -
-- Type checker — @typescript/native-preview (tsgo)
-  - Version: v7+
-  - Notes: tsc is forbidden — tsgo provides 10x faster type-checking with identical semantics
-- Linter/Formatter — @biomejs/biome
-  - Version: v2+
-  - Notes: -
-- CLI framework — citty
-  - Version: v0.1.6+
-  - Notes: -
-- Colored output — chalk
-  - Version: v5.6.2+
-  - Notes: -
-- Progress bar — cli-progress
-  - Version: v3.12.0+
-  - Notes: -
-- Unused code detection — knip
-  - Version: -
-  - Notes: -
+- 言語: TypeScript
+- ランタイム: Bun
+- 型チェック: @typescript/native-preview（tsgo）v7 以上。tsc は使わない（同じ意味論で約 10 倍速いため）
+- linter / formatter: oxlint + oxfmt。ツールと設定方針は `references/quality-automation.md` と同じ
+- CLI フレームワーク: citty v0.1.6 以上
+- 色付き出力: chalk v5.6.2 以上
+- プログレスバー: cli-progress v3.12.0 以上
+- 未使用コード検出: knip
 
-Report missing stack items as critical violations.
+## 環境変数
 
-## Environment Variables
-
-Use [valibot](https://valibot.dev/) to validate env vars at startup. Define a single `env.ts` module and import from it. Direct `process.env` or `Bun.env` access is forbidden outside `env.ts`.
+[valibot](https://valibot.dev/) で起動時に検証する。`env.ts` を 1 つ定義してそこから import し、`env.ts` の外で `process.env` や `Bun.env` を読まない。
 
 ```typescript
 // src/env.ts
@@ -53,18 +35,14 @@ const EnvSchema = v.object({
 export const env = v.parse(EnvSchema, process.env);
 ```
 
-## TypeScript Conventions
+## TypeScript
 
-See SKILL.md Philosophy section. Additionally:
+SKILL.md の Philosophy に加えて、型定義は `interface` ではなく `type` で書く。外部ライブラリの型を拡張する場合だけ例外とし、その旨をコメントに書く。
 
-- Use `type` instead of `interface` (exception: extending external library types, with a comment)
+## スクリプト
 
-## Script Conventions
-
-- Create as Bun-executable TypeScript files
-- Set shebang for standalone execution
-- Use option-style arguments only. No positional arguments.
-  - Exception: subcommands are allowed as positional.
+- Bun で直接実行できる TypeScript ファイルにし、shebang を付ける
+- 引数はオプション形式だけにし、位置引数を使わない。サブコマンドだけは位置引数でよい
 
 ```bash
 # OK
@@ -73,7 +51,7 @@ See SKILL.md Philosophy section. Additionally:
 # NG
 bun run hoge.ts
 
-# With arguments
+# 引数付き
 # OK
 ./hoge.ts --fuga "fuga" --piyo
 
@@ -81,27 +59,25 @@ bun run hoge.ts
 ./hoge.ts "fuga" piyo
 ```
 
-## Code Quality
+## ダミー実装・NO-OP の例
 
-See SKILL.md Philosophy section.
-
-### Examples of Dummy Code / NO-OP
+Philosophy で禁止しているものの具体例。
 
 ```typescript
-// NG: function that does nothing
+// NG: 何もしない関数
 function doSomething() {
   // TODO: implement later
 }
 
-// NG: validation that always returns true
+// NG: 常に true を返す検証
 function validate(input: string): boolean {
-  return true; // no actual validation
+  return true; // 実際には何も検証していない
 }
 
-// NG: swallowing errors
+// NG: エラーの握りつぶし
 try {
   riskyOperation();
 } catch {
-  // do nothing
+  // 何もしない
 }
 ```

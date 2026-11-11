@@ -1,36 +1,42 @@
-import { describe, expect, test } from "vitest";
-import { isAbsolute, relative } from "node:path";
+import { beforeEach, describe, expect, test, vi } from "vite-plus/test";
+import { type CapturedHook, hookContext } from "../__tests__/hook-context.ts";
 
 /**
  * Tests for the pure logic in block-cross-worktree-edit.ts.
- * The helper functions are not exported from the hook entry, so we
- * replicate them here to verify the path-containment and worktree
- * resolution logic independently (same convention as block-unsafe-type-assertion.test.ts).
+ * The helper functions are exported from the hook entry and imported
+ * directly here (same convention as check-context-version.test.ts).
  */
 
-const parseWorktreeList = (porcelain: string): string[] => {
-  const paths: string[] = [];
-  for (const line of porcelain.split("\n")) {
-    if (line.startsWith("worktree ")) {
-      paths.push(line.slice("worktree ".length).trim());
-    }
-  }
-  return paths;
-};
+vi.mock("@r_masseater/cc-plugin-lib", () => ({
+  HookLogger: {
+    fromFile: () => ({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      fatal: vi.fn(),
+      [Symbol.dispose]: vi.fn(),
+    }),
+  },
+  wrapRun: vi.fn((_logger: unknown, fn: unknown) => fn),
+}));
+const captured = vi.hoisted(() => ({ hook: undefined as CapturedHook | undefined }));
+vi.mock("cc-hooks-ts", () => ({
+  defineHook: vi.fn((opts: CapturedHook) => {
+    captured.hook = opts;
+    return opts;
+  }),
+  runHook: vi.fn(),
+}));
+const execFileSync = vi.hoisted(() => vi.fn());
+vi.mock("node:child_process", () => ({ execFileSync }));
 
-const isUnder = (filePath: string, dir: string): boolean => {
-  if (filePath === dir) return true;
-  const rel = relative(dir, filePath);
-  return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
-};
-
-const findContainingWorktree = (filePath: string, worktrees: string[]): string | null => {
-  const sorted = [...worktrees].toSorted((a, b) => b.length - a.length);
-  for (const wt of sorted) {
-    if (isUnder(filePath, wt)) return wt;
-  }
-  return null;
-};
+import {
+  findContainingWorktree,
+  isUnder,
+  parseWorktreeList,
+  formatDenyReason,
+} from "./entry/block-cross-worktree-edit.ts";
 
 describe("parseWorktreeList", () => {
   test("extracts paths from porcelain output", () => {
@@ -135,5 +141,75 @@ describe("cross-worktree decision logic", () => {
 
   test("allows edit when file is outside all known worktrees", () => {
     expect(decide("/repo/main", "/tmp/scratch.ts")).toBe("allow");
+  });
+});
+
+describe("formatDenyReason", () => {
+  test("names the file, worktree and the EnterWorktree alternative", () => {
+    const text = formatDenyReason("/wt/b/file.ts", "/wt/b", "/wt/a");
+    expect(text).toContain("/wt/b/file.ts");
+    expect(text).toContain("worktree: /wt/b");
+    expect(text).toContain("EnterWorktree");
+  });
+});
+
+describe("hook run", () => {
+  const PORCELAIN = "worktree /repo/main\nHEAD a\n\nworktree /repo/feature\nHEAD b\n";
+
+  beforeEach(() => {
+    execFileSync.mockReset();
+    execFileSync.mockReturnValue(PORCELAIN);
+  });
+
+  const run = (input: unknown) => captured.hook?.run(hookContext(input));
+  const success = { kind: "success", output: {} };
+
+  test("passes when there is no file_path", () => {
+    expect(run({ cwd: "/repo/main", tool_input: {} })).toEqual(success);
+  });
+
+  test("passes when the file is in the session's own worktree", () => {
+    expect(run({ cwd: "/repo/main", tool_input: { file_path: "/repo/main/a.ts" } })).toEqual(
+      success,
+    );
+  });
+
+  test("resolves a relative path against cwd", () => {
+    expect(run({ cwd: "/repo/main", tool_input: { file_path: "src/a.ts" } })).toEqual(success);
+  });
+
+  test("passes when the file is in no known worktree", () => {
+    expect(run({ cwd: "/repo/main", tool_input: { file_path: "/elsewhere/a.ts" } })).toEqual(
+      success,
+    );
+  });
+
+  test("denies a file in another worktree", () => {
+    expect(run({ cwd: "/repo/main", tool_input: { file_path: "/repo/feature/a.ts" } })).toEqual({
+      kind: "json",
+      output: {
+        event: "PreToolUse",
+        output: {
+          hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            permissionDecision: "deny",
+            permissionDecisionReason: formatDenyReason(
+              "/repo/feature/a.ts",
+              "/repo/feature",
+              "/repo/main",
+            ),
+          },
+        },
+      },
+    });
+  });
+
+  test("passes when git fails (not a repository)", () => {
+    execFileSync.mockImplementation(() => {
+      throw new Error("not a git repository");
+    });
+    expect(run({ cwd: "/repo/main", tool_input: { file_path: "/repo/feature/a.ts" } })).toEqual(
+      success,
+    );
   });
 });

@@ -1,18 +1,14 @@
 ---
-description: Parallel development with git worktrees — automated setup, environment isolation, and dynamic port allocation
+description: git worktree による並行開発 — セットアップの自動化、環境ファイルの分離、ポートの動的割り当て
 ---
 
-# Parallel Development
+# 並行開発
 
-Requirements for supporting git-worktree-based parallel development. Every project must be designed so that multiple worktrees can run side-by-side without conflicts.
+複数の git worktree を衝突なく並べて動かせるようにプロジェクトを設計する。新しい worktree は、自動化された 1 ステップで開発可能な状態にする。依存のインストール・env ファイルのコピー・ポート設定などの手作業は忘れられるので、残っていればバグとして扱う。
 
-## Principle
+## worktree セットアップスクリプト
 
-A fresh worktree must be ready to develop within a single automated step. Manual setup steps (install dependencies, copy env files, configure ports) are bugs — automate them or they will be forgotten.
-
-## Worktree Bootstrap Script
-
-Provide a `worktree:setup` script that runs automatically when a new worktree is created. This script must handle all setup required to make the worktree development-ready.
+新しい worktree の作成時に自動で走る `worktree:setup` スクリプトを用意する。
 
 ```jsonc
 // package.json
@@ -23,29 +19,23 @@ Provide a `worktree:setup` script that runs automatically when a new worktree is
 }
 ```
 
-The script must perform at minimum:
+最低限行うこと:
 
-- Install dependencies — `pnpm install`
-  - Why: Worktrees share git objects but not `node_modules`
-- Copy environment files — Copy `.env.local` (and other `.env*.local` files) from main worktree
-  - Why: Secrets and local config are not tracked in git
-- Generate dynamic port config — Write port assignments to `.env.local` or a local config file
-  - Why: Prevent port collisions between worktrees
-- Run codegen / DB setup — Prisma generate, migrations, etc.
-  - Why: Generated files may not exist in the new worktree
+- 依存のインストール（`pnpm install`）。worktree は git オブジェクトを共有するが `node_modules` は共有しないため。lockfile は固定のまま入れ、`--no-frozen-lockfile` を使わない
+- 環境ファイルのコピー。`.env.local` などの `.env*.local` を元の worktree からコピーする。secret やローカル設定は git で追跡されないため
+- ポート設定の生成。worktree ごとのポートを `.env.local` などに書く
+- codegen と DB セットアップ（`prisma generate`、GraphQL codegen、マイグレーションなど）。生成物が新しい worktree に無いため
 
-## Environment File Isolation
+## 環境ファイルの分離
 
-Worktrees must not share environment files via symlinks. Each worktree gets its own copy so that port overrides and other local changes do not affect other worktrees.
-
-The bootstrap script copies `.env*.local` files from the source worktree (the main worktree or the worktree that triggered the creation). After copying, it patches port-related variables to avoid collisions.
+環境ファイルを symlink で共有せず、worktree ごとにコピーを持たせる。ポートの上書きなどローカルの変更を他の worktree へ波及させないため。コピー元はメインの worktree か、作成を起動した worktree とし、コピー後にポート関連の変数を書き換える。
 
 ```typescript
-// scripts/worktree-setup.ts — conceptual example
+// scripts/worktree-setup.ts — 概念例
 import { copyFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-const mainWorktree = getMainWorktreePath(); // e.g., from `git worktree list`
+const mainWorktree = getMainWorktreePath(); // `git worktree list` などから取得
 const envFiles = [".env.local", ".env.development.local"];
 
 for (const file of envFiles) {
@@ -56,18 +46,12 @@ for (const file of envFiles) {
 }
 ```
 
-## Dynamic Port Allocation
+## ポートの動的割り当て
 
-When a project runs a dev server (Next.js, Vite, Hono, etc.), the port must be configurable via environment variable so that multiple worktrees can run simultaneously.
-
-### Requirements
-
-- The dev server must accept a port via `PORT` environment variable (or framework-specific equivalent like `--port`)
-- The bootstrap script assigns a unique port per worktree and writes it to `.env.local`
-- Port assignment strategy: base port + offset derived from worktree name or index
+dev サーバー（Next.js、Vite、Hono など）のポートは環境変数 `PORT`（またはフレームワーク固有の `--port`）で変えられるようにし、ハードコードしない。セットアップスクリプトが worktree ごとに一意のポート（基準ポート + worktree の名前か番号から決めたオフセット）を割り当て、`.env.local` に書く。
 
 ```typescript
-// Port allocation — conceptual example
+// ポート割り当て — 概念例
 import { execFileSync } from "node:child_process";
 
 const BASE_PORT = 3000;
@@ -75,13 +59,9 @@ const output = execFileSync("git", ["worktree", "list", "--porcelain"], { encodi
 const worktreeCount = output.split("worktree ").length - 1;
 const port = BASE_PORT + (worktreeCount - 1) * 10; // 3000, 3010, 3020, ...
 
-// Write to .env.local
+// .env.local に書き込む
 appendToEnvLocal(`PORT=${port}`);
 ```
-
-### Dev Server Configuration
-
-Frameworks must read the port from the environment, not hardcode it:
 
 ```jsonc
 // package.json
@@ -92,32 +72,15 @@ Frameworks must read the port from the environment, not hardcode it:
 }
 ```
 
-## Dependency Installation
+## AI エージェントとの連携
 
-Worktrees share the `.git` directory but have independent working trees. `node_modules` is not shared and must be installed in each worktree.
+AI コーディングエージェントが `gwq` や `EnterWorktree` で worktree を作ったときも、セットアップスクリプトが自動で走るようにする。`post-checkout` の git hook で worktree 作成を検知するか、エージェントの worktree 作成手順で明示的に呼ぶ。エージェントは `pnpm run worktree:setup` を実行するだけで、追加の手作業なしに開発環境が整う状態にする。
 
-The bootstrap script must:
+## worktree 対応の完了条件
 
-- Run `pnpm install` (or the project's package manager)
-- Run any post-install codegen (`prisma generate`, GraphQL codegen, etc.)
-- Verify that the lockfile matches (no `--no-frozen-lockfile` in worktrees)
-
-## AI Agent Integration
-
-When AI coding agents (Claude Code, etc.) create worktrees via tools like `gwq` or `EnterWorktree`, the bootstrap script should be triggered automatically. Configure this via:
-
-- A git hook (`post-checkout` with worktree detection)
-- Or explicit invocation in the agent's worktree creation workflow
-
-The agent must be able to run `pnpm run worktree:setup` and have a fully functional development environment without further manual steps.
-
-## Checklist for Worktree Readiness
-
-A project is worktree-ready when:
-
-- [ ] `pnpm run worktree:setup` exists and performs full bootstrap
-- [ ] Dev server port is configurable via environment variable
-- [ ] `.env*.local` files are copied and patched automatically
-- [ ] Dependencies install cleanly in a fresh worktree
-- [ ] Codegen / migrations run as part of setup
-- [ ] Multiple worktrees can run dev servers simultaneously without port collisions
+- `pnpm run worktree:setup` があり、セットアップをすべて行う
+- dev サーバーのポートを環境変数で変えられる
+- `.env*.local` が自動でコピー・書き換えされる
+- 新しい worktree で依存がきれいに入る
+- codegen とマイグレーションがセットアップに含まれる
+- 複数の worktree で dev サーバーを同時に起動してもポートが衝突しない

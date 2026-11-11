@@ -1,16 +1,17 @@
 import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 vi.mock("better-sqlite3", () => {
   return {
     default: class FakeDatabase {
-      private readonly path: string;
+      // better-sqlite3 の Database と同じく、開いたファイルのパスを name に持つ
+      readonly name: string;
       private readonly sessions = new Map<string, string>();
 
       constructor(path: string) {
-        this.path = path;
+        this.name = path;
       }
 
       prepare(sql: string) {
@@ -85,7 +86,7 @@ describe("db", () => {
   describe("openDb", () => {
     it("creates database file at specified path", () => {
       expect(db).toBeDefined();
-      expect((db as unknown as { path: string }).path).toBe(dbPath);
+      expect(db.name).toBe(dbPath);
     });
   });
 

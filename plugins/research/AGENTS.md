@@ -1,51 +1,29 @@
-# research プラグイン開発ガイド
+# research
 
 この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
-調査・分析ツールを提供する Claude Code プラグイン。
+調査・分析のための skill とスクリプトを提供する。
 
 ## 開発コマンド
 
 ```bash
 cd plugins/research
-
-bun run check        # lint + format チェック
-bun run check:fix    # 自動修正
-bun run typecheck    # 型チェック
+vp run check && vp run typecheck && vp run test
 ```
 
-## Hooks 実装
+## 構成の要点
 
-- IF: Hook を実装する; THEN MUST: hooks/ ディレクトリ内の TypeScript ファイルに実装し、cc-hooks-ts を使用する
-
-## ファイル参照ルール
-
-- IF: hooks.json 内でファイルを参照する; THEN MUST: `./hooks/xxx.ts` 形式で書く
-- IF: スキル内でファイルを参照する; THEN MUST: `@./skills/xxx/reference.md` 形式で書く
-
-## Model Invocation Policy
-
-<!-- BEGIN:model-invocation-policy -->
-
-以下の skill は `disable-model-invocation: true` を付与しない。設計判断: ユーザーが自然文で依頼する主要ワークフロー、または AI がタスク遂行中に自律参照すべき実行リファレンスである。これらの `description` には自然文 trigger、または実行リファレンスとしての参照理由を定義する。
-
-- `research:image-analyze`
-- `research:incremental-research`
-- `research:library-research`
-- `research:semtools`
-
-上記以外の skill は、明示呼び出し・内部参照・手動操作・低レベルユーティリティとして扱い、`disable-model-invocation: true` を維持する。disabled skill の `description` には広い自然文 trigger を定義しない。
-
-<!-- END:model-invocation-policy -->
+- 決定的な処理（パッケージ情報取得、clone と分析、訪問記録、index 生成、画像処理）は各 skill の `scripts/` に置き、SKILL.md には実行するコマンドと出力の使い方だけを書く。skill からは `${CLAUDE_SKILL_DIR}/scripts/...` で参照する
+- `library-research` は依存として使うための調査、`obsidian:repository-dissect` は設計知見を Vault に蓄積するための分析。両 skill の description で使い分けを示している
+- `semtools` は `user-invocable: false`。検索ツールの使い方の背景知識で、ユーザーが `/semtools` として直接呼ぶ意味がないため
+- 画像は Claude が直接読めるので、`image-analyze` はローカルの差分・切り出し・拡大を主にし、Gemini 解析（`image-analyze.ts`）はユーザーが求めたときの任意の補助にとどめる
 
 ## Components
 
 <!-- BEGIN:component-list (auto-generated, do not edit) -->
 
-| Type  | Name                          | Description                                                                                                                                                                                                           |
-| ----- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| skill | research:image-analyze        | This skill should be used when the user asks to "analyze image", "compare screenshots", "visual diff", "PDFを解析", or wants image/PDF analysis using AI or local processing.                                         |
-| skill | research:incremental-research | This skill should be used when the user asks to "research incrementally", "調査計画を作って進める", "multi-step investigation", "調査結果を記録", or wants structured research tracked in a markdown plan.            |
-| skill | research:library-research     | This skill should be used when the user asks to "research this library", "ライブラリを徹底調査", "framework investigation", "knowledge base", or wants clone-first hands-on research persisted as reusable knowledge. |
-| skill | research:semtools             | This skill should be used when the user asks to "semantic search", "自然言語で検索", "semtools", "search files by meaning", or wants to search file contents using natural-language queries.                          |
+- **skill** `image-analyze`: スクリーンショット・デザイン画像をローカルで比較・加工する（ピクセル差分、重ね合わせ、横並べ、エッジ抽出、切り出しと拡大、メタデータ）。「Figma と実装がずれていないか比較して」「スクショの差分を見て」のように画像の比較や細部の確認を頼まれたときに使う。
+- **skill** `library-research`: ライブラリ・フレームワークのリポジトリを clone して実際に動かしながら調べ、結果を再利用できるナレッジベース（library-knowledge skill）として保存する。「このライブラリ使えそうか調べて」「〜を徹底調査して」のように、依存として使うための調査を頼まれたときに使う。設計知見を Zettelkasten に蓄積する目的なら obsidian:repository-dissect を使う。
+- **skill** `semtools`: semtools CLI（@llamaindex/semtools）でファイル内容を意味で検索する。grep ではキーワードが一致せず目的の箇所が見つからないとき、自然言語のクエリで Markdown・コード・ログなどを探すときに使う。
+- **hook** `install-deps`: SessionStart
 
 <!-- END:component-list -->

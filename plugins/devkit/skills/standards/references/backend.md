@@ -1,53 +1,51 @@
 ---
-description: Backend tech stack — Hono framework, Drizzle ORM, better-auth, awilix, environment validation, and error handling conventions
+description: backend スタック — Hono、Drizzle ORM、better-auth、awilix、環境変数の検証、エラーハンドリングの規約
 ---
 
-# Backend Stack
+# backend スタック
 
-- Framework — Hono
-- ORM — Drizzle ORM
-- Auth — better-auth (Google OAuth 2.0)
-- DI — awilix
-- Env validation — t3-env
-- Error handling — Fail fast (see Philosophy)
+- フレームワーク: Hono
+- ORM: Drizzle ORM
+- 認証: better-auth（Google OAuth 2.0）
+- DI: awilix
+- 環境変数の検証: t3-env
+- エラーハンドリング: fail fast（Philosophy 参照）
 
 ## Hono
 
-- Use Hono as the default backend framework for all new projects
-- Deploy target: Cloudflare Workers first, Node.js adapter as fallback
-- Use `Hono` factory with `app.route()` for modular route registration — one file per resource
-- Use Hono RPC (`hc`) for type-safe client generation — share types between frontend and backend
-- Use Hono middleware (`app.use()`) for cross-cutting concerns (auth, logging, error handling)
-- Use `@hono/valibot-validator` for request/response validation with valibot schemas
-- Use `c.var` with typed context (`new Hono<{ Variables: AppVars }>()`) for dependency injection per request
+- 新規プロジェクトの backend は Hono を既定にする
+- デプロイ先は Cloudflare Workers を優先し、Node.js adapter は次善とする
+- ルートはリソースごとに 1 ファイルへ分け、`app.route()` で登録する
+- フロントエンドとの型共有には Hono RPC（`hc`）を使う
+- 認証・ログ・エラーハンドリングなど横断的な処理は middleware（`app.use()`）に置く
+- リクエスト・レスポンスの検証は `@hono/valibot-validator` と valibot のスキーマで行う
+- リクエスト単位の依存は型付き context（`new Hono<{ Variables: AppVars }>()`）の `c.var` で渡す
 
 ## Drizzle ORM
 
-- Define schema in `src/db/schema/` with one file per table or domain group
-- Use Drizzle Kit for migrations (`drizzle-kit generate` → `drizzle-kit migrate`)
-- Never write raw SQL for CRUD — use Drizzle query builder
-- Define relations in schema files alongside table definitions
+- スキーマは `src/db/schema/` に、テーブルまたはドメイン単位で 1 ファイルずつ置く
+- マイグレーションは Drizzle Kit（`drizzle-kit generate` → `drizzle-kit migrate`）で行う
+- CRUD に生 SQL を書かず、query builder を使う
+- relation はテーブル定義と同じスキーマファイルに書く
 
 ## better-auth
 
-- Configure providers in a single `src/auth.ts` module
-- Use Google OAuth 2.0 as the default provider
-- Store session in the database (not JWT-only) for revocability
+- provider の設定は `src/auth.ts` の 1 モジュールにまとめる
+- 既定の provider は Google OAuth 2.0
+- セッションは失効させられるよう、JWT だけでなく DB に保存する
 
 ## awilix
 
-- Create one container per request (scoped lifetime) — not a singleton
-- Register dependencies with `asFunction()` or `asClass()` — avoid `asValue()` for services
-- Define the container setup in a single `src/container.ts` module
+- container はリクエストごとに作る（scoped lifetime）。singleton にしない
+- サービスは `asFunction()` か `asClass()` で登録し、`asValue()` は使わない
+- container の構成は `src/container.ts` の 1 モジュールにまとめる
 
-## Environment Variables
+## 環境変数
 
-Use [t3-env](https://env.t3.gg/) to validate and type all environment variables. Define a single `env.ts` module and import from it. Direct `process.env` access is forbidden outside `env.ts`. For non-Next.js backends, use `@t3-oss/env-core` (not `@t3-oss/env-nextjs`). Never use `skipEnvValidation` — see `references/coding-standards.md` for the dummy injection pattern.
+[t3-env](https://env.t3.gg/) で検証と型付けを行う。`env.ts` を 1 つ定義してそこから import し、`env.ts` の外で `process.env` を読まない。Next.js 以外の backend では `@t3-oss/env-nextjs` ではなく `@t3-oss/env-core` を使う。`skipEnvValidation` は使わず、ダミー値の注入で対応する（`references/coding-standards.md`）。
 
-## Error Handling
+## エラーハンドリング
 
-Follow fail-fast from Philosophy:
-
-- Let errors propagate to the top-level error handler — do not catch-and-ignore
-- Use typed error classes for domain errors (not generic `Error`)
-- Return appropriate HTTP status codes from the error handler — do not return 200 for errors
+- エラーは最上位のエラーハンドラまで伝播させ、catch して無視しない
+- ドメインエラーは汎用の `Error` ではなく型付きのエラークラスにする
+- エラーハンドラはエラーに応じた HTTP ステータスを返し、エラーを 200 で返さない

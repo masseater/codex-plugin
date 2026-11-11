@@ -1,90 +1,57 @@
 ---
-description: Documentation principles — what to put in a repository, what not to, and why tests/lint beat prose
+description: 文書化の原則 — リポジトリに置くもの・置かないもの、規約を強制する手段の優先順位、意図的逸脱の記録方法
 ---
 
-# Documentation Principles
+# 文書化の原則
 
-## Core Principle: Executable Artifacts Over Prose
+規約は文書ではなく test と lint rule で強制する。文書は黙って古くなり、AI エージェントは古い文書と現状を区別できない。
 
-Enforce standards through tests and lint rules, not documentation. Tests and lint rules are executable, self-verifying, and fail when violated. Documentation rots silently — and AI agents cannot distinguish stale docs from current truth.
+## リポジトリに置くもの
 
-## What to Put in a Repository
+正しさを機械的に検証できる実行可能な成果物を置く。
 
-Put **executable artifacts** — things whose correctness is mechanically verifiable:
+- コード、test、lint rule と設定、型定義、スキーマ定義、CI 設定
 
-- Code — Runs or doesn't
-- Tests — Pass or fail
-- Lint rules and config — Enforce patterns mechanically
-- Type definitions — Compiler verifies
-- Schema definitions — Validated at boundaries
-- CI configuration — Executes on every push
+加えて ADR（Architecture Decision Record）を置く。項目は Date・Status（Accepted / Superseded / Deprecated）・Context・Decision・Consequences。ADR はその場で書き換えず、新しい ADR で置き換える。有効性を文章ではなく Status 欄で判定できるようにするため。
 
-Also put **Architecture Decision Records (ADRs)** — records of decisions with timestamps and explicit status:
+## リポジトリに置かないもの
 
-- Date — When the decision was made
-- Status — Accepted / Superseded / Deprecated
-- Context — What problem was being solved
-- Decision — What was chosen
-- Consequences — What trade-offs were accepted
+システムの現状を説明する文章はコミットしない。必ずコードより遅れ、エージェントがその古い情報を事実として扱っても検出する仕組みがない。
 
-ADRs are never edited in place — they are superseded by new ADRs. This makes validity structurally determinable: an agent reads the status field, not the prose.
+- 「いまのシステムはこう動く」という説明
+- 手書きの API 説明（コードやスキーマから生成する）
+- アーキテクチャ概要の文章（コード構造か ADR から導く）
+- 実装を説明する設計文書
 
-## What NOT to Put in a Repository
+## 強制する手段の優先順位
 
-Do not commit prose that describes current system state:
+規約を強制したいときは、上から順に検討する。文章を書く前に、型・lint rule・test・スキーマで表せないかを考える。
 
-- "The system currently works like this" explanations
-- Hand-written API descriptions (generate from code or schema instead)
-- Architecture overview text (derive from code structure or ADRs instead)
-- Design documents that describe implementation (the code IS the implementation)
+1. 型システム: コンパイル時に保証でき、実行時コストがない
+2. lint rule（oxlint / ESLint plugin）: 毎回のチェックで走り、file:line を出し、`--fix` に対応できる
+3. test: CI で走り、回帰を捕まえる
+4. スキーマ検証: 環境変数・API 入力・設定など実行時の境界で強制する
+5. CI チェック: lint と test で拾えないもの（ビルド成果物、バンドルサイズ、デプロイ設定）
+6. ADR: システムの動き方ではなく、なぜその決定をしたかを記録する
+7. 生成された文書（JSDoc、OpenAPI、型の export）: 再生成でずれを防げるので許容する
+8. 手書きの文章: 他のどの形でも表せないオンボーディング情報に限る
 
-These documents inevitably fall behind the code. When they do, AI agents treat the stale information as ground truth — there is no mechanism to detect the drift.
+## 文章を書いてよい場合
 
-**Stale context actively degrades AI performance.** Research shows all frontier models degrade as context length increases with irrelevant or outdated information. Every stale document in the repository is noise that competes with signal.
+- 始め方を説明するオンボーディングガイド（ただしセットアップはスクリプトで自動化する方を優先する）
+- AI エージェントの挙動を設定する AGENTS.md / CLAUDE.md
+- 目的と quick-start コマンドだけの最小限の README.md
+- ADR
 
-## Decision Hierarchy
+これらでも、一覧・表・インベントリは手で保守せずコードから生成する。
 
-When you want to enforce a standard or convention, choose the mechanism in this order:
+## 意図的逸脱の記録
 
-- 1 — Type system
-  - Why: Compile-time guarantee, zero runtime cost
-- 2 — Lint rule (oxlint/ESLint plugin)
-  - Why: Runs with every check, reports file:line, supports --fix
-- 3 — Test
-  - Why: Runs in CI, catches regressions, documents behavior through assertions
-- 4 — Schema validation
-  - Why: Runtime boundary enforcement (env vars, API inputs, config)
-- 5 — CI check
-  - Why: Catches what lint and tests miss (build output, bundle size, deploy config)
-- 6 — ADR
-  - Why: Records WHY a decision was made — not how the system works
-- 7 — Generated documentation
-  - Why: Auto-derived from code (JSDoc, OpenAPI, type exports). Acceptable because regeneration prevents drift
-- 8 — Prose documentation
-  - Why: Last resort. Only for onboarding context that cannot be expressed any other way
+devkit の規約から意図的に外れるリポジトリは、`docs/devkit-intentional-violation.md` に記録する。
 
-If you reach for prose documentation, first ask: "Can this be a type, a lint rule, a test, or a schema instead?"
-
-## When Prose Documentation IS Acceptable
-
-- Onboarding guides that explain how to get started (but prefer scripts that automate the setup)
-- AGENTS.md / CLAUDE.md that configure AI agent behavior (these are effectively "configuration as prose")
-- README.md with project purpose and quick-start commands (keep minimal)
-- ADRs (see above — structured, timestamped, status-tracked)
-
-Even these must follow the auto-generation principle: derive lists, tables, and inventories from code rather than hand-maintaining them.
-
-## Project-Specific Intentional Violations
-
-When a repository intentionally deviates from devkit standards, record the deviation in `docs/devkit-intentional-violation.md`.
-
-Requirements:
-
-- Keep the file in the repository so the decision travels with the code
-- Record the violated rule, affected scope/file when useful, the reason, and the latest review date in plain Markdown
-- Update or delete the entry when the deviation no longer applies
-
-Example:
+- 決定がコードと一緒に移動するよう、リポジトリ内に置く
+- 外れているルール、必要なら対象スコープ・ファイル、理由、最新のレビュー日をプレーンな Markdown で書く
+- 逸脱が不要になったら更新するか削除する
 
 ```md
 # Devkit Intentional Violations
@@ -93,6 +60,6 @@ Example:
 
 - Scope: `(root)`
 - File: `package.json`
-- Reason: This repository intentionally uses Bun because it ships Claude Code plugins that must stay independent from the target project's toolchain.
+- Reason: Claude Code plugin を配布するリポジトリで、対象プロジェクトのツールチェーンから独立させる必要があるため Bun を使う
 - Reviewed: 2026-04-04
 ```

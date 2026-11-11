@@ -1,6 +1,6 @@
 # workspace-id
 
-エージェント作業ディレクトリの命名規約（workspace-id）を定義し、Auto Compact / resume 時に直近の workspace-id を復元するプラグイン。
+エージェント作業ディレクトリの命名規約（workspace-id）を定義し、Auto Compact / resume 時に同じセッションの workspace-id を復元するプラグイン。
 
 ## インストール
 
@@ -11,7 +11,5 @@
 
 ## 構成
 
-| 種別  | 名前                 | 説明                                                                |
-| ----- | -------------------- | ------------------------------------------------------------------- |
-| skill | workspace-id         | workspace-id フォーマット・ディレクトリ構造・ファイル命名規約の定義 |
-| hook  | workspace-id-persist | SessionStart(compact/resume) で直近 workspace-id を復元             |
+- skill `workspace-id`: workspace-id の書式、ディレクトリ構造、ファイル命名規約と生成スクリプト
+- hook `workspace-id-persist`: Auto Compact / resume のあと、同じセッションで生成した workspace-id を Claude に伝える

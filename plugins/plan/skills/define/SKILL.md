@@ -1,118 +1,91 @@
 ---
-name: plan:define
-description: 'This skill should be used when the user asks to "create a plan file", "write a plan", "Plan mode", "plan.mdを作成", or wants a plan structured with User Prompts, Purpose, Structure, TODO, and Verification sections.'
+name: define
+description: 計画ファイル（User Prompts / Purpose / Approach / Branch / Structure / TODO / Verification）を規定の構成と記述規約で書く。「計画を立てて」「plan を作って」と頼まれたとき、Plan mode で計画を作るとき、Issue 番号や URL から実装計画を作るときに使う。
+argument-hint: "[依頼内容 | Issue 番号 | Issue URL]"
 ---
 
-## Overview
+# 計画ファイルを書く
 
-This skill provides a template and checklist for creating plan files. It is separate from Claude Code's `/plan` command (which enters Plan mode). This skill guides the **content** of the plan file to ensure it meets the plugin's quality rules.
+## 置き場所
 
-## Prerequisite
+計画ファイルは `.local-agents/plans/<YYYYMMDD-HHmmss>-<rand>.md` に書く。Plan mode 中は計画ファイル以外を編集できないので、Plan mode が指定する計画ファイルに同じ構成で書く。
 
-Enter Plan mode by calling the `EnterPlanMode` tool before using this skill. If already in Plan mode, proceed directly to the Workflow.
+## 入力
 
-## Workflow
+- 依頼文: そのまま User Prompts に引用する
+- Issue 番号または URL: `gh issue view <番号|URL> --json number,title,body,url,comments` で本文とコメントを読み、Purpose と TODO の根拠にする。User Prompts にはユーザーの依頼文を引用し、Issue は Purpose に URL で示す
 
-1. Create the plan file following the "Plan File Structure Template" below
-2. Verify the content against the Plan File Content Rules
-3. Call `ExitPlanMode`
+## 構成
 
-## Plan File Structure Template
+次の順で書く。
 
-Create the plan file with the following structure, in this exact order:
-
-### 1. User Prompts
-
-```markdown
+````markdown
 ## User Prompts
 
-> [Paste the user's original prompt exactly as given]
+> <ユーザーの最初の依頼文を原文のまま>
 
-> [If additional prompts were given during planning, add them here in order]
-```
+> <計画中に受けた追加の依頼文。ExitPlanMode の承認時のフィードバックも含め、時系列で>
 
-- Place this section at the very top of the file, before `# Purpose`
-- Use blockquote (`>`) format for each prompt
-- Include ALL prompts given during the planning session, in chronological order
-- Include prompts the user provided during the `ExitPlanMode` approval process (e.g., feedback, revision requests)
-- Do not paraphrase or summarize — copy the exact text
+## Purpose
 
-### 2. Purpose
+<この計画で達成すること。最終成果物（PR・ファイル・動作する機能など）を含める>
 
-```markdown
-# Purpose
+## Approach
 
-[Clear, concise description of what this plan aims to achieve]
-```
+- <使う手段>: <それを選んだ理由>
 
-### 3. Structure
+## Branch
 
-```markdown
+- ブランチ: `<branch-name>`
+- worktree: <既存の worktree を使うならそのパス。無ければ `gwq` で作る手順>
+
 ## Structure
 
 ### Before
-```
 
-[Directory/file tree showing the current state of relevant files/directories]
-
+```text
+src/
+  components/
+    Button.tsx
+    Modal.tsx
 ```
 
 ### After
 
+```text
+src/
+  components/
+    Button.tsx (delete)
+    Modal.tsx
+    Card.tsx (new)
 ```
 
-[Directory/file tree showing the target state after plan execution]
-
-```
-
-```
-
-- Show only the files and directories relevant to the plan (not the entire project tree)
-- Use tree-style notation (indentation with directories and files)
-- In the "After" section, mark new files/directories with `(new)` and deleted ones with `(delete)`
-- If renaming, show the old name with `(delete)` and new name with `(new)`
-
-### 4. TODO
-
-```markdown
 ## TODO
 
-### 1. [Task title]
+### 1. <タスク名>
 
-**Target file**: `path/to/file`
+- 対象ファイル: `path/to/file`
+- 内容: <何をどう変えるか。ファイル単位の変更方針まで>
 
-**Description**: [Concrete description of what to do]
-
-### 2. [Task title]
-
-...
-```
-
-- Each TODO item must specify target files
-- Each TODO item must describe concrete changes
-- TODO items must be actionable without additional context
-- Only include things that will be done after plan approval
-
-### 5. Verification
-
-```markdown
 ## Verification
 
-1. [Verification item corresponding to TODO 1]
-2. [Verification item corresponding to TODO 2]
-   ...
-```
+1. <TODO 1 の確認方法（実行するコマンドと期待する結果）>
+````
 
-## Plan File Content Rules
+- User Prompts は要約・言い換えをせず原文のまま引用する。計画の意図を後から原文で確かめられるようにするため
+- Structure には計画に関係するファイルだけをツリーで書き、新規は `(new)`、削除は `(delete)`、リネームは旧名 `(delete)` と新名 `(new)` で示す
+- Approach と Branch は、ユーザーが方向性と作業場所の妥当性を計画だけで判断できるよう書く。ユーザーの個人ルール（`~/AGENTS.md` の計画節）が求める項目と同じ
+- TODO の各項目には対象ファイルと変更方針を書き、承認後に行う作業だけを載せる。コード片や関数シグネチャのような API レベルの設計は書かない。計画のレビューを方向性の判断に集中させるため
+- 調査や既存 worktree への移動は TODO に入れない。調査は計画を書く前に済ませ、worktree の作成が要るときだけ TODO の最初に置く
+- Verification は TODO と対応させ、実行するコマンドや確認する挙動を具体的に書く
 
-See [Plan File Content Rules](../../references/plan-file-content-rules.md)
+## 記述規約
 
-## Handling Additional Prompts During Planning
+計画ファイルは、会話を知らない読み手がこのファイルだけで実行できるように書く。詳細と例は [references/plan-file-content-rules.md](references/plan-file-content-rules.md) を読む。
 
-When additional prompts are received while creating the plan:
+- 最終的にやることだけを書く。改訂の経緯、レビューの指摘、却下した案は残さない
+- 「上で議論したとおり」のような会話の文脈に依存する表現を使わない
 
-1. Add to User Prompts section: Append the new prompt as a new blockquote entry, maintaining chronological order
-2. Update TODO: Add, modify, or remove TODO items as needed to reflect the new prompt
-3. Update Structure: Update Before/After trees if new prompts affect file structure changes
-4. Update Verification: Add corresponding verification items for any new TODOs
-5. Keep the file clean: The plan file should always reflect only the final intended state, not the evolution of decisions
+## 計画中に追加の依頼を受けたら
+
+User Prompts に時系列で追記し、TODO・Structure・Verification を最終形に更新する。古い記述は消し、改訂の痕跡を残さない。

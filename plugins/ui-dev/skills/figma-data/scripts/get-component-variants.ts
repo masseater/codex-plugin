@@ -1,33 +1,15 @@
 #!/usr/bin/env bun
 
 import { defineCommand, runMain } from "citty";
-import { getToken, log, toColon } from "./_lib.ts";
-
-type FigmaNodeResponse = {
-  name: string;
-  nodes: Record<string, { document: Record<string, unknown> | null }>;
-};
-
-async function fetchNode(
-  fileKey: string,
-  nodeId: string,
-  token: string,
-): Promise<Record<string, unknown> | null> {
-  const colonId = toColon(nodeId);
-  const url = new URL(`https://api.figma.com/v1/files/${fileKey}/nodes`);
-  url.searchParams.set("ids", nodeId);
-
-  const res = await fetch(url, {
-    headers: { "X-Figma-Token": token },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Figma API failed: ${res.status} ${res.statusText}`);
-  }
-
-  const data = (await res.json()) as FigmaNodeResponse;
-  return data.nodes[colonId]?.document ?? null;
-}
+import {
+  describeNode,
+  isRecord,
+  recordArrayField,
+  recordField,
+  stringField,
+  type JsonRecord,
+} from "./_json.ts";
+import { fetchNodeDocument, getToken, log, writeJsonOutput } from "./_lib.ts";
 
 type VariantInfo = {
   id: string;
@@ -46,25 +28,27 @@ function parseVariantName(name: string): Record<string, string> {
   return props;
 }
 
-function extractVariants(doc: Record<string, unknown>): VariantInfo[] {
-  const children = doc.children as Array<Record<string, unknown>> | undefined;
+function extractVariants(doc: JsonRecord): VariantInfo[] {
+  const children = recordArrayField(doc, "children");
   if (!children) return [];
 
-  return children.map((child) => ({
-    id: child.id as string,
-    name: child.name as string,
-    properties: parseVariantName(child.name as string),
-  }));
+  return children.map((child) => {
+    const name = stringField(child, "name") ?? "";
+    return {
+      id: stringField(child, "id") ?? "",
+      name,
+      properties: parseVariantName(name),
+    };
+  });
 }
 
-function extractComponentProperties(doc: Record<string, unknown>): Record<string, unknown> | null {
-  const propDefs = doc.componentPropertyDefinitions as
-    | Record<string, Record<string, unknown>>
-    | undefined;
+function extractComponentProperties(doc: JsonRecord): JsonRecord | null {
+  const propDefs = recordField(doc, "componentPropertyDefinitions");
   if (!propDefs) return null;
 
-  const result: Record<string, unknown> = {};
-  for (const [key, def] of Object.entries(propDefs)) {
+  const result: JsonRecord = {};
+  for (const [key, value] of Object.entries(propDefs)) {
+    const def = isRecord(value) ? value : {};
     result[key] = {
       type: def.type,
       defaultValue: def.defaultValue,
@@ -73,6 +57,62 @@ function extractComponentProperties(doc: Record<string, unknown>): Record<string
     };
   }
   return result;
+}
+
+/**
+ * バリアントごとのプロパティ値を、プロパティごとの取りうる値の一覧にまとめる。
+ * @param variants バリアント
+ * @returns プロパティ名から値の一覧（出現順）への対応
+ */
+function propertyMatrix(variants: VariantInfo[]): Record<string, string[]> {
+  const propertyValues = new Map<string, Set<string>>();
+  for (const [key, value] of variants.flatMap((variant) => Object.entries(variant.properties))) {
+    propertyValues.set(key, (propertyValues.get(key) ?? new Set()).add(value));
+  }
+  return Object.fromEntries([...propertyValues].map(([key, values]) => [key, [...values]]));
+}
+
+type ComponentSummary = { fields: JsonRecord; debug: string };
+
+function componentSetSummary(doc: JsonRecord): ComponentSummary {
+  const variants = extractVariants(doc);
+  const matrix = propertyMatrix(variants);
+  return {
+    fields: {
+      propertyDefinitions: extractComponentProperties(doc),
+      propertyMatrix: matrix,
+      totalVariants: variants.length,
+      variants,
+    },
+    debug: `[DEBUG] Found ${variants.length} variants, ${Object.keys(matrix).length} properties`,
+  };
+}
+
+function componentSummary(doc: JsonRecord): ComponentSummary {
+  return {
+    fields: { propertyDefinitions: extractComponentProperties(doc), description: doc.description },
+    debug: "[DEBUG] Single component (not a component set)",
+  };
+}
+
+function otherNodeSummary(doc: JsonRecord): ComponentSummary {
+  const propertyDefs = extractComponentProperties(doc);
+  return {
+    fields: {
+      note: "This node is not a COMPONENT or COMPONENT_SET. Properties may be limited.",
+      ...(propertyDefs ? { propertyDefinitions: propertyDefs } : {}),
+    },
+    debug: "",
+  };
+}
+
+const SUMMARIZERS = new Map<string, (doc: JsonRecord) => ComponentSummary>([
+  ["COMPONENT_SET", componentSetSummary],
+  ["COMPONENT", componentSummary],
+]);
+
+function summarize(doc: JsonRecord, nodeType: string | undefined): ComponentSummary {
+  return (SUMMARIZERS.get(nodeType ?? "") ?? otherNodeSummary)(doc);
 }
 
 const main = defineCommand({
@@ -104,69 +144,24 @@ const main = defineCommand({
   },
   async run({ args }) {
     const token = getToken();
-    const verbose = args.verbose as boolean;
+    const verbose = args.verbose;
 
     log(verbose, `[DEBUG] Fetching component node ${args["node-id"]}...`);
 
-    const doc = await fetchNode(args["file-key"], args["node-id"], token);
+    const doc = await fetchNodeDocument(args["file-key"], args["node-id"], token);
     if (!doc) {
       throw new Error(`Node ${args["node-id"]} not found or resolved to null`);
     }
 
-    const nodeType = doc.type as string;
-    log(verbose, `[DEBUG] Node: ${doc.name} (${nodeType})`);
+    const nodeType = stringField(doc, "type");
+    log(verbose, `[DEBUG] Node: ${describeNode(doc)}`);
 
-    const result: Record<string, unknown> = {
-      id: doc.id,
-      name: doc.name,
-      type: nodeType,
-    };
+    const summary = summarize(doc, nodeType);
+    if (summary.debug) log(verbose, summary.debug);
 
-    if (nodeType === "COMPONENT_SET") {
-      const variants = extractVariants(doc);
-      const propertyDefs = extractComponentProperties(doc);
-
-      // Collect all unique property keys and their possible values
-      const propertyValues: Record<string, Set<string>> = {};
-      for (const variant of variants) {
-        for (const [key, value] of Object.entries(variant.properties)) {
-          if (!propertyValues[key]) propertyValues[key] = new Set();
-          propertyValues[key].add(value);
-        }
-      }
-
-      result.propertyDefinitions = propertyDefs;
-      result.propertyMatrix = Object.fromEntries(
-        Object.entries(propertyValues).map(([k, v]) => [k, [...v]]),
-      );
-      result.totalVariants = variants.length;
-      result.variants = variants;
-
-      log(
-        verbose,
-        `[DEBUG] Found ${variants.length} variants, ${Object.keys(propertyValues).length} properties`,
-      );
-    } else if (nodeType === "COMPONENT") {
-      const propertyDefs = extractComponentProperties(doc);
-      result.propertyDefinitions = propertyDefs;
-      result.description = doc.description;
-
-      log(verbose, "[DEBUG] Single component (not a component set)");
-    } else {
-      result.note = "This node is not a COMPONENT or COMPONENT_SET. Properties may be limited.";
-      const propertyDefs = extractComponentProperties(doc);
-      if (propertyDefs) result.propertyDefinitions = propertyDefs;
-    }
-
-    const json = JSON.stringify(result, null, 2);
-
-    if (args.output) {
-      await Bun.write(args.output, json);
-      console.log(`output=${args.output}`);
-    } else {
-      console.log(json);
-    }
+    const result: JsonRecord = { id: doc.id, name: doc.name, type: nodeType, ...summary.fields };
+    await writeJsonOutput(args.output, JSON.stringify(result, null, 2));
   },
 });
 
-runMain(main);
+await runMain(main);

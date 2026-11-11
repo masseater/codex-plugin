@@ -3,7 +3,8 @@
 #
 # Claude Code の statusLine 機能（公式 docs: code.claude.com/docs/en/statusline）は
 # stdin に session 情報の JSON を渡してくる。ここから session_id を取り出し、
-# 対応する state ファイルから persona を読んで出力する。
+# 対応する state ファイルから persona を読んで出力する。state は hook と同じく
+# プロジェクトルート（CLAUDE_PROJECT_DIR）基準なので、cd 後も見つかるよう workspace.project_dir を優先する。
 #
 # wire-up 例（~/.claude/settings.json）:
 #   {
@@ -19,19 +20,23 @@ set -euo pipefail
 
 input="$(cat)"
 session_id="$(printf '%s' "$input" | jq -r '.session_id // empty')"
-project_dir="$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // empty')"
+project_dir="$(printf '%s' "$input" | jq -r '.workspace.project_dir // .workspace.current_dir // .cwd // empty')"
 project_dir="${project_dir:-${CLAUDE_PROJECT_DIR:-${PWD}}}"
 
 if [[ -z "$session_id" ]]; then
   exit 0
 fi
 
-state_file="${project_dir}/.agents/tmp/persona/${session_id}"
+state_file="${project_dir}/.local-agents/tmp/persona/${session_id}"
 [[ -f "$state_file" ]] || exit 0
 
 persona="$(tr -d '[:space:]' < "$state_file" 2>/dev/null || true)"
 case "$persona" in
-  planner) printf '🧭 planner' ;;
-  worker)  printf '🔨 worker'  ;;
-  *)       printf '· persona?' ;;
+  planner)      printf '🧭 planner'      ;;
+  worker)       printf '🔨 worker'       ;;
+  idealist)     printf '🪄 idealist'     ;;
+  orchestrator) printf '🎭 orchestrator' ;;
+  sparring)     printf '🪞 sparring'     ;;
+  pathfinder)   printf '👣 pathfinder'   ;;
+  *)            printf '· persona?'      ;;
 esac

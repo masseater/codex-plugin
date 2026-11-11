@@ -1,6 +1,6 @@
 {
   "name": "agnix",
-  "version": "0.0.22",
+  "version": "0.0.27",
   "description": "AI アシスタント設定ファイルリンター（agnix）統合",
   "author": {
     "name": "masseater",
@@ -21,6 +21,5 @@
     "category": "Productivity"
   },
   "skills": "./skills/",
-  "hooks": "./hooks/hooks.json",
-  "mcpServers": "./.mcp.json"
+  "hooks": "./hooks/hooks.json"
 }

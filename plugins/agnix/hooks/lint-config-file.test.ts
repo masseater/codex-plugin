@@ -1,11 +1,12 @@
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test, vi } from "vite-plus/test";
 
 const { capturedHookDef, mockIsAgnixAvailable, mockRunAgnix } = vi.hoisted(() => {
   const capturedHookDef: { run: (ctx: unknown) => unknown }[] = [];
   return {
     capturedHookDef,
-    mockIsAgnixAvailable: vi.fn<() => boolean>(),
-    mockRunAgnix: vi.fn<() => { exitCode: number; output: string }>(),
+    mockIsAgnixAvailable: vi.fn<(...args: unknown[]) => boolean>(),
+    mockRunAgnix:
+      vi.fn<(...args: unknown[]) => { exitCode: number; stdout: string; stderr: string }>(),
   };
 });
 
@@ -14,6 +15,7 @@ vi.mock("@r_masseater/cc-plugin-lib", () => ({
     fromFile: () => ({
       debug: vi.fn(),
       info: vi.fn(),
+      warn: vi.fn(),
       [Symbol.dispose]: vi.fn(),
     }),
   },
@@ -28,10 +30,14 @@ vi.mock("cc-hooks-ts", () => ({
   runHook: vi.fn(),
 }));
 
-vi.mock("./lib/agnix-runner.js", () => ({
-  isAgnixAvailable: (...args: unknown[]) => mockIsAgnixAvailable(...(args as [])),
-  runAgnix: (...args: unknown[]) => mockRunAgnix(...(args as [])),
-}));
+vi.mock("./lib/agnix-runner.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./lib/agnix-runner.js")>();
+  return {
+    ...actual,
+    isAgnixAvailable: (...args: unknown[]) => mockIsAgnixAvailable(...args),
+    runAgnix: (...args: unknown[]) => mockRunAgnix(...args),
+  };
+});
 
 import { isConfigFile } from "./entry/lint-config-file.js";
 
@@ -134,6 +140,11 @@ describe("isConfigFile", () => {
   });
 });
 
+const agnixJson = (
+  diagnostics: Record<string, unknown>[],
+  summary = { errors: 0, warnings: diagnostics.length },
+) => JSON.stringify({ version: "0.56.5", files_checked: 1, diagnostics, summary });
+
 describe("hook run", () => {
   const getRunFn = () => {
     if (capturedHookDef.length === 0) throw new Error("defineHook was not called");
@@ -164,19 +175,63 @@ describe("hook run", () => {
 
   test("returns success when agnix finds no issues", () => {
     mockIsAgnixAvailable.mockReturnValue(true);
-    mockRunAgnix.mockReturnValue({ exitCode: 0, output: "" });
+    mockRunAgnix.mockReturnValue({ exitCode: 0, stdout: agnixJson([]), stderr: "" });
     const ctx = createMockContext("/project/AGENTS.md");
     const run = getRunFn();
 
     run(ctx);
 
-    expect(mockRunAgnix).toHaveBeenCalled();
+    expect(mockRunAgnix).toHaveBeenCalledWith(
+      ["--format", "json", "/project/AGENTS.md"],
+      expect.anything(),
+    );
     expect(ctx.success).toHaveBeenCalledWith({});
+    expect(ctx.json).not.toHaveBeenCalled();
   });
 
-  test("returns json with lint results when agnix finds issues", () => {
+  test("returns warnings even when agnix exits with code 0", () => {
     mockIsAgnixAvailable.mockReturnValue(true);
-    mockRunAgnix.mockReturnValue({ exitCode: 1, output: "warning: missing section" });
+    mockRunAgnix.mockReturnValue({
+      exitCode: 0,
+      stdout: agnixJson([
+        {
+          level: "warning",
+          rule: "CC-HK-010",
+          line: 1,
+          column: 1,
+          message: "Command hook has no timeout specified",
+          suggestion: "Add a timeout field",
+        },
+      ]),
+      stderr: "",
+    });
+    const ctx = createMockContext("/project/hooks.json");
+    const run = getRunFn();
+
+    run(ctx);
+
+    expect(ctx.json).toHaveBeenCalledWith({
+      event: "PostToolUse",
+      output: {
+        hookSpecificOutput: {
+          hookEventName: "PostToolUse",
+          additionalContext:
+            "agnix が hooks.json で指摘した内容:\n- 1:1 warning [CC-HK-010] Command hook has no timeout specified（Add a timeout field）\n安全な自動修正は `agnix --fix-safe /project/hooks.json` で適用できる。",
+        },
+      },
+    });
+  });
+
+  test("returns errors when agnix exits with non-zero code", () => {
+    mockIsAgnixAvailable.mockReturnValue(true);
+    mockRunAgnix.mockReturnValue({
+      exitCode: 1,
+      stdout: agnixJson(
+        [{ level: "error", rule: "AS-004", line: 2, column: 7, message: "Invalid name" }],
+        { errors: 1, warnings: 0 },
+      ),
+      stderr: "",
+    });
     const ctx = createMockContext("/project/SKILL.md");
     const run = getRunFn();
 
@@ -187,10 +242,46 @@ describe("hook run", () => {
       output: {
         hookSpecificOutput: {
           hookEventName: "PostToolUse",
-          additionalContext: "agnix lint results for SKILL.md:\nwarning: missing section",
+          additionalContext:
+            "agnix が SKILL.md で指摘した内容:\n- 2:7 error [AS-004] Invalid name\n安全な自動修正は `agnix --fix-safe /project/SKILL.md` で適用できる。",
         },
-        suppressOutput: true,
       },
     });
+  });
+
+  test("passes raw output when agnix fails without JSON", () => {
+    mockIsAgnixAvailable.mockReturnValue(true);
+    mockRunAgnix.mockReturnValue({
+      exitCode: 1,
+      stdout: "",
+      stderr: "Error: Validation root not found: /project/SKILL.md",
+    });
+    const ctx = createMockContext("/project/SKILL.md");
+    const run = getRunFn();
+
+    run(ctx);
+
+    expect(ctx.json).toHaveBeenCalledWith({
+      event: "PostToolUse",
+      output: {
+        hookSpecificOutput: {
+          hookEventName: "PostToolUse",
+          additionalContext:
+            "agnix が SKILL.md で指摘した内容:\nError: Validation root not found: /project/SKILL.md\n安全な自動修正は `agnix --fix-safe /project/SKILL.md` で適用できる。",
+        },
+      },
+    });
+  });
+
+  test("returns success when agnix exits 0 with unparseable output", () => {
+    mockIsAgnixAvailable.mockReturnValue(true);
+    mockRunAgnix.mockReturnValue({ exitCode: 0, stdout: "not json", stderr: "" });
+    const ctx = createMockContext("/project/AGENTS.md");
+    const run = getRunFn();
+
+    run(ctx);
+
+    expect(ctx.success).toHaveBeenCalledWith({});
+    expect(ctx.json).not.toHaveBeenCalled();
   });
 });

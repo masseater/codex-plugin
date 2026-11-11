@@ -1,54 +1,70 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vite-plus/test";
 
-/**
- * Test the logic extracted from notify-phase-status.ts.
- * The hook itself depends on cc-hooks-ts and cc-plugin-lib,
- * so we test the pure buildImplementMessage logic and config-driven branching.
- */
+// cc-plugin-lib のバレルは bun:sqlite を import しており vitest では読めないため、
+// HookLogger と wrapRun をモックする（obsidian の hook テストと同じ規約）。
+vi.mock("@r_masseater/cc-plugin-lib", () => ({
+  HookLogger: {
+    fromFile: () => ({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      [Symbol.dispose]: vi.fn(),
+    }),
+  },
+  wrapRun: vi.fn((_logger: unknown, fn: unknown) => fn),
+}));
+// defineHook に渡された run を捕捉して直接呼ぶ。
+const { capturedHookDefs } = vi.hoisted(() => ({
+  capturedHookDefs: [] as { run: (ctx: unknown) => unknown }[],
+}));
+vi.mock("cc-hooks-ts", () => ({
+  defineHook: vi.fn((opts: { run: (ctx: unknown) => unknown }) => {
+    capturedHookDefs.push(opts);
+    return opts;
+  }),
+  runHook: vi.fn(),
+}));
 
-function buildImplementMessage(flowName: string, screens: string[]): string {
-  return `[ui-dev] Ending implementation session.
+import { buildImplementMessage, findFlowsInProgress } from "./entry/notify-phase-status.ts";
 
-The flow "${flowName}" is still in progress.
-Screens: ${screens.join(", ")}
-
-To resume:
-/ui-dev:figma-implement ${flowName}`;
+function makeContext() {
+  return {
+    input: {},
+    success: vi.fn().mockReturnValue({ type: "success" }),
+    json: vi.fn().mockReturnValue({ type: "json" }),
+  };
 }
 
 describe("buildImplementMessage", () => {
-  test("generates message with flow name and screens", () => {
+  test("includes flow name, screens and the resume command", () => {
     const result = buildImplementMessage("registration", ["signup", "email-verify"]);
-    expect(result).toContain("[ui-dev] Ending implementation session.");
-    expect(result).toContain('The flow "registration" is still in progress.');
-    expect(result).toContain("Screens: signup, email-verify");
+    expect(result).toContain('"registration"');
+    expect(result).toContain("signup, email-verify");
     expect(result).toContain("/ui-dev:figma-implement registration");
-  });
-
-  test("handles single screen", () => {
-    const result = buildImplementMessage("checkout", ["payment"]);
-    expect(result).toContain("Screens: payment");
-  });
-
-  test("handles empty screens array", () => {
-    const result = buildImplementMessage("empty-flow", []);
-    expect(result).toContain("Screens: ");
-  });
-
-  test("includes resume command with correct flow name", () => {
-    const result = buildImplementMessage("my-flow", ["screen1"]);
-    expect(result).toContain("/ui-dev:figma-implement my-flow");
   });
 });
 
-describe("notify-phase-status hook logic", () => {
-  const testTmpDir = join(tmpdir(), `notify-phase-test-${Date.now()}`);
+describe("notify-phase-status hook", () => {
+  let testTmpDir: string;
+
+  function writeConfig(flowName: string, content: unknown): void {
+    const dir = join(testTmpDir, ".agents", "ui-dev", flowName);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "config.json"),
+      typeof content === "string" ? content : JSON.stringify(content),
+    );
+  }
 
   beforeEach(() => {
-    mkdirSync(testTmpDir, { recursive: true });
+    testTmpDir = join(
+      tmpdir(),
+      `notify-phase-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    );
     mkdirSync(join(testTmpDir, ".git"), { recursive: true });
     vi.spyOn(process, "cwd").mockReturnValue(testTmpDir);
   });
@@ -58,58 +74,42 @@ describe("notify-phase-status hook logic", () => {
     rmSync(testTmpDir, { recursive: true, force: true });
   });
 
-  test("returns no reason when config does not exist", async () => {
-    // Dynamically import to pick up mocked cwd
-    const { findConfigPath } = await import("../lib/config.js");
-    const configPath = findConfigPath();
-    expect(configPath).toBeUndefined();
-    // When configPath is undefined, the hook returns success (no reason)
+  test("returns success when no config exists", () => {
+    const ctx = makeContext();
+    capturedHookDefs[0]!.run(ctx);
+    expect(ctx.success).toHaveBeenCalled();
+    expect(ctx.json).not.toHaveBeenCalled();
   });
 
-  test("returns no reason when currentPhase is done", async () => {
-    const configDir = join(testTmpDir, ".agents", "ui-dev", "my-flow");
-    mkdirSync(configDir, { recursive: true });
-    writeFileSync(
-      join(configDir, "config.json"),
-      JSON.stringify({
-        flow: {
-          name: "my-flow",
-          currentPhase: "done",
-          screens: ["screen1"],
-        },
-      }),
-    );
-
-    const { findConfigPath, loadUiDevConfig } = await import("../lib/config.js");
-    const configPath = findConfigPath();
-    expect(configPath).toBeDefined();
-    const config = loadUiDevConfig(configPath!);
-    expect(config.flow.currentPhase).toBe("done");
-    // When currentPhase is "done", the hook does NOT generate a reason
+  test("returns success when every flow is done", () => {
+    writeConfig("my-flow", { flow: { name: "my-flow", currentPhase: "done", screens: ["a"] } });
+    const ctx = makeContext();
+    capturedHookDefs[0]!.run(ctx);
+    expect(ctx.success).toHaveBeenCalled();
+    expect(ctx.json).not.toHaveBeenCalled();
   });
 
-  test("generates implement message when currentPhase is implement", async () => {
-    const configDir = join(testTmpDir, ".agents", "ui-dev", "registration");
-    mkdirSync(configDir, { recursive: true });
-    writeFileSync(
-      join(configDir, "config.json"),
-      JSON.stringify({
-        flow: {
-          name: "registration",
-          currentPhase: "implement",
-          screens: ["signup", "verify"],
-        },
-      }),
-    );
+  test("shows a systemMessage (not reason) for the flow in progress, skipping done flows", () => {
+    writeConfig("a-done", { flow: { name: "a-done", currentPhase: "done", screens: ["x"] } });
+    writeConfig("registration", {
+      flow: { name: "registration", currentPhase: "implement", screens: ["signup", "verify"] },
+    });
+    const ctx = makeContext();
+    capturedHookDefs[0]!.run(ctx);
 
-    const { findConfigPath, loadUiDevConfig } = await import("../lib/config.js");
-    const configPath = findConfigPath();
-    expect(configPath).toBeDefined();
-    const config = loadUiDevConfig(configPath!);
-    expect(config.flow.currentPhase).toBe("implement");
+    expect(ctx.json).toHaveBeenCalledTimes(1);
+    const call: unknown = ctx.json.mock.calls[0]?.[0];
+    expect(call).toMatchObject({
+      event: "Stop",
+      output: { systemMessage: buildImplementMessage("registration", ["signup", "verify"]) },
+    });
+    expect(call).not.toHaveProperty("output.reason");
+    expect(call).not.toHaveProperty("output.decision");
+  });
 
-    const reason = buildImplementMessage(config.flow.name, config.flow.screens);
-    expect(reason).toContain("registration");
-    expect(reason).toContain("signup, verify");
+  test("skips unreadable configs instead of failing", () => {
+    writeConfig("broken", "{not json");
+    writeConfig("ok", { flow: { name: "ok", currentPhase: "implement", screens: ["s"] } });
+    expect(findFlowsInProgress().map((f) => f.name)).toEqual(["ok"]);
   });
 });

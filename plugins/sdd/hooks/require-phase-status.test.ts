@@ -1,350 +1,189 @@
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test, vi } from "vite-plus/test";
+
+vi.mock("@r_masseater/cc-plugin-lib", () => ({
+  HookLogger: {
+    fromFile: () => ({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      fatal: vi.fn(),
+      [Symbol.dispose]: vi.fn(),
+    }),
+  },
+  wrapRun: vi.fn((_logger: unknown, fn: unknown) => fn),
+}));
+
+import { decideRequirePhaseStatus, hasFrontmatterStatus } from "./entry/require-phase-status.ts";
 
 /**
  * require-phase-status hook の決定ロジックをテストする。
  *
  * テスト対象:
- * 1. hasStatusNotation() - ステータス表記の検出
- * 2. Write 操作時のステータス必須チェック
- * 3. Edit 操作時のステータス削除防止
+ * 1. hasFrontmatterStatus() - 先頭 frontmatter の status の検出
+ * 2. Write 操作時の status 必須チェック
+ * 3. Edit 操作時の status 削除・不正値の防止
  * 4. 対象外パスのスキップ
  */
 
-// --- hasStatusNotation のロジックを再現 ---
-
-function hasStatusNotation(content: string): boolean {
-  // YAML Frontmatter の status:
-  if (/^---\n[\s\S]*?^status:\s*.+$/m.test(content)) {
-    return true;
-  }
-  // Markdown の **状態**:
-  if (/\*\*状態\*\*:\s*.+/.test(content)) {
-    return true;
-  }
-  // 旧形式
-  if (/^status:\s*(completed|in_progress|not_started)$/m.test(content)) {
-    return true;
-  }
-  if (/^ステータス:\s*(完了|進行中|未着手)$/m.test(content)) {
-    return true;
-  }
-  return false;
-}
-
-// --- Mock context helpers ---
-
-type PermissionDecision = "allow" | "ask" | "deny";
-
-interface MockContext {
-  input: {
-    tool_name: string;
-    tool_input: Record<string, string>;
-  };
-  success: ReturnType<typeof vi.fn>;
-  json: ReturnType<typeof vi.fn>;
-}
-
-function createWriteContext(filePath: string, content: string): MockContext {
-  return {
-    input: {
-      tool_name: "Write",
-      tool_input: { file_path: filePath, content },
-    },
-    success: vi.fn().mockReturnValue({ kind: "success" }),
-    json: vi.fn().mockImplementation((p: unknown) => ({ kind: "json-sync", payload: p })),
-  };
-}
-
-function createEditContext(filePath: string, oldString: string, newString: string): MockContext {
-  return {
-    input: {
-      tool_name: "Edit",
-      tool_input: { file_path: filePath, old_string: oldString, new_string: newString },
-    },
-    success: vi.fn().mockReturnValue({ kind: "success" }),
-    json: vi.fn().mockImplementation((p: unknown) => ({ kind: "json-sync", payload: p })),
-  };
-}
-
-function extractDecision(context: MockContext): PermissionDecision | undefined {
-  if (context.json.mock.calls.length === 0) return undefined;
-  const payload = context.json.mock.calls[0]![0] as {
-    output: {
-      hookSpecificOutput: { permissionDecision: PermissionDecision };
-    };
-  };
-  return payload.output.hookSpecificOutput.permissionDecision;
-}
-
-/**
- * ソースの run 関数ロジックを再現
- */
-function runRequirePhaseStatus(context: MockContext) {
-  const filePath: string = context.input.tool_input.file_path!;
-
-  if (!filePath.match(/specs\/[^/]+\/tasks\/phase\d+-[^/]+\.md$/)) {
-    return context.success({});
-  }
-
-  const toolName = context.input.tool_name;
-
-  if (toolName === "Write") {
-    const content = context.input.tool_input.content!;
-    if (!hasStatusNotation(content)) {
-      return context.json({
-        event: "PreToolUse" as const,
-        output: {
-          hookSpecificOutput: {
-            hookEventName: "PreToolUse" as const,
-            permissionDecision: "deny" as const,
-            permissionDecisionReason: "Phase計画書にはステータス表記が必須です。",
-          },
-        },
-      });
-    }
-    return context.success({});
-  }
-
-  // Edit
-  const oldString: string = context.input.tool_input.old_string!;
-  const newString: string = context.input.tool_input.new_string!;
-
-  if (hasStatusNotation(oldString) && !hasStatusNotation(newString)) {
-    return context.json({
-      event: "PreToolUse" as const,
-      output: {
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse" as const,
-          permissionDecision: "deny" as const,
-          permissionDecisionReason: "Phase計画書からステータス表記を削除することはできません。",
-        },
-      },
+describe("hasFrontmatterStatus", () => {
+  for (const status of ["not_started", "in_progress", "completed", "rejected"]) {
+    test(`detects status: ${status} in frontmatter`, () => {
+      expect(hasFrontmatterStatus(`---\nstatus: ${status}\n---\n# Phase 1`)).toBe(true);
     });
   }
 
-  return context.success({});
-}
-
-// --- Tests ---
-
-describe("hasStatusNotation", () => {
-  describe("YAML Frontmatter status", () => {
-    test("detects status in frontmatter", () => {
-      const content = "---\ntitle: Phase 1\nstatus: in_progress\n---\n# Phase 1";
-      expect(hasStatusNotation(content)).toBe(true);
-    });
-
-    test("detects status: completed", () => {
-      const content = "---\nstatus: completed\n---\n";
-      expect(hasStatusNotation(content)).toBe(true);
-    });
-
-    test("detects status: not_started", () => {
-      const content = "---\nstatus: not_started\n---\n";
-      expect(hasStatusNotation(content)).toBe(true);
-    });
+  test("detects status among other frontmatter keys", () => {
+    expect(hasFrontmatterStatus("---\ntitle: Setup\nstatus: in_progress\n---\n")).toBe(true);
   });
 
-  describe("Markdown **状態** format", () => {
-    test("detects **状態**: 進行中", () => {
-      expect(hasStatusNotation("**状態**: 進行中")).toBe(true);
-    });
-
-    test("detects **状態**: 完了", () => {
-      expect(hasStatusNotation("some text\n**状態**: 完了\nmore")).toBe(true);
-    });
-
-    test("detects **状態**: 未着手", () => {
-      expect(hasStatusNotation("**状態**: 未着手")).toBe(true);
-    });
+  test("rejects an unknown status value", () => {
+    expect(hasFrontmatterStatus("---\nstatus: pending\n---\n")).toBe(false);
   });
 
-  describe("legacy formats", () => {
-    test("detects bare status: completed", () => {
-      expect(hasStatusNotation("status: completed")).toBe(true);
-    });
-
-    test("detects bare status: in_progress", () => {
-      expect(hasStatusNotation("status: in_progress")).toBe(true);
-    });
-
-    test("detects bare status: not_started", () => {
-      expect(hasStatusNotation("status: not_started")).toBe(true);
-    });
-
-    test("detects ステータス: 完了", () => {
-      expect(hasStatusNotation("ステータス: 完了")).toBe(true);
-    });
-
-    test("detects ステータス: 進行中", () => {
-      expect(hasStatusNotation("ステータス: 進行中")).toBe(true);
-    });
-
-    test("detects ステータス: 未着手", () => {
-      expect(hasStatusNotation("ステータス: 未着手")).toBe(true);
-    });
+  test("rejects status outside the frontmatter", () => {
+    expect(hasFrontmatterStatus("# Phase 1\nstatus: completed\n")).toBe(false);
   });
 
-  describe("negative cases", () => {
-    test("returns false for empty string", () => {
-      expect(hasStatusNotation("")).toBe(false);
-    });
+  test("rejects legacy Markdown and Japanese notations", () => {
+    expect(hasFrontmatterStatus("# Phase 1\n\n**状態**: 進行中")).toBe(false);
+    expect(hasFrontmatterStatus("ステータス: 完了")).toBe(false);
+  });
 
-    test("returns false for content without status", () => {
-      expect(hasStatusNotation("# Phase 1\n\nSome description")).toBe(false);
-    });
-
-    test("returns false for status with unrecognized value in legacy format", () => {
-      expect(hasStatusNotation("status: pending")).toBe(false);
-    });
-
-    test("returns false for ステータス with unrecognized value", () => {
-      expect(hasStatusNotation("ステータス: 保留")).toBe(false);
-    });
+  test("rejects content without frontmatter", () => {
+    expect(hasFrontmatterStatus("")).toBe(false);
+    expect(hasFrontmatterStatus("# Phase 1\n\nSome description")).toBe(false);
   });
 });
 
-describe("require-phase-status hook", () => {
+describe("decideRequirePhaseStatus", () => {
   describe("path filtering", () => {
     const nonPhasePaths = [
       "/project/specs/my-task/overview.md",
       "/project/specs/my-task/specification.md",
-      "/project/specs/my-task/tasks/README.md",
+      "/project/specs/my-task/phases/README.md",
+      "/project/specs/my-task/tasks/phase1-setup.md",
       "/project/src/index.ts",
-      "/project/specs/my-task/tasks/notes.md",
+      "/project/specs/my-task/phases/notes.md",
     ];
 
     for (const path of nonPhasePaths) {
       test(`skips non-phase file: ${path}`, () => {
-        const context = createWriteContext(path, "no status here");
-        runRequirePhaseStatus(context);
+        const result = decideRequirePhaseStatus({
+          filePath: path,
+          toolName: "Write",
+          content: "no status here",
+        });
 
-        expect(context.success).toHaveBeenCalledOnce();
-        expect(context.json).not.toHaveBeenCalled();
+        expect(result.decision).toBe("allow");
       });
     }
 
     const phasePaths = [
-      "specs/my-task/tasks/phase1-setup.md",
-      "/project/specs/auth/tasks/phase2-implementation.md",
-      "specs/feature/tasks/phase10-cleanup.md",
+      "specs/my-task/phases/phase1-setup.md",
+      "/project/specs/auth/phases/phase2-implementation.md",
+      "specs/feature/phases/phase10-cleanup.md",
     ];
 
     for (const path of phasePaths) {
       test(`matches phase file: ${path}`, () => {
-        const context = createWriteContext(path, "no status");
-        runRequirePhaseStatus(context);
+        const result = decideRequirePhaseStatus({
+          filePath: path,
+          toolName: "Write",
+          content: "no status",
+        });
 
         // Should deny because no status
-        expect(context.json).toHaveBeenCalledOnce();
-        expect(extractDecision(context)).toBe("deny");
+        expect(result.decision).toBe("deny");
       });
     }
   });
 
   describe("Write operations", () => {
-    const PHASE_PATH = "specs/my-task/tasks/phase1-setup.md";
+    const PHASE_PATH = "specs/my-task/phases/phase1-setup.md";
 
-    test("denies Write without status notation", () => {
-      const context = createWriteContext(PHASE_PATH, "# Phase 1\n\nSome content without status");
-      runRequirePhaseStatus(context);
-
-      expect(extractDecision(context)).toBe("deny");
+    test("denies Write without frontmatter status", () => {
+      const result = decideRequirePhaseStatus({
+        filePath: PHASE_PATH,
+        toolName: "Write",
+        content: "# Phase 1\n\nSome content without status",
+      });
+      expect(result.decision).toBe("deny");
     });
 
-    test("allows Write with YAML frontmatter status", () => {
-      const content = "---\nstatus: in_progress\n---\n# Phase 1";
-      const context = createWriteContext(PHASE_PATH, content);
-      runRequirePhaseStatus(context);
-
-      expect(context.success).toHaveBeenCalledOnce();
-      expect(context.json).not.toHaveBeenCalled();
+    test("allows Write with frontmatter status", () => {
+      const result = decideRequirePhaseStatus({
+        filePath: PHASE_PATH,
+        toolName: "Write",
+        content: "---\nstatus: in_progress\n---\n# Phase 1",
+      });
+      expect(result.decision).toBe("allow");
     });
 
-    test("allows Write with Markdown status", () => {
-      const content = "# Phase 1\n\n**状態**: 進行中\n\nDetails...";
-      const context = createWriteContext(PHASE_PATH, content);
-      runRequirePhaseStatus(context);
-
-      expect(context.success).toHaveBeenCalledOnce();
+    test("denies Write with the legacy Markdown notation", () => {
+      const result = decideRequirePhaseStatus({
+        filePath: PHASE_PATH,
+        toolName: "Write",
+        content: "# Phase 1\n\n**状態**: 進行中\n\nDetails...",
+      });
+      expect(result.decision).toBe("deny");
     });
 
-    test("allows Write with legacy status format", () => {
-      const content = "# Phase 1\nstatus: completed\nDetails...";
-      const context = createWriteContext(PHASE_PATH, content);
-      runRequirePhaseStatus(context);
-
-      expect(context.success).toHaveBeenCalledOnce();
-    });
-
-    test("deny reason mentions WHY and FIX", () => {
-      const context = createWriteContext(PHASE_PATH, "# Phase 1");
-      runRequirePhaseStatus(context);
-
-      const payload = context.json.mock.calls[0]![0] as {
-        output: {
-          hookSpecificOutput: { permissionDecisionReason: string };
-        };
-      };
-      expect(payload.output.hookSpecificOutput.permissionDecisionReason).toContain(
-        "Phase計画書にはステータス表記が必須です。",
-      );
+    test("deny reason states the requirement as a fact and shows the block to add", () => {
+      const result = decideRequirePhaseStatus({
+        filePath: PHASE_PATH,
+        toolName: "Write",
+        content: "# Phase 1",
+      });
+      if (result.decision !== "deny") throw new Error("expected deny");
+      expect(result.reason).toContain("phase ファイルは先頭の frontmatter に status");
+      expect(result.reason).toContain("status: not_started");
+      expect(result.reason).not.toContain("ください");
     });
   });
 
   describe("Edit operations", () => {
-    const PHASE_PATH = "specs/my-task/tasks/phase1-setup.md";
+    const PHASE_PATH = "specs/my-task/phases/phase1-setup.md";
 
-    test("denies Edit that removes status notation", () => {
-      const context = createEditContext(
-        PHASE_PATH,
-        "**状態**: 進行中\n\nOld content",
-        "New content without status",
-      );
-      runRequirePhaseStatus(context);
-
-      expect(extractDecision(context)).toBe("deny");
+    test("denies Edit that removes the status line", () => {
+      const result = decideRequirePhaseStatus({
+        filePath: PHASE_PATH,
+        toolName: "Edit",
+        oldString: "---\ntitle: Phase\nstatus: in_progress\n---",
+        newString: "---\ntitle: Phase\n---",
+      });
+      if (result.decision !== "deny") throw new Error("expected deny");
+      expect(result.reason).toContain("frontmatter から status を消す");
     });
 
-    test("allows Edit that preserves status notation", () => {
-      const context = createEditContext(
-        PHASE_PATH,
-        "**状態**: 未着手\n\nOld details",
-        "**状態**: 進行中\n\nUpdated details",
-      );
-      runRequirePhaseStatus(context);
+    test("allows Edit that changes the status value", () => {
+      const result = decideRequirePhaseStatus({
+        filePath: PHASE_PATH,
+        toolName: "Edit",
+        oldString: "status: not_started",
+        newString: "status: in_progress",
+      });
+      expect(result.decision).toBe("allow");
+    });
 
-      expect(context.success).toHaveBeenCalledOnce();
-      expect(context.json).not.toHaveBeenCalled();
+    test("denies Edit that sets an unknown status value", () => {
+      const result = decideRequirePhaseStatus({
+        filePath: PHASE_PATH,
+        toolName: "Edit",
+        oldString: "status: not_started",
+        newString: "status: done",
+      });
+      expect(result.decision).toBe("deny");
     });
 
     test("allows Edit on non-status content", () => {
-      const context = createEditContext(PHASE_PATH, "Old description text", "New description text");
-      runRequirePhaseStatus(context);
-
-      expect(context.success).toHaveBeenCalledOnce();
-    });
-
-    test("allows Edit that adds status where there was none", () => {
-      const context = createEditContext(
-        PHASE_PATH,
-        "Some old text",
-        "Some old text\n**状態**: 進行中",
-      );
-      runRequirePhaseStatus(context);
-
-      expect(context.success).toHaveBeenCalledOnce();
-    });
-
-    test("denies Edit replacing YAML status with plain text", () => {
-      const context = createEditContext(
-        PHASE_PATH,
-        "---\ntitle: Phase\nstatus: in_progress\n---",
-        "---\ntitle: Phase\n---",
-      );
-      runRequirePhaseStatus(context);
-
-      expect(extractDecision(context)).toBe("deny");
+      const result = decideRequirePhaseStatus({
+        filePath: PHASE_PATH,
+        toolName: "Edit",
+        oldString: "Old description text",
+        newString: "New description text",
+      });
+      expect(result.decision).toBe("allow");
     });
   });
 });

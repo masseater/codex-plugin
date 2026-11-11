@@ -1,31 +1,31 @@
 ---
-description: Cross-stack coding standards — environment variable validation patterns and other concrete conventions that apply to all stacks
+description: スタック共通のコーディング規約 — 環境変数の検証パターン（isDummy / DUMMY_ENV）と process.env を読んでよい境界
 ---
 
-# Coding Standards
+# スタック共通のコーディング規約
 
-Concrete patterns that implement Philosophy principles across all stacks.
+Philosophy をすべてのスタックで実装するための具体的なパターン。
 
-## Environment Variable Validation
+## 環境変数の検証
 
-Never use `skipEnvValidation` (or any option that disables validation). Validation must always run. When you need to bypass real values (CI, lint, typecheck), inject dummy environment variables instead.
+`skipEnvValidation` など検証を無効にするオプションは使わず、検証は常に実行する。CI・lint・typecheck などで実値を使えないときは、ダミーの環境変数を注入する。
 
-### `isDummy` and `DUMMY_ENV`
+### `isDummy` と `DUMMY_ENV`
 
-Two constants work together:
+- `isDummy`: ダミー注入を有効にするかの真偽値
+- `DUMMY_ENV`: 必須の環境変数すべてのダミー値。`process.env` の代わりとして `runtimeEnv` へ渡す
 
-- `isDummy` — boolean flag that determines whether dummy injection is active
-- `DUMMY_ENV` — object containing dummy values for all required env vars, passed to `runtimeEnv` as a substitute for `process.env`
-
-When writing the `isDummy` condition, always place the conditions that **must return false** first (guards), then the conditions where dummy injection is acceptable:
+`isDummy` の条件式は、必ず false になるべき条件（ガード）を先に、ダミー注入を許す条件を後に書く。`!== "production"` が先に短絡評価されるので、他の条件がどうであっても本番にダミー値が入らない。
 
 ```ts
-// env.ts
+// env.ts（Next.js では @t3-oss/env-nextjs の createEnv を使う）
+import { createEnv } from "@t3-oss/env-core";
+import * as v from "valibot";
 
 const isDummy =
-  // --- MUST return false: production never gets dummies ---
+  // --- false にすべき条件: 本番には決してダミーを入れない ---
   process.env.NODE_ENV !== "production" &&
-  // --- May return true: CI, lint, typecheck, etc. ---
+  // --- true でよい条件: CI、lint、typecheck など ---
   (process.env.CI === "true" || !process.env.DATABASE_URL);
 
 const DUMMY_ENV = {
@@ -37,32 +37,28 @@ const runtimeEnv = isDummy ? DUMMY_ENV : process.env;
 
 export const env = createEnv({
   server: {
-    DATABASE_URL: z.string().url(),
-    REDIS_URL: z.string().url(),
+    DATABASE_URL: v.pipe(v.string(), v.url()),
+    REDIS_URL: v.pipe(v.string(), v.url()),
   },
   runtimeEnv,
 });
 ```
 
 ```ts
-// Bad: skipping validation entirely — never do this
+// NG: 検証そのものを飛ばす
 export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
   // ...
 });
 ```
 
-Why the guard ordering matters: the `!== "production"` check short-circuits first, so production can never receive dummy values regardless of what other conditions evaluate to.
+## `process.env` を直接読まない
 
-## Don't Direct `process.env` Access
+アプリケーションとライブラリのコードで `process.env` を直接読むのは規約違反とする。環境変数は型付きの境界モジュールで 1 回だけ読んで検証し、ほかの場所はそのモジュールを import する。
 
-Direct `process.env` access is a standards violation in application and library code. Read environment variables once at a typed module boundary, validate them there, and import that module everywhere else.
+`process.env` を読んでよい境界:
 
-Allowed boundaries:
-
-- `env.ts` or equivalent typed env module
-- config entrypoints such as `*.config.ts`
-- test files that explicitly set up process state
-- declaration files (`*.d.ts`)
-
-Everything else must import from the boundary module instead of touching `process.env` directly.
+- `env.ts` など型付きの env モジュール
+- `*.config.ts` などの設定エントリポイント
+- プロセス状態を明示的にセットアップする test ファイル
+- 宣言ファイル（`*.d.ts`）

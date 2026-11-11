@@ -13,12 +13,10 @@ Claude Code プラグイン開発時のデバッグ用プラグイン。
 
 ## Hooks
 
-SessionStart 時に以下のデバッグ出力を行います：
+SessionStart 時に次のデバッグ出力を行う。
 
-| 出力先                                         | 内容                                                     |
-| ---------------------------------------------- | -------------------------------------------------------- |
-| `$XDG_STATE_HOME/claude-code-plugin/debug.txt` | `CLAUDE_PLUGIN_ROOT` を書き込み                          |
-| additionalContext (system-reminder)            | debug プラグインが有効であることとCLAUDE_PLUGIN_ROOTの値 |
+- `$XDG_STATE_HOME/claude-code-plugin/debug.txt`（既定は `~/.local/state/...`）に `CLAUDE_PLUGIN_ROOT` を書き込む。セッションの外から plugin の解決先を確認できる
+- additionalContext で、debug plugin が有効であることと `CLAUDE_PLUGIN_ROOT` の値を Claude に渡す
 
 ---
 

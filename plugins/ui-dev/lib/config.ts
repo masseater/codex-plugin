@@ -32,30 +32,20 @@ const UiDevConfigSchema = v.object({
 export type UiDevConfig = InferOutput<typeof UiDevConfigSchema>;
 
 /**
- * Find .agents/ui-dev/{flowName}/config.json from the project root
+ * List every .agents/ui-dev/{flowName}/config.json under the project root
+ * @returns absolute paths to config.json files (empty when none)
  */
-export function findConfigPath(flowName?: string): string | undefined {
+export function listConfigPaths(): string[] {
   const projectRoot = findProjectRoot();
-  if (!projectRoot) return undefined;
+  if (!projectRoot) return [];
 
-  if (flowName) {
-    const configPath = join(projectRoot, ".agents", "ui-dev", flowName, "config.json");
-    return existsSync(configPath) ? configPath : undefined;
-  }
-
-  // If flowName is not specified, find the first config.json under .agents/ui-dev/
   const uiDevDir = join(projectRoot, ".agents", "ui-dev");
-  if (!existsSync(uiDevDir)) return undefined;
+  if (!existsSync(uiDevDir)) return [];
 
-  const entries = readdirSync(uiDevDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.isDirectory()) {
-      const configPath = join(uiDevDir, entry.name, "config.json");
-      if (existsSync(configPath)) return configPath;
-    }
-  }
-
-  return undefined;
+  return readdirSync(uiDevDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => join(uiDevDir, entry.name, "config.json"))
+    .filter((configPath) => existsSync(configPath));
 }
 
 /**

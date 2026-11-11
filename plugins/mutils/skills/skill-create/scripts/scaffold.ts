@@ -9,8 +9,8 @@
  *   <plugin-dir>/skills/<skill-name>/scripts/    (if --scripts)
  *   <plugin-dir>/skills/<skill-name>/references/  (if --references)
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import path from "node:path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { pathIn } from "../../../hooks/lib/path-in.js";
 import { parseArgs } from "node:util";
 
 const { values } = parseArgs({
@@ -43,8 +43,7 @@ if (!SKILL_NAME_RE.test(skillName)) {
   process.exit(1);
 }
 
-const skillDir = path.join(pluginDir, "skills", skillName);
-const pluginName = readPluginName(pluginDir) ?? path.basename(pluginDir);
+const skillDir = pathIn(pluginDir, "skills", skillName);
 
 if (existsSync(skillDir)) {
   process.stderr.write(`Error: directory already exists: ${skillDir}\n`);
@@ -54,16 +53,15 @@ if (existsSync(skillDir)) {
 mkdirSync(skillDir, { recursive: true });
 
 if (values.scripts) {
-  mkdirSync(path.join(skillDir, "scripts"), { recursive: true });
+  mkdirSync(pathIn(skillDir, "scripts"), { recursive: true });
 }
 if (values.references) {
-  mkdirSync(path.join(skillDir, "references"), { recursive: true });
+  mkdirSync(pathIn(skillDir, "references"), { recursive: true });
 }
 
 const template = `---
-name: ${pluginName}:${skillName}
-description: "TODO: Direct invocation or internal reference purpose. Add natural-language triggers only if model invocation is intentionally enabled."
-disable-model-invocation: true
+name: ${skillName}
+description: "TODO: What the skill does, then when to use it."
 ---
 
 # ${skillName}
@@ -75,7 +73,7 @@ TODO: Describe the skill purpose.
 TODO: Define the workflow steps.
 `;
 
-writeFileSync(path.join(skillDir, "SKILL.md"), template);
+writeFileSync(pathIn(skillDir, "SKILL.md"), template);
 
 process.stdout.write(
   JSON.stringify({
@@ -84,14 +82,3 @@ process.stdout.write(
     dirs: [...(values.scripts ? ["scripts/"] : []), ...(values.references ? ["references/"] : [])],
   }),
 );
-
-function readPluginName(pluginDir: string): string | null {
-  try {
-    const pluginJson = JSON.parse(readFileSync(path.join(pluginDir, "plugin.json"), "utf-8"));
-    return typeof pluginJson.name === "string" && pluginJson.name.length > 0
-      ? pluginJson.name
-      : null;
-  } catch {
-    return null;
-  }
-}

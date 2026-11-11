@@ -1,11 +1,10 @@
 import { readFileSync } from "node:fs";
+import { HookLogger } from "@r_masseater/cc-plugin-lib";
 import { parse } from "yaml";
+import { type ActionRef, collectUsesValues, isOlderMajor, parseActionRef } from "./action-ref.ts";
+import { fetchLatestMajorVersion } from "./action-tags.ts";
 
-type ActionRef = {
-  path: string;
-  repo: string;
-  current: string;
-};
+const logger = HookLogger.fromFile(import.meta.filename);
 
 type OutdatedAction = {
   name: string;
@@ -17,161 +16,84 @@ function isGitHubWorkflowFile(filePath: string): boolean {
   return /\.github\//.test(filePath) && /\.ya?ml$/.test(filePath);
 }
 
-function parseMajorVersion(version: string): number | null {
-  const match = version.match(/^v(\d+)/);
-  return match ? Number(match[1]) : null;
-}
-
 function readWorkflowContent(filePath: string): string | undefined {
   try {
     return readFileSync(filePath, "utf-8");
-  } catch {
+  } catch (error) {
+    // 編集直後に削除・移動されたファイルは検査対象がないだけなので、提案をしないで終える
+    logger.debug(`Failed to read ${filePath}: ${String(error)}`);
     return undefined;
   }
 }
 
-function parseActionRef(uses: string): ActionRef | null {
-  const match = uses.match(/^([^@\s]+)@(v\d+(?:\.\d+)*)$/);
-  if (!match) return null;
-
-  const path = match[1]!;
-  const current = match[2]!;
-  const parts = path.split("/");
-  if (parts.length < 2) return null;
-
-  return { path, repo: `${parts[0]}/${parts[1]}`, current };
+/**
+ * workflow の YAML をパースする。
+ *
+ * @param content - workflow ファイルの内容
+ * @returns パース結果。不正な YAML なら undefined
+ */
+function parseWorkflowYaml(content: string): unknown {
+  try {
+    return parse(content);
+  } catch (error) {
+    // 編集途中の不正な YAML は actions のバージョン検査の対象外。構文エラーは別の手段で検出される
+    logger.debug(`Failed to parse workflow YAML: ${String(error)}`);
+    return undefined;
+  }
 }
 
-function collectUsesValues(node: unknown): string[] {
-  const values: string[] = [];
-  if (node === null || node === undefined || typeof node !== "object") return values;
-
-  if (Array.isArray(node)) {
-    for (const item of node) {
-      values.push(...collectUsesValues(item));
-    }
-    return values;
-  }
-
-  const record = node as Record<string, unknown>;
-  for (const [key, value] of Object.entries(record)) {
-    if (key === "uses" && typeof value === "string") {
-      values.push(value);
-    } else {
-      values.push(...collectUsesValues(value));
-    }
-  }
-  return values;
-}
-
+/**
+ * workflow から、バージョン指定の action 参照を重複なく取り出す。
+ *
+ * @param content - workflow ファイルの内容
+ * @returns action の参照（同じ action@version は 1 つにまとめる）
+ */
 function extractActionRefs(content: string): ActionRef[] {
-  let doc: unknown;
-  try {
-    doc = parse(content);
-  } catch {
-    return [];
-  }
-
-  const usesValues = collectUsesValues(doc);
-  const seen = new Set<string>();
-  const refs: ActionRef[] = [];
-
-  for (const uses of usesValues) {
-    const ref = parseActionRef(uses);
-    if (!ref) continue;
-
-    const key = `${ref.path}@${ref.current}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    refs.push(ref);
-  }
-
-  return refs;
+  const refs = collectUsesValues(parseWorkflowYaml(content))
+    .map(parseActionRef)
+    .filter((ref): ref is ActionRef => ref !== null);
+  return [...new Map(refs.map((ref) => [`${ref.path}@${ref.current}`, ref])).values()];
 }
 
-function pickMaxMajorVersion(tags: string[]): string | null {
-  let maxMajor = -1;
-  for (const tag of tags) {
-    const major = parseMajorVersion(tag);
-    if (major !== null && major > maxMajor) {
-      maxMajor = major;
-    }
-  }
-  return maxMajor >= 0 ? `v${maxMajor}` : null;
-}
-
-async function fetchLatestMajorVersion(repo: string): Promise<string | null> {
-  try {
-    const proc = Bun.spawn(["gh", "api", `repos/${repo}/tags?per_page=50`, "--jq", ".[].name"], {
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    await proc.exited;
-
-    const stdout = await new Response(proc.stdout).text();
-    const tags = stdout.trim().split("\n").filter(Boolean);
-
-    return pickMaxMajorVersion(tags);
-  } catch {
-    return null;
-  }
+/**
+ * action のリポジトリごとに最新の major version を取得する。同じリポジトリは 1 回だけ問い合わせる。
+ *
+ * @param refs - action の参照
+ * @returns リポジトリ名から最新バージョンへの対応。取得できなかったリポジトリは含めない
+ */
+async function latestVersionsByRepo(refs: ActionRef[]): Promise<Map<string, string>> {
+  const repos = [...new Set(refs.map((ref) => ref.repo))];
+  const results = await Promise.all(
+    repos.map(async (repo) => [repo, await fetchLatestMajorVersion(repo)] as const),
+  );
+  return new Map(results.filter((entry): entry is readonly [string, string] => entry[1] !== null));
 }
 
 async function findOutdatedActions(refs: ActionRef[]): Promise<OutdatedAction[]> {
-  const uniqueRepos = [...new Set(refs.map((r) => r.repo))];
-
-  const latestByRepo = new Map<string, string>();
-  const results = await Promise.all(
-    uniqueRepos.map(async (repo) => {
-      const latest = await fetchLatestMajorVersion(repo);
-      return { repo, latest };
-    }),
-  );
-  for (const { repo, latest } of results) {
-    if (latest) latestByRepo.set(repo, latest);
-  }
-
-  const outdated: OutdatedAction[] = [];
-  for (const ref of refs) {
+  const latestByRepo = await latestVersionsByRepo(refs);
+  return refs.flatMap((ref) => {
     const latest = latestByRepo.get(ref.repo);
-    if (!latest) continue;
-
-    const currentMajor = parseMajorVersion(ref.current);
-    const latestMajor = parseMajorVersion(latest);
-
-    if (currentMajor === null || latestMajor === null) continue;
-    if (currentMajor >= latestMajor) continue;
-
-    outdated.push({ name: ref.path, current: ref.current, latest });
-  }
-
-  return outdated;
+    return latest !== undefined && isOlderMajor(ref.current, latest)
+      ? [{ name: ref.path, current: ref.current, latest }]
+      : [];
+  });
 }
 
 function formatSuggestions(outdated: OutdatedAction[]): string {
-  const lines = ["[GitHub Actions Update] Outdated actions detected:", ""];
+  const lines = ["[GitHub Actions Update] 参考: より新しい major version がある action"];
 
   for (const action of outdated) {
     lines.push(`- ${action.name}: ${action.current} → ${action.latest}`);
   }
 
-  lines.push("");
-  lines.push("Update these to the latest major versions.");
-
   return lines.join("\n");
 }
 
 export {
-  collectUsesValues,
   extractActionRefs,
-  fetchLatestMajorVersion,
   findOutdatedActions,
   formatSuggestions,
   isGitHubWorkflowFile,
-  parseActionRef,
-  parseMajorVersion,
-  pickMaxMajorVersion,
   readWorkflowContent,
 };
-export type { ActionRef, OutdatedAction };
+export type { OutdatedAction };

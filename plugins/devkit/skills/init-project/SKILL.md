@@ -1,50 +1,41 @@
 ---
-name: devkit:init-project
-description: This skill should be used when the user asks to "set up a project", "initialize a new app", "create a new project", "bootstrap a project", "set up my dev environment", or wants to start a new personal web application. Also use when the user says "init project", "new project", or wants to complement an existing project with missing tooling and configuration.
+name: init-project
+description: devkit の規約に沿って新しい TypeScript Web プロジェクトを作成するか、既存プロジェクトに不足しているツールと設定を補う。「新しいプロジェクトを立ち上げたい」「このプロジェクトに devkit の構成を入れて」と頼まれたときに使う。
 ---
 
-# Project Setup
+# init-project
 
-Unified flow for creating new projects and complementing existing ones.
+技術選定は `devkit:standards` skill の reference（`../standards/references`）に従う。ここでは手順だけを書く。
 
-## Detection
+## 分岐
 
-1. Check if `package.json` exists in the current directory
-2. Does not exist → New project flow
-3. Exists → Complement setup flow
-
-## New Project Flow
-
-1. Ask the user for project name
-2. Scaffold with `pnpm create next-app@latest <name> --ts --app --tailwind --src-dir --use-pnpm`
-3. Set up pnpm workspace + Turborepo (see `devkit:standards` → `references/ecosystem.md`)
-4. Install quality tooling (see `devkit:standards` → `references/quality-automation.md`)
-5. Install backend dependencies (see `devkit:standards` → `references/backend.md`)
-6. Generate AGENTS.md with project context
-
-Refer to `devkit:standards` and its reference files for specific technology choices.
-
-## Complement Setup Flow
-
-1. Read techstack definitions from context (CLAUDE.md, AGENTS.md, etc.)
-2. Check if tools from `devkit:standards` → `references/quality-automation.md` are installed
-3. Install anything missing
-4. Generate/update config files (confirm before overwriting existing files)
-
-## Environment Variables
-
-After project setup, set the following environment variable to enable additional constraints.
-
-### DEVKIT_ENFORCE_TOOLS
-
-Enforces tool usage in pnpm/tsgo environments. When set, the following commands are blocked:
-
-- npx — pnpx
-- npm — pnpm
-- tsc — tsgo
-
-Add to the project's `.envrc`:
-
-```bash
-export DEVKIT_ENFORCE_TOOLS=1
+```text
+if cwd に package.json が無い: 新規作成
+else: 既存プロジェクトの補完
 ```
+
+## 新規作成
+
+1. プロジェクト名をユーザーに聞く
+2. 次のコマンドで雛形を作る。`--yes` は指定しなかった選択肢を既定値で埋め、対話の質問で Bash が止まらないようにする
+
+   ```bash
+   pnpm create next-app@latest <name> --ts --app --tailwind --src-dir --use-pnpm --eslint --import-alias "@/*" --yes
+   ```
+
+3. pnpm workspace と Turborepo を設定する（`../standards/references/ecosystem.md`）
+4. 品質ツールを入れる（`../standards/references/quality-automation.md`）
+5. backend の依存を入れる（`../standards/references/backend.md`）
+6. AGENTS.md を整える（create-next-app は AGENTS.md と CLAUDE.md を生成する）。context plugin があれば `context:context-refactor` の配置基準に合わせる
+
+## 既存プロジェクトの補完
+
+1. AGENTS.md / CLAUDE.md と `package.json` から現在の技術構成を読む
+2. `../standards/references/quality-automation.md` のツールが入っているか確かめ、足りないものを入れる
+3. 設定ファイルを作成・更新する。既存ファイルを上書きする前に差分を見せて確認を取る
+
+## DEVKIT_ENFORCE_TOOLS
+
+セットアップ後、pnpm と tsgo を使うプロジェクトでは環境変数 `DEVKIT_ENFORCE_TOOLS=1` を案内する。設定すると devkit の hook が `npx` / `npm` / `tsc` を止め、`pnpx` / `pnpm` / `tsgo` へ誘導する。
+
+hook は Claude Code を起動したシェルの環境変数を読む。`.envrc` に `export DEVKIT_ENFORCE_TOOLS=1` を書く場合は、direnv で読み込まれたシェルから Claude Code を起動する必要がある。

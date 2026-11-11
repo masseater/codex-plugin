@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { parseWorkspaceId } from "@r_masseater/cc-plugin-lib";
+import { pathIn, readTextIn } from "../../hooks/lib/path-in.ts";
 
 // --- Constants ---
 
@@ -43,8 +44,6 @@ type SummaryEntry = {
   summary?: string;
 };
 
-type JournalEntry = MessageEntry | SummaryEntry | { type: string };
-
 type Task = {
   id?: string;
   status?: string;
@@ -79,21 +78,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function parseJsonSafe(text: string): unknown {
   try {
     return JSON.parse(text);
-  } catch {
+  } catch (error) {
+    // 呼び出し側は undefined を「読めないファイル」として飛ばすので、例外を伝播しなくてよい
+    if (process.env.DEBUG) console.error("[debug] JSON.parse failed:", error);
+    return undefined;
+  }
+}
+
+/**
+ * base の下の JSON ファイルを読む。
+ *
+ * @param base - 基準のディレクトリ
+ * @param segments - base からの相対パスの要素
+ * @returns JSON として読んだ値。読めなければ undefined
+ */
+function readJsonIn(base: string, ...segments: string[]): unknown {
+  try {
+    return parseJsonSafe(readTextIn(base, ...segments));
+  } catch (error) {
+    // 読めないファイルは候補から外し、残りのファイルから情報を集める
+    if (process.env.DEBUG) console.error(`[debug] failed to read ${segments.join("/")}:`, error);
     return undefined;
   }
 }
 
 function isSessionsIndex(value: unknown): value is SessionsIndex {
   if (!isRecord(value)) return false;
-  if ("sessions" in value && value.sessions !== undefined) {
-    return Array.isArray(value.sessions);
-  }
-  return true;
-}
-
-function isJournalEntry(value: unknown): value is JournalEntry {
-  return isRecord(value) && typeof value.type === "string";
+  return value.sessions === undefined || Array.isArray(value.sessions);
 }
 
 function isSummaryEntry(value: unknown): value is SummaryEntry {
@@ -104,12 +115,21 @@ function isSummaryEntry(value: unknown): value is SummaryEntry {
   );
 }
 
-function isMessageEntry(value: unknown): value is MessageEntry {
-  if (!isRecord(value)) return false;
-  if (value.type !== "user" && value.type !== "assistant") return false;
-  if (!isRecord(value.message)) return false;
-  const content = (value.message as Record<string, unknown>).content;
+function isMessageType(type: unknown): boolean {
+  return type === "user" || type === "assistant";
+}
+
+function isMessageContent(content: unknown): boolean {
   return typeof content === "string" || Array.isArray(content);
+}
+
+function isMessageEntry(value: unknown): value is MessageEntry {
+  return (
+    isRecord(value) &&
+    isMessageType(value.type) &&
+    isRecord(value.message) &&
+    isMessageContent(value.message.content)
+  );
 }
 
 function isTask(value: unknown): value is Task {
@@ -121,145 +141,163 @@ function isTodoArray(value: unknown): value is Todo[] {
   return value.every((item) => isRecord(item));
 }
 
-// --- Markdown table helper ---
-
-function escapeTableCell(text: string): string {
-  return text.replace(/\|/g, "\\|");
-}
-
 // --- Argument parsing ---
 
 function parseArgs(): { profile: string; sessionId: string } {
-  const args = process.argv.slice(2);
-  if (args.length < 2) {
+  const [profile, sessionId] = process.argv.slice(2);
+  if (profile === undefined || sessionId === undefined) {
     console.error("Usage: ccs-handoff.ts <profile> <sessionId>");
     console.error("  profile   - CCS profile name (e.g., c1, c2, team)");
     console.error("  sessionId - Session ID to generate handoff for");
     process.exit(1);
   }
-  return { profile: args[0] as string, sessionId: args[1] as string };
+  return { profile, sessionId };
 }
 
 // --- Profile directory helpers ---
 
 function getCcsInstancesDir(): string {
-  return path.join(os.homedir(), ".ccs", "instances");
+  return pathIn(os.homedir(), ".ccs", "instances");
 }
 
 function getInstanceDir(profile: string): string {
-  return path.join(getCcsInstancesDir(), profile);
+  return pathIn(getCcsInstancesDir(), profile);
 }
 
-function listAvailableProfiles(): string[] {
-  const instancesDir = getCcsInstancesDir();
-  if (!fs.existsSync(instancesDir)) {
-    return [];
-  }
+function subdirectoryNames(dir: string): string[] {
   return fs
-    .readdirSync(instancesDir, { withFileTypes: true })
+    .readdirSync(dir, { withFileTypes: true })
     .filter((d) => d.isDirectory())
     .map((d) => d.name);
 }
 
+function listAvailableProfiles(): string[] {
+  const instancesDir = getCcsInstancesDir();
+  return fs.existsSync(instancesDir) ? subdirectoryNames(instancesDir) : [];
+}
+
 function checkProfileExists(profile: string): void {
-  const instanceDir = getInstanceDir(profile);
-  if (!fs.existsSync(instanceDir)) {
-    const available = listAvailableProfiles();
-    console.error(`Profile "${profile}" not found.`);
-    if (available.length > 0) {
-      console.error(`Available profiles: ${available.join(", ")}`);
-    } else {
-      console.error("No profiles found in ~/.ccs/instances/");
-    }
-    process.exit(1);
-  }
+  if (fs.existsSync(getInstanceDir(profile))) return;
+  const available = listAvailableProfiles();
+  console.error(`Profile "${profile}" not found.`);
+  console.error(
+    available.length > 0
+      ? `Available profiles: ${available.join(", ")}`
+      : "No profiles found in ~/.ccs/instances/",
+  );
+  process.exit(1);
 }
 
 // --- Session lookup ---
 
-async function findSession(profile: string, sessionId: string): Promise<SessionInfo> {
-  const instanceDir = getInstanceDir(profile);
-  const projectsDir = path.join(instanceDir, "projects");
+function orNull<T>(value: T | undefined): T | null {
+  return value ?? null;
+}
 
+/**
+ * セッションの情報を組み立てる。sessions-index.json に無い項目は null にする
+ *
+ * @param location - セッションの ID・プロファイル・JSONL の場所
+ * @param entry - sessions-index.json のエントリ（無ければ sessionId だけ）
+ * @returns セッションの情報
+ */
+function toSessionInfo(
+  location: Pick<SessionInfo, "sessionId" | "profile" | "jsonlPath" | "encodedPath">,
+  entry: SessionIndexEntry,
+): SessionInfo {
+  return {
+    sessionId: location.sessionId,
+    profile: location.profile,
+    projectPath: orNull(entry.projectPath),
+    gitBranch: orNull(entry.gitBranch),
+    messageCount: orNull(entry.messageCount),
+    modified: orNull(entry.modified),
+    summary: orNull(entry.summary),
+    firstPrompt: orNull(entry.firstPrompt),
+    jsonlPath: location.jsonlPath,
+    encodedPath: location.encodedPath,
+  };
+}
+
+function readSessionsIndex(projectsDir: string, encodedPath: string): SessionsIndex | undefined {
+  if (!fs.existsSync(pathIn(projectsDir, encodedPath, "sessions-index.json"))) return undefined;
+  const parsed = readJsonIn(projectsDir, encodedPath, "sessions-index.json");
+  return isSessionsIndex(parsed) ? parsed : undefined;
+}
+
+/**
+ * 1 つのプロジェクトの sessions-index.json からセッションを探す
+ *
+ * @param projectsDir - プロファイルの projects ディレクトリ
+ * @param encodedPath - プロジェクトのディレクトリ名
+ * @param profile - プロファイル名
+ * @param sessionId - 探すセッション ID
+ * @returns セッションの情報。見つからなければ undefined
+ */
+function sessionFromIndex(
+  projectsDir: string,
+  encodedPath: string,
+  profile: string,
+  sessionId: string,
+): SessionInfo | undefined {
+  const entry = readSessionsIndex(projectsDir, encodedPath)?.sessions?.find(
+    (s) => s.sessionId === sessionId,
+  );
+  if (!entry) return undefined;
+  // Construct JSONL path from instanceDir (do NOT use fullPath from index)
+  const jsonlPath = pathIn(projectsDir, encodedPath, `${sessionId}.jsonl`);
+  return toSessionInfo({ sessionId, profile, jsonlPath, encodedPath }, entry);
+}
+
+function findInIndexes(
+  projectsDir: string,
+  profile: string,
+  sessionId: string,
+): SessionInfo | undefined {
+  for (const encodedPath of subdirectoryNames(projectsDir)) {
+    const session = sessionFromIndex(projectsDir, encodedPath, profile, sessionId);
+    if (session) return session;
+  }
+  return undefined;
+}
+
+// Fallback: glob for {sessionId}.jsonl
+async function findByGlob(
+  projectsDir: string,
+  profile: string,
+  sessionId: string,
+): Promise<SessionInfo | undefined> {
+  const glob = new Bun.Glob(`*/${sessionId}.jsonl`);
+  for await (const match of glob.scan({ cwd: projectsDir })) {
+    const location = {
+      sessionId,
+      profile,
+      jsonlPath: pathIn(projectsDir, match),
+      encodedPath: path.dirname(match),
+    };
+    return toSessionInfo(location, { sessionId });
+  }
+  return undefined;
+}
+
+function requireProjectsDir(profile: string): string {
+  const projectsDir = pathIn(getInstanceDir(profile), "projects");
   if (!fs.existsSync(projectsDir)) {
     console.error(`No projects found in profile ${profile}`);
     process.exit(1);
   }
+  return projectsDir;
+}
 
-  // Primary: scan sessions-index.json files
-  const projectEntries = fs.readdirSync(projectsDir, { withFileTypes: true });
-  const projectDirs = projectEntries.filter((d) => d.isDirectory());
-
-  for (const projectDir of projectDirs) {
-    const encodedPath = projectDir.name;
-    const indexPath = path.join(projectsDir, encodedPath, "sessions-index.json");
-
-    if (!fs.existsSync(indexPath)) {
-      continue;
-    }
-
-    let index: SessionsIndex;
-    try {
-      const raw = fs.readFileSync(indexPath, "utf-8");
-      const parsed = parseJsonSafe(raw);
-      if (!isSessionsIndex(parsed)) {
-        continue;
-      }
-      index = parsed;
-    } catch {
-      continue;
-    }
-
-    const sessions = index.sessions ?? [];
-    const entry = sessions.find((s) => s.sessionId === sessionId);
-
-    if (entry) {
-      // Construct JSONL path from instanceDir (do NOT use fullPath from index)
-      const jsonlPath = path.join(projectsDir, encodedPath, `${sessionId}.jsonl`);
-
-      return {
-        sessionId,
-        profile,
-        projectPath: entry.projectPath ?? null,
-        gitBranch: entry.gitBranch ?? null,
-        messageCount: entry.messageCount ?? null,
-        modified: entry.modified ?? null,
-        summary: entry.summary ?? null,
-        firstPrompt: entry.firstPrompt ?? null,
-        jsonlPath,
-        encodedPath,
-      };
-    }
-  }
-
-  // Fallback: glob for {sessionId}.jsonl
-  const glob = new Bun.Glob(`*/${sessionId}.jsonl`);
-  let fallbackEncodedPath: string | null = null;
-  let fallbackJsonlPath: string | null = null;
-
-  for await (const match of glob.scan({ cwd: projectsDir })) {
-    fallbackEncodedPath = path.dirname(match);
-    fallbackJsonlPath = path.join(projectsDir, match);
-    break;
-  }
-
-  if (fallbackJsonlPath && fallbackEncodedPath) {
-    return {
-      sessionId,
-      profile,
-      projectPath: null,
-      gitBranch: null,
-      messageCount: null,
-      modified: null,
-      summary: null,
-      firstPrompt: null,
-      jsonlPath: fallbackJsonlPath,
-      encodedPath: fallbackEncodedPath,
-    };
-  }
+async function findSession(profile: string, sessionId: string): Promise<SessionInfo> {
+  const projectsDir = requireProjectsDir(profile);
+  const session =
+    findInIndexes(projectsDir, profile, sessionId) ??
+    (await findByGlob(projectsDir, profile, sessionId));
+  if (session) return session;
 
   console.error(`Session ${sessionId} not found in profile ${profile}`);
-  process.exit(1);
+  return process.exit(1);
 }
 
 // --- Message reading ---
@@ -273,9 +311,9 @@ function extractTextFromContent(content: string | MessageContent[]): string | nu
   if (typeof content === "string") {
     return content.trim() || null;
   }
-  const textBlocks = content
-    .filter((c) => c.type === "text" && typeof c.text === "string")
-    .map((c) => c.text as string);
+  const textBlocks = content.flatMap((c) =>
+    c.type === "text" && typeof c.text === "string" ? [c.text] : [],
+  );
   const joined = textBlocks.join("\n").trim();
   return joined || null;
 }
@@ -285,51 +323,66 @@ function truncate(text: string, maxLen: number): string {
   return `${text.slice(0, maxLen)}...`;
 }
 
+/**
+ * セッションの JSONL を 1 行ずつ JSON として読む
+ *
+ * @param jsonlPath - セッションの JSONL
+ * @returns 各行を読んだ値（読めない行は undefined）。ファイルが無ければ空
+ */
+function journalEntries(jsonlPath: string): unknown[] {
+  if (!fs.existsSync(jsonlPath)) return [];
+  return readTextIn(path.dirname(jsonlPath), path.basename(jsonlPath))
+    .split("\n")
+    .filter(Boolean)
+    .map(parseJsonSafe);
+}
+
+function summaryOf(entry: unknown): string | null {
+  return isSummaryEntry(entry) && entry.summary ? entry.summary : null;
+}
+
+function messageOf(entry: unknown): ParsedMessage | null {
+  if (!isMessageEntry(entry)) return null;
+  const text = extractTextFromContent(entry.message.content);
+  if (!text) return null;
+  const role = entry.type === "user" ? "User" : "Assistant";
+  return { role, text: truncate(text, MAX_MESSAGE_LENGTH) };
+}
+
+/**
+ * 新しい順に並べた行のうち、MAX_MESSAGES 件目のメッセージまでの行数を返す。
+ *
+ * @param messages - 各行を読んだメッセージ（メッセージでない行は null）
+ * @returns 読む範囲の行数
+ */
+function scanLength(messages: (ParsedMessage | null)[]): number {
+  let count = 0;
+  const last = messages.findIndex((message) => message !== null && ++count === MAX_MESSAGES);
+  return last === -1 ? messages.length : last + 1;
+}
+
+/**
+ * 末尾から MAX_MESSAGES 件のメッセージと、その範囲で最後に書かれた summary を読む
+ *
+ * @param jsonlPath - セッションの JSONL
+ * @returns 新しい順のメッセージと summary
+ */
 function readMessages(jsonlPath: string): {
   messages: ParsedMessage[];
   jsonlSummary: string | null;
 } {
-  if (!fs.existsSync(jsonlPath)) {
-    return { messages: [], jsonlSummary: null };
-  }
-
-  const lines = fs.readFileSync(jsonlPath, "utf-8").split("\n").filter(Boolean);
-
-  let jsonlSummary: string | null = null;
-  const collected: ParsedMessage[] = [];
-
-  // Scan from end
-  for (let i = lines.length - 1; i >= 0 && collected.length < MAX_MESSAGES; i--) {
-    const parsed = parseJsonSafe(lines[i] as string);
-    if (!isJournalEntry(parsed)) {
-      continue;
-    }
-    const entry = parsed;
-
-    if (entry.type === "summary") {
-      if (isSummaryEntry(entry) && entry.summary && jsonlSummary === null) {
-        jsonlSummary = entry.summary;
-      }
-      continue;
-    }
-
-    if (entry.type !== "user" && entry.type !== "assistant") {
-      continue;
-    }
-
-    if (!isMessageEntry(entry)) {
-      continue;
-    }
-
-    const text = extractTextFromContent(entry.message.content);
-    if (!text) continue;
-
-    const role: "User" | "Assistant" = entry.type === "user" ? "User" : "Assistant";
-
-    collected.push({ role, text: truncate(text, MAX_MESSAGE_LENGTH) });
-  }
-
-  return { messages: collected, jsonlSummary };
+  const entries = journalEntries(jsonlPath).toReversed();
+  const parsed = entries.map(messageOf);
+  const length = scanLength(parsed);
+  const jsonlSummary =
+    entries
+      .slice(0, length)
+      .map(summaryOf)
+      .find((summary) => summary !== null) ?? null;
+  const messages = parsed
+    .slice(0, length)
+    .filter((message): message is ParsedMessage => message !== null);
+  return { messages, jsonlSummary };
 }
 
 // --- Tasks reading ---
@@ -341,34 +394,37 @@ type PendingTask = {
   description: string;
 };
 
+function or(value: string | undefined, fallback: string): string {
+  return value ?? fallback;
+}
+
+function toPendingTask(task: Task, file: string): PendingTask {
+  return {
+    id: or(task.id, file.replace(".json", "")),
+    status: or(task.status, "unknown"),
+    subject: or(task.subject, "(no subject)"),
+    description: or(task.description, ""),
+  };
+}
+
+function isTaskFile(file: string): boolean {
+  return !file.startsWith(".") && file.endsWith(".json");
+}
+
+function pendingTaskIn(tasksDir: string, file: string): PendingTask[] {
+  const task = readJsonIn(tasksDir, file);
+  return isTask(task) && task.status !== "completed" ? [toPendingTask(task, file)] : [];
+}
+
 function readTasks(instanceDir: string, sessionId: string): PendingTask[] {
-  const tasksDir = path.join(instanceDir, "tasks", sessionId);
+  const tasksDir = pathIn(instanceDir, "tasks", sessionId);
   if (!fs.existsSync(tasksDir)) {
     return [];
   }
-
-  const files = fs.readdirSync(tasksDir).filter((f) => !f.startsWith(".") && f.endsWith(".json"));
-
-  const pending: PendingTask[] = [];
-
-  for (const file of files) {
-    const filePath = path.join(tasksDir, file);
-    const parsed = parseJsonSafe(fs.readFileSync(filePath, "utf-8"));
-    if (!isTask(parsed)) {
-      continue;
-    }
-    const task = parsed;
-    if (task.status !== "completed") {
-      pending.push({
-        id: task.id ?? file.replace(".json", ""),
-        status: task.status ?? "unknown",
-        subject: task.subject ?? "(no subject)",
-        description: task.description ?? "",
-      });
-    }
-  }
-
-  return pending;
+  return fs
+    .readdirSync(tasksDir)
+    .filter(isTaskFile)
+    .flatMap((file) => pendingTaskIn(tasksDir, file));
 }
 
 // --- TODOs reading ---
@@ -377,129 +433,173 @@ type PendingTodo = {
   content: string;
 };
 
+function pendingTodos(todos: Todo[]): PendingTodo[] {
+  return todos.flatMap((todo) =>
+    todo.status !== "completed" && todo.content ? [{ content: todo.content }] : [],
+  );
+}
+
+function pendingTodosIn(todosDir: string, file: string): PendingTodo[] {
+  const todos = readJsonIn(todosDir, file);
+  return isTodoArray(todos) ? pendingTodos(todos) : [];
+}
+
 async function readTodos(instanceDir: string, sessionId: string): Promise<PendingTodo[]> {
-  const todosDir = path.join(instanceDir, "todos");
+  const todosDir = pathIn(instanceDir, "todos");
   if (!fs.existsSync(todosDir)) {
     return [];
   }
-
-  const glob = new Bun.Glob(`${sessionId}-agent-*.json`);
-  const pending: PendingTodo[] = [];
-
-  for await (const match of glob.scan({ cwd: todosDir })) {
-    const filePath = path.join(todosDir, match);
-    let todos: Todo[];
-    try {
-      const raw = fs.readFileSync(filePath, "utf-8");
-      const parsed = parseJsonSafe(raw);
-      if (!isTodoArray(parsed)) continue;
-      todos = parsed;
-    } catch {
-      continue;
-    }
-
-    for (const todo of todos) {
-      if (todo.status !== "completed" && todo.content) {
-        pending.push({ content: todo.content });
-      }
-    }
-  }
-
-  return pending;
+  const files = await Array.fromAsync(
+    new Bun.Glob(`${sessionId}-agent-*.json`).scan({ cwd: todosDir }),
+  );
+  return files.flatMap((file) => pendingTodosIn(todosDir, file));
 }
 
 // --- Subagent detection ---
 
 function detectSubagents(instanceDir: string, encodedPath: string, sessionId: string): boolean {
-  const subagentDir = path.join(instanceDir, "projects", encodedPath, sessionId);
-  return fs.existsSync(subagentDir);
+  return fs.existsSync(pathIn(instanceDir, "projects", encodedPath, sessionId));
 }
 
-// --- Session ID extraction from .agents/sessions/ ---
+// --- Workspace ID extraction from .agents/workspaces/ ---
 
 type UserSessionId = {
   fullId: string;
   featureName: string;
 };
 
+// Get the most recently modified workspace directory
+function latestWorkspaceName(workspacesDir: string): string | undefined {
+  return subdirectoryNames(workspacesDir)
+    .map((name) => ({ name, mtime: fs.statSync(pathIn(workspacesDir, name)).mtimeMs }))
+    .toSorted((a, b) => b.mtime - a.mtime)[0]?.name;
+}
+
 function extractUserSessionId(projectPath: string): UserSessionId | null {
-  const workspacesDir = path.join(projectPath, ".agents", "workspaces");
+  const workspacesDir = pathIn(projectPath, ".agents", "workspaces");
   if (!fs.existsSync(workspacesDir)) {
     return null;
   }
-
-  // Get the most recently modified workspace directory
-  const entries = fs
-    .readdirSync(workspacesDir, { withFileTypes: true })
-    .filter((d) => d.isDirectory())
-    .map((d) => {
-      const fullPath = path.join(workspacesDir, d.name);
-      const stat = fs.statSync(fullPath);
-      return { name: d.name, mtime: stat.mtimeMs };
-    })
-    .toSorted((a, b) => b.mtime - a.mtime);
-
-  if (entries.length === 0) {
-    return null;
-  }
-
-  const workspaceId = entries[0]?.name;
+  const workspaceId = latestWorkspaceName(workspacesDir);
   if (!workspaceId) {
     return null;
   }
-
   // Validate workspace-id format using shared pattern
   const parsed = parseWorkspaceId(workspaceId);
-  if (!parsed) {
-    return null;
-  }
-
-  return {
-    fullId: workspaceId,
-    featureName: parsed.featureName,
-  };
+  return parsed ? { fullId: workspaceId, featureName: parsed.featureName } : null;
 }
 
 // --- Plan file extraction ---
 
-function isPlanFileToolUse(
-  value: unknown,
-): value is { type: "tool_use"; name: string; input: { file_path: string } } {
-  if (!isRecord(value)) return false;
-  if (value.type !== "tool_use") return false;
-  if (value.name !== "Write" && value.name !== "Edit") return false;
-  if (!isRecord(value.input)) return false;
-  const filePath = (value.input as Record<string, unknown>).file_path;
-  return typeof filePath === "string" && filePath.includes(".agents/plans/");
+type PlanFileToolUse = { type: "tool_use"; name: string; input: { file_path: string } };
+
+function isToolUse(value: unknown): value is Record<string, unknown> {
+  return isRecord(value) && value.type === "tool_use";
+}
+
+function isWriteOrEdit(name: unknown): boolean {
+  return name === "Write" || name === "Edit";
+}
+
+// 計画ファイルの置き場所は個人ルールの .local-agents/plans/ と、Plan mode の .claude/plans/
+function isPlanFilePath(filePath: unknown): boolean {
+  return (
+    typeof filePath === "string" &&
+    (filePath.includes(".local-agents/plans/") || filePath.includes(".claude/plans/"))
+  );
+}
+
+function isPlanFileToolUse(value: unknown): value is PlanFileToolUse {
+  return (
+    isToolUse(value) &&
+    isWriteOrEdit(value.name) &&
+    isRecord(value.input) &&
+    isPlanFilePath(value.input.file_path)
+  );
+}
+
+function assistantMessage(entry: unknown): Record<string, unknown> | undefined {
+  return isRecord(entry) && entry.type === "assistant" && isRecord(entry.message)
+    ? entry.message
+    : undefined;
+}
+
+function assistantContentBlocks(entry: unknown): unknown[] {
+  const content = assistantMessage(entry)?.content;
+  return Array.isArray(content) ? content : [];
 }
 
 function extractPlanFilePaths(jsonlPath: string): string[] {
-  if (!fs.existsSync(jsonlPath)) {
-    return [];
-  }
-
-  const lines = fs.readFileSync(jsonlPath, "utf-8").split("\n").filter(Boolean);
-  const found = new Set<string>();
-
-  for (const line of lines) {
-    const parsed = parseJsonSafe(line);
-    if (!isRecord(parsed)) continue;
-    if (parsed.type !== "assistant") continue;
-    if (!isRecord(parsed.message)) continue;
-    const content = (parsed.message as Record<string, unknown>).content;
-    if (!Array.isArray(content)) continue;
-
-    for (const block of content) {
-      if (isPlanFileToolUse(block)) {
-        found.add(block.input.file_path);
-      }
-    }
-  }
-
-  return Array.from(found);
+  const filePaths = journalEntries(jsonlPath)
+    .flatMap(assistantContentBlocks)
+    .filter(isPlanFileToolUse)
+    .map((block) => block.input.file_path);
+  return [...new Set(filePaths)];
 }
 
 // --- Markdown formatting ---
+
+const NOT_AVAILABLE = "(not available)";
+
+function orNotAvailable(value: string | number | null): string {
+  return value === null ? NOT_AVAILABLE : String(value);
+}
+
+function sessionInfoSection(info: SessionInfo): string[] {
+  return [
+    "## Session Info",
+    "",
+    `- Profile: ${info.profile}`,
+    `- Session ID: ${info.sessionId}`,
+    `- Project Path: ${orNotAvailable(info.projectPath)}`,
+    `- Git Branch: ${orNotAvailable(info.gitBranch)}`,
+    `- Message Count: ${orNotAvailable(info.messageCount)}`,
+    `- Last Modified: ${orNotAvailable(info.modified)}`,
+    "",
+  ];
+}
+
+function summarySection(info: SessionInfo, jsonlSummary: string | null): string[] {
+  return ["## Session Summary", "", info.summary ?? jsonlSummary ?? NOT_AVAILABLE, ""];
+}
+
+function userSessionIdLines(userSessionId: UserSessionId | null): string[] {
+  if (!userSessionId) return ["No workspace directory found in .agents/workspaces/"];
+  return [
+    `**Session ID**: \`${userSessionId.fullId}\``,
+    "",
+    `**Feature Name**: ${userSessionId.featureName}`,
+    "",
+    `Continue writing work files to \`.agents/workspaces/${userSessionId.fullId}/\` (the workspace directory already exists).`,
+  ];
+}
+
+function messagesSection(messages: ParsedMessage[]): string[] {
+  const body =
+    messages.length === 0
+      ? ["(no messages found)"]
+      : messages.flatMap((msg) => [`### ${msg.role}`, "", msg.text, ""]);
+  return [`## Recent Messages (up to ${MAX_MESSAGES}, newest first)`, "", ...body];
+}
+
+/**
+ * 見出しと箇条書きの節を作る。項目が無ければ emptyText を書く
+ *
+ * @param title - 見出し
+ * @param items - 項目の行
+ * @param emptyText - 項目が無いときの文
+ * @returns 節の行
+ */
+function listSection(title: string, items: string[], emptyText: string): string[] {
+  return [`## ${title}`, "", ...(items.length === 0 ? [emptyText] : items), ""];
+}
+
+function taskLines(task: PendingTask): string[] {
+  return [
+    `- [ ] **[id: ${task.id}, ${task.status}]** ${task.subject}`,
+    ...(task.description ? [`  ${task.description}`] : []),
+  ];
+}
 
 function formatMarkdown(
   info: SessionInfo,
@@ -511,117 +611,36 @@ function formatMarkdown(
   planFiles: string[],
   userSessionId: UserSessionId | null,
 ): string {
-  const lines: string[] = [];
-
-  lines.push(`# Session Handoff: ${info.profile} / ${info.sessionId}`);
-  lines.push("");
-
-  // Session Info table
-  lines.push("## Session Info");
-  lines.push("");
-  lines.push("| Field | Value |");
-  lines.push("|-------|-------|");
-  lines.push(`| Profile | ${escapeTableCell(info.profile)} |`);
-  lines.push(`| Session ID | ${escapeTableCell(info.sessionId)} |`);
-  lines.push(`| Project Path | ${escapeTableCell(info.projectPath ?? "(not available)")} |`);
-  lines.push(`| Git Branch | ${escapeTableCell(info.gitBranch ?? "(not available)")} |`);
-  lines.push(
-    `| Message Count | ${escapeTableCell(info.messageCount !== null ? String(info.messageCount) : "(not available)")} |`,
-  );
-  lines.push(`| Last Modified | ${escapeTableCell(info.modified ?? "(not available)")} |`);
-  lines.push("");
-
-  // Summary
-  lines.push("## Session Summary");
-  lines.push("");
-  const summaryText = info.summary ?? jsonlSummary ?? "(not available)";
-  lines.push(summaryText);
-  lines.push("");
-
-  // User Session ID (for handoff)
-  lines.push("## User Session ID");
-  lines.push("");
-  if (userSessionId) {
-    lines.push(`**Session ID**: \`${userSessionId.fullId}\``);
-    lines.push("");
-    lines.push(`**Feature Name**: ${userSessionId.featureName}`);
-    lines.push("");
-    lines.push("To continue using this session-id, create the session directory:");
-    lines.push("");
-    lines.push("```bash");
-    lines.push(`mkdir -p .agents/sessions/${userSessionId.fullId}`);
-    lines.push("```");
-  } else {
-    lines.push("No user session-id found in .agents/sessions/");
-  }
-  lines.push("");
-
-  // First Prompt
-  lines.push("## First Prompt");
-  lines.push("");
-  lines.push(info.firstPrompt ?? "(not available)");
-  lines.push("");
-
-  // Recent Messages
-  lines.push(`## Recent Messages (up to ${MAX_MESSAGES}, newest first)`);
-  lines.push("");
-  if (messages.length === 0) {
-    lines.push("(no messages found)");
-  } else {
-    for (const msg of messages) {
-      lines.push(`### ${msg.role}`);
-      lines.push("");
-      lines.push(msg.text);
-      lines.push("");
-    }
-  }
-
-  // Subagents
-  lines.push("## Subagents");
-  lines.push("");
-  lines.push(`Subagent sessions detected: ${hasSubagents ? "Yes" : "No"}`);
-  lines.push("");
-
-  // Plan Files
-  lines.push("## Plan Files");
-  lines.push("");
-  if (planFiles.length === 0) {
-    lines.push("No plan files found.");
-  } else {
-    for (const filePath of planFiles) {
-      lines.push(`- ${filePath}`);
-    }
-  }
-  lines.push("");
-
-  // Pending Tasks
-  lines.push("## Pending Tasks");
-  lines.push("");
-  if (tasks.length === 0) {
-    lines.push("No pending tasks found.");
-  } else {
-    for (const task of tasks) {
-      lines.push(`- [ ] **[id: ${task.id}, ${task.status}]** ${task.subject}`);
-      if (task.description) {
-        lines.push(`  ${task.description}`);
-      }
-    }
-  }
-  lines.push("");
-
-  // Pending TODOs
-  lines.push("## Pending TODOs");
-  lines.push("");
-  if (todos.length === 0) {
-    lines.push("No pending TODOs found.");
-  } else {
-    for (const todo of todos) {
-      lines.push(`- [ ] ${todo.content}`);
-    }
-  }
-  lines.push("");
-
-  return lines.join("\n");
+  return [
+    `# Session Handoff: ${info.profile} / ${info.sessionId}`,
+    "",
+    ...sessionInfoSection(info),
+    ...summarySection(info, jsonlSummary),
+    "## User Session ID",
+    "",
+    ...userSessionIdLines(userSessionId),
+    "",
+    "## First Prompt",
+    "",
+    orNotAvailable(info.firstPrompt),
+    "",
+    ...messagesSection(messages),
+    "## Subagents",
+    "",
+    `Subagent sessions detected: ${hasSubagents ? "Yes" : "No"}`,
+    "",
+    ...listSection(
+      "Plan Files",
+      planFiles.map((filePath) => `- ${filePath}`),
+      "No plan files found.",
+    ),
+    ...listSection("Pending Tasks", tasks.flatMap(taskLines), "No pending tasks found."),
+    ...listSection(
+      "Pending TODOs",
+      todos.map((todo) => `- [ ] ${todo.content}`),
+      "No pending TODOs found.",
+    ),
+  ].join("\n");
 }
 
 // --- Main ---

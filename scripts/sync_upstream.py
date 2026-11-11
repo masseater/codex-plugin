@@ -44,6 +44,7 @@ COPY_IGNORE_DIRS = {
     "coverage",
     ".next",
     ".turbo",
+    ".claude-plugin",
 }
 COPY_IGNORE_FILES = {
     "plugin.json",
@@ -169,7 +170,9 @@ def load_upstream_plugins(upstream_root: Path) -> list[UpstreamPlugin]:
 
     for entry in marketplace["plugins"]:
         plugin_root = upstream_root / entry["source"].removeprefix("./")
-        plugin_json_path = plugin_root / "plugin.json"
+        plugin_json_path = plugin_root / ".claude-plugin" / "plugin.json"
+        if not plugin_json_path.exists():
+            plugin_json_path = plugin_root / "plugin.json"
         plugin_json = json.loads(plugin_json_path.read_text())
         plugins.append(
             UpstreamPlugin(

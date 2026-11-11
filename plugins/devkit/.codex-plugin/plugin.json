@@ -1,7 +1,7 @@
 {
   "name": "devkit",
-  "version": "0.3.19",
-  "description": "Development toolkit — tech stack definitions, project setup, and quality automation",
+  "version": "0.3.24",
+  "description": "開発ツールキット — 技術スタック定義・プロジェクトセットアップ・品質自動化",
   "author": {
     "name": "masseater",
     "url": "https://github.com/masseater"
@@ -15,8 +15,8 @@
   ],
   "interface": {
     "displayName": "Devkit",
-    "shortDescription": "Development toolkit — tech stack definitions, project setup, and quality automation",
-    "longDescription": "Development toolkit — tech stack definitions, project setup, and quality automation",
+    "shortDescription": "開発ツールキット — 技術スタック定義・プロジェクトセットアップ・品質自動化",
+    "longDescription": "開発ツールキット — 技術スタック定義・プロジェクトセットアップ・品質自動化",
     "developerName": "masseater",
     "category": "Productivity"
   },

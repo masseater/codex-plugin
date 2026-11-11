@@ -1,12 +1,14 @@
 #!/usr/bin/env bun
-import { existsSync } from "node:fs";
-import path from "node:path";
 import { findGitRoot, isValidFeatureName, MutilsDB } from "@r_masseater/cc-plugin-lib";
+import { hasAgentsDir, openWorkspaceMappings } from "../../hooks/lib/workspace-mappings-schema.ts";
 
-const featureName = process.argv[2];
+const args = process.argv.slice(2);
+const sessionFlag = args.indexOf("--session-id");
+const sessionId = sessionFlag === -1 ? null : (args[sessionFlag + 1] ?? null);
+const featureName = args.find((arg, i) => !arg.startsWith("--") && i !== sessionFlag + 1);
 
 if (!featureName) {
-  process.stderr.write("Usage: generate.ts <feature-name>\n");
+  process.stderr.write("Usage: generate.ts <feature-name> [--session-id <id>]\n");
   process.exit(1);
 }
 
@@ -28,34 +30,19 @@ const cwd = process.cwd();
 const gitRoot = findGitRoot(cwd);
 
 if (gitRoot) {
-  const agentsDir = path.join(gitRoot, ".agents");
-  if (existsSync(agentsDir)) {
+  if (hasAgentsDir(gitRoot)) {
     try {
       using db = MutilsDB.open(gitRoot);
-      const table = db.table<{
-        workspace_id: string;
-        feature_name: string;
-        created_at: string;
-      }>("workspace_mappings", {
-        columns: `
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          workspace_id TEXT NOT NULL UNIQUE,
-          feature_name TEXT NOT NULL,
-          created_at TEXT NOT NULL
-        `,
-        indexes: [
-          "CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_mappings_workspace_id ON workspace_mappings(workspace_id)",
-        ],
-      });
-
-      const timestamp = now.toISOString();
+      const table = openWorkspaceMappings(db);
       table.upsert({
         workspace_id: workspaceId,
         feature_name: featureName,
-        created_at: timestamp,
+        created_at: now.toISOString(),
+        session_id: sessionId,
       });
-    } catch {
-      // Fail silently - workspace-id generation should still work
+    } catch (error) {
+      // 保存は compact / resume 後の復元用。失敗しても workspace-id 自体は使えるので生成は続ける
+      process.stderr.write(`Warning: failed to save workspace-id to mutils DB: ${String(error)}\n`);
     }
   }
 }
