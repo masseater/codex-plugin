@@ -3,80 +3,29 @@
 この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
 SDD（Spec-Driven Development）ワークフロー支援プラグイン。仕様書に基づいた段階的な実装を支援する。
 
-## ディレクトリ構造
-
-ユーザープロジェクトに生成されるファイル: see [docs/directory-structure.md](docs/directory-structure.md)
-
-## MCP Server
-
-`@r_masseater/sdd-webapp` パッケージで提供。steering スキル実行時に登録。
-
-利用可能なツール:
-
-- sdd_webapp_add_project（steering時に呼び出し）
-- sdd_webapp_list_projects
-- sdd_webapp_remove_project
-- sdd_webapp_get_status
-- sdd_webapp_set_phase
-- sdd_webapp_delete_phase
-
-## 注意事項
-
-- `specs/_archived/` 配下のファイル編集は block-archived-edit.ts でブロック
-- ステアリングドキュメントは Progressive Disclosure により文脈に応じて自動参照
-- sdd-webappはsteering時に登録
-
-## SDD ワークフロー
-
-Full workflow diagram: see [docs/workflow-diagram.md](docs/workflow-diagram.md)
-
-## Model Invocation Policy
-
-<!-- BEGIN:model-invocation-policy -->
-
-以下の skill は `disable-model-invocation: true` を付与しない。設計判断: ユーザーが自然文で依頼する主要ワークフロー、または AI がタスク遂行中に自律参照すべき実行リファレンスである。これらの `description` には自然文 trigger、または実行リファレンスとしての参照理由を定義する。
-
-- `sdd:archive`
-- `sdd:autopilot`
-- `sdd:help`
-- `sdd:next`
-- `sdd:phase`
-- `sdd:quality-check`
-- `sdd:research`
-- `sdd:spec`
-- `sdd:status`
-- `sdd:steering`
-- `sdd:sync`
-- `sdd:validate`
-- `sdd:webapp-integration`
-
-上記以外の skill は、明示呼び出し・内部参照・手動操作・低レベルユーティリティとして扱い、`disable-model-invocation: true` を維持する。disabled skill の `description` には広い自然文 trigger を定義しない。
-
-<!-- END:model-invocation-policy -->
+- 流れと状態の持ち方: [docs/workflow-diagram.md](docs/workflow-diagram.md)。生成されるファイル: [docs/directory-structure.md](docs/directory-structure.md)
+- skill の起動制御: `archive` は spec を移動して commit することそのものが目的である。`autopilot` は実装から commit まで長時間にわたり自律実行する。この 2 つは開始のタイミングを人が決めるので `disable-model-invocation: true` にしている。ほかの skill（steering / spec / phase / validate / status）は自然文で頼まれる主要ワークフローなので model invocation を許可する。spec と phase が sdd-webapp のストアに行うプロジェクト登録と Phase 状態の反映は、ローカルのダッシュボード用の写しで spec ファイルから作り直せるので、永続状態の変更には数えない
+- 複数 skill で共有する規約は `assets/common-rules.md`。agent と skill から `./assets/common-rules.md` で参照する
+- skill の参照ファイル（`references/*.md`）では `${...}` が展開されないので、`<skill-dir>` / `<plugin-root>` と書き、SKILL.md で読み替えを指示する
+- phase ファイルの場所 `specs/<spec>/phases/phase<N>-<name>.md` は、3 か所のコードが前提にしている。1 つ目は `hooks/entry/require-phase-status.ts` の `PHASE_FILE_PATH` である。残りは `skills/status/scripts/spec-state.ts` と、apps/sdd-webapp の `status-parser.ts` である。変えるときは 3 か所とテストを揃える
+- overview.md と phase ファイルの書式（frontmatter の status、調査項目とタスクのチェックボックス、`### Phase N:` 見出し）は `spec-state.ts` が解析する。テンプレートを変えたら `spec-state.test.ts` を通す
+- MCP サーバー sdd-webapp（`@r_masseater/sdd-webapp`）は `.mcp.json` で登録する。webapp の Phase 状態は独自ストアにあるので、status を変える skill は `mcp__plugin_sdd_sdd-webapp__sdd_webapp_set_phase` も呼ぶ
 
 ## Components
 
 <!-- BEGIN:component-list (auto-generated, do not edit) -->
 
-| Type  | Name                   | Description                                                                                                                                                                                                                  |
-| ----- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| skill | sdd:archive            | This skill should be used when the user asks to "archive a completed spec", "specをアーカイブ", "完了タスクをアーカイブ", "archive SDD task", or wants completed/rejected specs moved into the SDD archived specs directory. |
-| skill | sdd:autopilot          | This skill should be used when the user asks to "run SDD on autopilot", "自動で進めて", "一気に実装", "autopilot", or wants the SDD workflow advanced with minimal human intervention.                                       |
-| skill | sdd:help               | This skill should be used when the user asks for "SDD help", "SDDの使い方", "SDDワークフローを説明", "what is the next SDD command", or wants an overview of the SDD workflow.                                               |
-| skill | sdd:next               | This skill should be used when the user asks "what should I do next", "次に何をすればいい", "SDD next", "次のSDDステップ", or wants the next action inferred from the current specs state.                                   |
-| skill | sdd:phase              | This skill should be used when the user asks to "plan phases", "break down a phase", "implement an SDD phase", "Phase構成", "Phase詳細計画", or wants SDD phase planning, breakdown, implementation, or insertion.           |
-| skill | sdd:quality-check      | This skill should be used when the user asks to "quality check a spec", "仕様書の品質チェック", "矛盾検出", "ステアリング準拠確認", or wants SDD documents checked for contradictions and steering compliance.               |
-| skill | sdd:research           | This skill should be used when the user asks to "conduct SDD research", "調査を実施", "不明点を明確化", "research clarify", or wants technical investigation or clarification for an SDD spec.                               |
-| skill | sdd:spec               | This skill should be used when the user asks to "create an SDD spec", "仕様書を作成", "要件定義", "技術設計", "spec init", or wants SDD overview, requirements, or technical-details documents created.                      |
-| skill | sdd:status             | This skill should be used when the user asks for "SDD status", "タスクのステータス", "進捗を見せて", "spec一覧", or wants all SDD task statuses displayed.                                                                   |
-| skill | sdd:steering           | This skill should be used when the user asks to "define project steering", "プロジェクト方針を定義", "技術スタックを整理", "steering", or wants persistent SDD project context initialized or migrated.                      |
-| skill | sdd:sync               | This skill should be used when the user asks to "sync implementation status", "実装状況を仕様書に同期", "SDD sync", "進捗をドキュメントに反映", or wants current code progress reflected in SDD spec documents.              |
-| skill | sdd:validate           | This skill should be used when the user asks to "validate a phase", "Phase検証", "SDD validate", "実装を検証", or wants docs, requirements, quality, and feasibility checks for an SDD phase.                                |
-| skill | sdd:webapp-integration | This skill should be used when the user asks about "sdd-webapp", "SDD dashboard", "ダッシュボード", "進捗を可視化", or wants to use sdd-webapp MCP tools for spec status visibility.                                         |
-| skill | sdd:workflow           | SDDワークフロー全体のガイド。SDD コマンドを実行する時に、全てのコマンドで読み込む必要がある。                                                                                                                                |
-| agent | contradiction-checker  | Detect contradictions between spec documents (overview, specification, technical-details, phase files). Reports inconsistencies without making fixes.                                                                        |
-| agent | steering-reviewer      | Review code and documents for compliance with steering documents. Reports deviations without making fixes.                                                                                                                   |
-| hook  | block-archived-edit    | PreToolUse (`Write\|Edit`)                                                                                                                                                                                                   |
-| hook  | require-phase-status   | PreToolUse (`Write\|Edit`)                                                                                                                                                                                                   |
+- **skill** `archive`: status が completed か rejected の spec を選んで specs/_archived/ に移動し、コミットする。
+- **skill** `autopilot`: SDD の spec を、ユーザーの確認を最小限にして steering の確認から最後の Phase の検証まで自動で進める。
+- **skill** `phase`: SDD の spec を Phase に分け、Phase ごとの詳細計画・実装・Phase の挿入・中断前の状態反映をする。「Phase 構成を決めて」「Phase 2 の計画を立てて」「Phase 1 を実装して」「Phase を追加して」「ここまでの進捗を反映して」と頼まれたときに使う。
+- **skill** `spec`: SDD の仕様書（overview / specification / technical-details）を作り、調査項目の調査と「不明」箇所の確認で埋めていく。「仕様書を作りたい」「要件定義して」「技術設計を書いて」「調査項目を調べて」「不明点を確認して」と頼まれたときに使う。
+- **skill** `status`: SDD の各 spec の進み具合と次にやる作業を示し、SDD の流れを説明する。「SDD の進捗を見せて」「次に何をすればいいか教えて」「spec の一覧を見せて」「SDD の使い方を教えて」と聞かれたときに使う。
+- **skill** `steering`: プロジェクトの方針（プロダクト・技術スタック・構造・開発原則）をステアリング文書として .claude/skills/steering/ に作る、または旧配置から移行する。SDD を始めるとき、「プロジェクト方針を整理したい」「steering を作って」と頼まれたときに使う。
+- **skill** `validate`: SDD の spec 文書（矛盾・ステアリング準拠・実現可能性）か、実装を終えた Phase（ドキュメント・要件・品質）を検証し、指摘を severity 付きで報告する。「仕様書をチェックして」「矛盾がないか見て」「Phase 2 の実装を検証して」「これで完了でいいか確認して」と頼まれたときに使う。
+- **agent** `contradiction-checker`: SDD の spec 文書（overview / specification / technical-details / phases）の間の矛盾を探す。修正はせず、severity と confidence 付きで報告する。/sdd:validate の spec モードから呼ばれる。
+- **agent** `steering-reviewer`: コードや SDD の spec 文書がステアリング文書（.claude/skills/steering/）の方針に沿っているかをレビューする。修正はせず、severity と confidence 付きで報告する。/sdd:validate の spec モードから呼ばれる。
+- **hook** `block-archived-edit`: PreToolUse (`Write|Edit`)
+- **hook** `install-deps`: SessionStart
+- **hook** `require-phase-status`: PreToolUse (`Write|Edit`)
 
 <!-- END:component-list -->

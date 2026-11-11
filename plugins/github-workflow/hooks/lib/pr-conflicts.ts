@@ -1,4 +1,7 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { HookLogger } from "@r_masseater/cc-plugin-lib";
+
+const logger = HookLogger.fromFile(import.meta.filename);
 
 export type RevListStatus = {
   ahead: number;
@@ -14,13 +17,19 @@ function run(command: string, args: string[]): string {
   return execFileSync(command, args, {
     encoding: "utf-8",
     timeout: 10_000,
+    stdio: ["ignore", "pipe", "pipe"],
   }).trim();
 }
 
 function runSafe(command: string, args: string[]): string | undefined {
   try {
     return run(command, args);
-  } catch {
+  } catch (error) {
+    // 失敗は「その情報がない」状態として扱う（upstream 未設定、PR なし、git 管理外、detached HEAD など）。
+    // hook は通知だけを担うので、取れない情報は通知しないのが安全なフォールバック。
+    logger.debug(
+      `${command} ${args.join(" ")} failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return undefined;
   }
 }
@@ -35,6 +44,10 @@ export function isGitPushCommand(command: string): boolean {
 
 export function getCurrentBranch(): string | undefined {
   return runSafe("git", ["symbolic-ref", "--short", "HEAD"]);
+}
+
+export function getHeadSha(): string | undefined {
+  return runSafe("git", ["rev-parse", "HEAD"]);
 }
 
 export function getRemoteTrackingBranch(branch: string): string | undefined {
@@ -64,24 +77,17 @@ export function getPrBaseBranch(branch?: string): string | undefined {
   return runSafe("gh", args);
 }
 
+const CONFLICT_MARKER_PATTERN = /\+<{7} \.our\n/;
+const CONFLICT_FILE_PATTERN =
+  /changed in both\n\s+base\s+\d+ [0-9a-f]+ .+\n\s+our\s+\d+ [0-9a-f]+ (.+)\n/g;
+
 export function parseMergeTreeOutput(result: string): ConflictStatus {
-  const conflictPattern = /\+<{7} \.our\n/g;
-  const hasConflicts = conflictPattern.test(result);
-
-  const conflictFiles: string[] = [];
-  if (hasConflicts) {
-    const filePattern =
-      /changed in both\n\s+base\s+\d+ [0-9a-f]+ .+\n\s+our\s+\d+ [0-9a-f]+ (.+)\n/g;
-    let match: RegExpExecArray | null;
-    while (true) {
-      match = filePattern.exec(result);
-      if (match === null) break;
-      if (match[1]) {
-        conflictFiles.push(match[1]);
-      }
-    }
-  }
-
+  const hasConflicts = CONFLICT_MARKER_PATTERN.test(result);
+  const conflictFiles = hasConflicts
+    ? [...result.matchAll(CONFLICT_FILE_PATTERN)]
+        .map((match) => match[1])
+        .filter((file): file is string => Boolean(file))
+    : [];
   return { hasConflicts, conflictFiles };
 }
 
@@ -117,54 +123,11 @@ export function getPrConflictStatus(branch: string): PrConflictStatus | undefine
   };
 }
 
-export type PullResult = { ok: true; pulled: number } | { ok: false; reason: string };
-
-export function tryFastForwardPull(behind: number): PullResult {
-  const result = spawnSync("git", ["pull", "--ff-only", "--no-rebase"], {
-    encoding: "utf-8",
-    timeout: 30_000,
-  });
-
-  if (result.status === 0) {
-    return { ok: true, pulled: behind };
-  }
-
-  const stderr = (result.stderr ?? "").trim();
-  const stdout = (result.stdout ?? "").trim();
-  return { ok: false, reason: stderr || stdout || "git pull --ff-only failed" };
-}
-
-export function formatPullFailureMessage(
-  branch: string,
-  upstream: string,
-  behind: number,
-  reason: string,
-): string {
-  return [
-    `[git] Auto-pull failed: branch "${branch}" is ${behind} commit(s) behind ${upstream} and cannot fast-forward.`,
-    `[git] Reason: ${reason}`,
-    `[git] Resolve it.`,
-  ].join("\n");
-}
-
-export function formatConflictResolutionMessage(
+export function formatConflictMessage(
   branch: string,
   baseBranch: string,
   conflictFiles: string[],
 ): string {
-  const lines = [
-    `[git] The pushed branch "${branch}" already has an open PR and has merge conflicts with its base branch "${baseBranch}".`,
-  ];
-
-  if (conflictFiles.length > 0) {
-    lines.push(`[git] Conflicted files: ${conflictFiles.join(", ")}`);
-  }
-
-  lines.push(`[git] Resolve by merging the base branch:`);
-  lines.push(`[git]   git fetch origin ${baseBranch} && git merge origin/${baseBranch}`);
-  lines.push(
-    `[git] After fixing conflicts, run git add <files>, git merge --continue, then push again.`,
-  );
-
-  return lines.join("\n");
+  const files = conflictFiles.length > 0 ? `: ${conflictFiles.join(", ")}` : "";
+  return `[git] PR（${branch} → ${baseBranch}）が base と conflict している${files}。解消するまで pull_request トリガーの CI は起動しない。`;
 }

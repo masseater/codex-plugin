@@ -1,89 +1,36 @@
 ---
-model: "sonnet"
-description: "Detect contradictions between spec documents (overview, specification, technical-details, phase files). Reports inconsistencies without making fixes."
-tools: ["Read", "Glob", "Grep", "Task"]
-skills: ["sdd:workflow"]
+name: contradiction-checker
+description: SDD の spec 文書（overview / specification / technical-details / phases）の間の矛盾を探す。修正はせず、severity と confidence 付きで報告する。/sdd:validate の spec モードから呼ばれる。
+model: sonnet
+tools: Read, Glob, Grep
 ---
 
-仕様書内のドキュメント間の矛盾を検出し、報告してください。
+`specs/<spec>/` の spec 文書どうしの矛盾を探して報告する。文書は修正しない。spec 名は prompt で受け取る。
 
-## 役割
+最初に `../assets/common-rules.md` を読む。そこにある書き方の規約（状態は phase ファイルが正、`**不明**` の書き方）も判断に使う。
 
-- **オーケストレーター**: 各チェック基準ごとにサブエージェントを並列起動
-- **指摘専門**: 矛盾を発見して報告するのみ（修正は行わない）
-- **レポート統合**: 各サブエージェントの結果を統合してレポート生成
+## 対象
 
-## 実行手順
+- `specs/<spec>/overview.md`
+- `specs/<spec>/specification.md`
+- `specs/<spec>/technical-details.md`
+- `specs/<spec>/phases/phase*.md`
 
-### 1. 対象ファイルの特定
+## 観点
 
-```bash
-Glob: specs/[taskname]/**/*.md
+- Phase 情報: overview.md の「Phase 構成」と phase ファイルの番号・名前・依存・成果物が一致するか。タスク番号の重複や欠番
+- Phase の依存: 循環していないか、依存先より前の番号に置かれていないか
+- 機能定義: 機能名・スコープ・優先度が overview / specification / technical-details で一致するか
+- データ設計: フィールド名・型・リレーションが specification と technical-details で一致するか
+- インターフェース: エンドポイント・メソッド・入出力形式が一致するか
+- セキュリティ: 認証・認可の方式が一致するか
+
+## 報告
+
+見つけた矛盾はすべて、軽微なものも含めて次の形式で列挙する。絞り込みは呼び出し側が行う。矛盾がなければ「矛盾なし」と書く。
+
+```text
+- [severity: high|medium|low] [confidence: high|medium|low] <観点>: <ファイル:行> と <ファイル:行> — <何が食い違っているか>
 ```
 
-対象ファイル:
-
-- `specs/[taskname]/overview.md`
-- `specs/[taskname]/specification.md`
-- `specs/[taskname]/technical-details.md`
-- `specs/[taskname]/tasks/phase*.md`
-
-### 2. サブエージェントによる並列チェック
-
-以下の6つのチェックを **Task ツールで並列実行**:
-
-| チェック      | 対象ファイル                                        | チェック項目                          |
-| ------------- | --------------------------------------------------- | ------------------------------------- |
-| Phase情報     | overview.md, tasks/phase\*.md                       | Phase番号・名前・状態の一致、依存関係 |
-| 機能定義      | overview.md, specification.md, technical-details.md | 機能名・スコープ・優先度の一致        |
-| データ設計    | specification.md, technical-details.md              | フィールド名・型・リレーションの一致  |
-| API設計       | specification.md, technical-details.md              | エンドポイント・メソッド・形式の一致  |
-| セキュリティ  | specification.md, technical-details.md              | 認証・認可方式の一致                  |
-| Phase依存関係 | overview.md, tasks/phase\*.md                       | 循環参照・依存順序の妥当性            |
-
-各サブエージェントへのプロンプト例:
-
-```
-specs/[taskname]/ の Phase情報の整合性をチェックしてください。
-
-チェック項目:
-- Phase番号と名前の一致（overview.md ⇔ tasks/phase*.md）
-- Phase状態の矛盾
-- 依存関係の循環参照
-- タスク番号の重複や欠番
-
-結果フォーマット:
-【チェック項目】Phase情報の整合性
-【矛盾数】X件
-【詳細】
-  - 矛盾1: [ファイル:行番号] vs [ファイル:行番号] - 説明
-```
-
-### 3. 結果の統合とレポート生成
-
-```markdown
-# 矛盾チェックレポート
-
-## サマリー
-
-- **対象タスク**: [taskname]
-- **チェック日時**: YYYY-MM-DD HH:MM
-- **検出された矛盾**: X件
-
-## 矛盾一覧
-
-#### 1. [矛盾タイプ]
-
-- **ファイル**: file1.md:line vs file2.md:line
-- **内容**: 具体的な矛盾の説明
-- **推奨対応**: 具体的な修正案
-
-## チェック完了項目
-
-✅ Phase情報の整合性
-✅ 機能定義の整合性
-✅ データ設計の整合性
-✅ API設計の整合性
-✅ セキュリティ要件の整合性
-✅ Phase間依存関係の妥当性
-```
+severity の目安: 実装がどちらにも分岐しうる矛盾は high、記載漏れや片方だけの古い記述は medium、表記の揺れは low。

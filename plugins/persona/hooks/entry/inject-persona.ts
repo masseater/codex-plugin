@@ -1,10 +1,19 @@
 #!/usr/bin/env bun
 import { HookLogger, wrapRun } from "@r_masseater/cc-plugin-lib";
 import { defineHook, runHook } from "cc-hooks-ts";
-import { personaPrompt, readPersona, resolveProjectDir, resolveStateFile } from "../lib/state.ts";
+import {
+  markInjected,
+  personaPrompt,
+  readInjectedPersona,
+  readPersona,
+  resolveProjectDir,
+  resolveStateFile,
+} from "../lib/state.ts";
 
 using logger = HookLogger.fromFile(import.meta.filename);
 
+// persona の指示は transcript に残り続けるため、毎ターンではなく persona が変わったターンだけ注入する。
+// compact 後の再注入は announce-persona（SessionStart）が担う。
 const hook = defineHook({
   trigger: { UserPromptSubmit: true },
   run: wrapRun(logger, (context) => {
@@ -14,14 +23,13 @@ const hook = defineHook({
       return context.success({});
     }
 
-    const sessionId = context.input.session_id;
-    const stateFile = resolveStateFile(projectDir, sessionId);
+    const stateFile = resolveStateFile(projectDir, context.input.session_id);
     const persona = readPersona(stateFile);
-
-    if (!persona) {
+    if (!persona || readInjectedPersona(stateFile) === persona) {
       return context.success({});
     }
 
+    markInjected(stateFile, persona);
     return context.json({
       event: "UserPromptSubmit" as const,
       output: {
@@ -29,13 +37,13 @@ const hook = defineHook({
           hookEventName: "UserPromptSubmit" as const,
           additionalContext: personaPrompt(persona),
         },
-        suppressOutput: true,
       },
     });
   }),
 });
 
-/* v8 ignore next 3 */
+/* v8 ignore start */
 if (import.meta.main) {
   await runHook(hook);
 }
+/* v8 ignore stop */

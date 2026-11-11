@@ -12,6 +12,7 @@
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { pathIn } from "../../../hooks/lib/path-in.js";
 
 const startDir = process.argv[2] || process.cwd();
 
@@ -27,7 +28,7 @@ function findPluginRoot(dir: string): string | null {
   const root = path.parse(current).root;
 
   while (current !== root) {
-    if (existsSync(path.join(current, "plugin.json"))) {
+    if (existsSync(pathIn(current, ".claude-plugin", "plugin.json"))) {
       return current;
     }
     current = path.dirname(current);
@@ -36,15 +37,18 @@ function findPluginRoot(dir: string): string | null {
 }
 
 function getExistingSkills(pluginDir: string): string[] {
-  const skillsDir = path.join(pluginDir, "skills");
+  const skillsDir = pathIn(pluginDir, "skills");
   if (!existsSync(skillsDir)) return [];
 
   try {
     return readdirSync(skillsDir, { withFileTypes: true })
       .filter((d) => d.isDirectory())
-      .filter((d) => existsSync(path.join(skillsDir, d.name, "SKILL.md")))
+      .filter((d) => existsSync(pathIn(skillsDir, d.name, "SKILL.md")))
       .map((d) => d.name);
-  } catch {
+  } catch (error) {
+    // 読めない skills ディレクトリは「既存 skill なし」として扱う。この出力は重複確認の参考情報で、
+    // 欠けても skill 作成は進められるため。原因は stderr に残す
+    console.error(`detect-context: failed to read ${skillsDir}: ${String(error)}`);
     return [];
   }
 }
@@ -59,10 +63,14 @@ const result: PluginContext = {
 
 if (pluginDir) {
   try {
-    const pluginJson = JSON.parse(readFileSync(path.join(pluginDir, "plugin.json"), "utf-8"));
+    const pluginJson = JSON.parse(
+      readFileSync(pathIn(pluginDir, ".claude-plugin", "plugin.json"), "utf-8"),
+    );
     result.pluginName = pluginJson.name || null;
-  } catch {
-    // Ignore parse errors
+  } catch (error) {
+    // plugin.json が無い・壊れている場合は pluginName を null のまま返す。名前は命名の参考に使うだけで、
+    // 欠けても skill 作成は進められるため。原因は stderr に残す
+    console.error(`detect-context: failed to read plugin.json in ${pluginDir}: ${String(error)}`);
   }
   result.existingSkills = getExistingSkills(pluginDir);
 }

@@ -1,14 +1,15 @@
-# psp - Personal Project Setup
+# devkit
 
-Cloudflare 向け個人開発 Web アプリのセットアップ用プラグイン。
+開発ツールキット — 技術スタック定義・プロジェクトセットアップ・品質自動化を提供するプラグイン。
 
 ## インストール
 
 ```bash
 /plugin marketplace add masseater/codex-plugin
-/plugin install psp@masseater-plugins
+/plugin install devkit@masseater-plugins
 ```
 
-## 開発時の注意事項
+## 環境変数
 
-- `assets/AGENTS.md` は生成されるプロジェクト用のテンプレート（プラグイン自体の設定ファイルではない）
+- `DEVKIT_ENFORCE_TOOLS=1`: `npx` / `npm` / `tsc` の実行を止め、`pnpx` / `pnpm` / `tsgo` へ誘導する
+- `DEVKIT_AUDIT_ON_STOP=1`: セッション中に増えた devkit 規約違反を、ターンの終わりに Claude へ通知する

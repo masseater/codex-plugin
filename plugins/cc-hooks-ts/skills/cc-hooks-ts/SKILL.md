@@ -1,220 +1,53 @@
 ---
-name: cc-hooks-ts:cc-hooks-ts
-description: This skill is the mandatory reference for all Claude Code hook creation. Use cc-hooks-ts for every hook. This skill should be used when the user asks to "create a hook", "add a hook", "write a hook", "implement a hook", "rewrite hooks in TypeScript", "use cc-hooks-ts", or needs to build any Claude Code hook — cc-hooks-ts is always required regardless of whether explicitly mentioned.
+name: cc-hooks-ts
+description: TypeScript ライブラリ cc-hooks-ts（defineHook / runHook / context API）で Claude Code の hook を書くためのリファレンス。hook を新規作成・修正するとき、シェルスクリプトの hook を TypeScript に書き直すとき、cc-hooks-ts の型や応答の返し方を確認するときに使う。
 ---
 
-# Creating Claude Code Hooks with cc-hooks-ts
+# cc-hooks-ts
 
-**cc-hooks-ts is mandatory for all hook development.** Never write raw hook scripts without it.
+`bun add cc-hooks-ts` で入れる。イベントごとの入力・出力の仕様は [Claude Code hooks リファレンス](https://code.claude.com/docs/en/hooks)、型の詳細はライブラリの型定義（`node_modules/cc-hooks-ts/dist/index.d.mts`）が正本。ここにはライブラリ固有の使い方と落とし穴だけを書く。
 
-## Install
-
-```bash
-bun add cc-hooks-ts
-```
-
-## Basic Hook Structure
-
-Every hook follows this pattern:
+## 基本形
 
 ```typescript
 #!/usr/bin/env bun
-import { defineHook } from "cc-hooks-ts";
+import { defineHook, runHook } from "cc-hooks-ts";
 
 const hook = defineHook({
-  trigger: {
-    PostToolUse: {
-      Write: true,
-      Edit: true,
-    },
-  },
-  // Optional: skip execution conditionally
-  shouldRun: () => process.platform === "darwin",
+  trigger: { PostToolUse: { Write: true, Edit: true } },
+  // 任意。false を返すと exit 0 で何もしない
+  shouldRun: () => process.env.MY_HOOK_ENABLED === "1",
   run: (context) => {
-    // Hook logic here
-    return context.success({
-      messageForUser: "Hook executed successfully",
-    });
+    const filePath = context.input.tool_input.file_path; // trigger のツールに応じて型が付く
+    return context.success({});
   },
 });
 
 if (import.meta.main) {
-  const { runHook } = await import("cc-hooks-ts");
   await runHook(hook);
 }
 ```
 
-Key elements:
+- `if (import.meta.main)` で囲むと、テストから hook 定義を import しても実行されない。テストでは `defineHook` をモックして `run` を取り出し、偽の `context` を渡して呼ぶ
+- ファイルに実行権限（`chmod +x`）を付け、hooks.json の `command` に `"../.."/...` で絶対パスを書く。変数をダブルクォートで囲むと、空白を含むインストール先でも 1 語のまま渡る
+- hooks.json の `matcher` はディスパッチ側の絞り込み、`trigger` はコード側の絞り込み。両方を同じツールに揃える。`trigger` に無いツールで起動されると入力の型が合わない
 
-- Shebang `#!/usr/bin/env bun` — hooks run as standalone executables
-- `defineHook()` — provides full type inference for trigger, input, and response
-- `runHook()` via dynamic import — handles stdin parsing, validation, context creation, and output formatting
-- `if (import.meta.main)` guard — allows importing the hook definition in tests without side effects
+## 応答メソッド
 
-## Supported Events
+- `context.success(payload?)`: exit 0。`additionalClaudeContext` は SessionStart と UserPromptSubmit でだけ効き、plain text の stdout として Claude のコンテキストに入る。`messageForUser` はそれ以外のイベントで plain text の stdout に出るだけで、debug ログに行き誰にも表示されないので使わない。ユーザーに見せる通知は `context.json` の `systemMessage` で返す
+- `context.json({ event, output })`: exit 0 で JSON を出す。`permissionDecision`・`additionalContext`・`decision` などイベント固有の制御はこれを使う。書き方は [response-patterns.md](references/response-patterns.md)
+- `context.blockingError(message)`: exit 2。message は stderr 経由で Claude に渡る（イベントにより扱いが違う）
+- `context.nonBlockingError(message?)`: exit 1。ユーザーに警告を出して処理は続く
+- `context.defer(handler, { timeoutMs })` は使わない。JSON を 2 行出す仕組みで公式仕様に無く、複数行の JSON は parse failure として扱われうる。時間のかかる hook は hooks.json のエントリに `"async": true` を書き、`run` を async 関数にして処理を待ってから `context.json` で結果を 1 回だけ返す。async hook の `additionalContext` と `systemMessage` はユーザーには表示されず、次のターンで Claude に渡る。Claude Code は async hook の `timeout` を強制しないので、外部呼び出しには hook 側で上限を設ける
 
-- `SessionStart` — Session begins
-  - Use Case: Environment checks, dependency install
-- `SessionEnd` — Session ends
-  - Use Case: Cleanup, state persistence
-- `PreToolUse` — Before tool execution
-  - Use Case: Block operations, validate input, modify input
-- `PostToolUse` — After tool execution
-  - Use Case: Logging, inject additional context
-- `PostToolUseFailure` — After tool failure
-  - Use Case: Error handling, retry guidance
-- `UserPromptSubmit` — User submits prompt
-  - Use Case: Prompt augmentation, blocking
-- `Stop` — Claude stops processing
-  - Use Case: Cleanup, notifications
-- `SubagentStart` — Subagent spawns
-  - Use Case: Subagent initialization
-- `SubagentStop` — Subagent stops
-  - Use Case: Subagent result processing
-- `Notification` — System notification
-  - Use Case: Alert handling
-- `PermissionRequest` — Permission requested
-  - Use Case: Auto-approve/deny rules
-- `PreCompact` — Before context compaction
-  - Use Case: State preservation
-- `PostCompact` — After context compaction
-  - Use Case: Post-compaction processing
-- `Setup` — Setup/maintenance trigger
-  - Use Case: One-time setup tasks
+stdout は hook の制御プロトコルとして解釈されるので、`console.log` でログを出さない。exit 0 の hook の stderr は debug ログにしか行かず、ユーザーと Claude のどちらにも見えない。ログはファイルに書く。
 
-## Tool-Specific Triggers
-
-Filter hooks to specific tools by listing them in the trigger config:
-
-```typescript
-const hook = defineHook({
-  trigger: {
-    PreToolUse: {
-      Read: true, // Only triggers for Read tool
-      Bash: true, // and Bash tool
-    },
-  },
-  run: (context) => {
-    // context.input.tool_name is "Read" | "Bash"
-    // context.input.tool_input is typed per tool
-    return context.success({});
-  },
-});
-```
-
-## Context API
-
-### Response Methods
-
-- `context.success(payload?)` — 0
-  - Behavior: Continue normally. Optional `messageForUser` and `additionalClaudeContext`.
-- `context.blockingError(message)` — 2
-  - Behavior: Stop execution. Error message fed to Claude.
-- `context.nonBlockingError(message?)` — 1
-  - Behavior: Show warning to user, continue execution.
-- `context.json(payload)` — 0
-  - Behavior: Full control over hook output — set `permissionDecision`, `additionalContext`, `suppressOutput`, etc.
-- `context.defer(handler, opts?)` — 0
-  - Behavior: Deferred async processing with optional `timeoutMs`.
-
-### context.input
-
-Strongly typed based on trigger configuration:
-
-```typescript
-// Base fields (all events)
-context.input.cwd; // Current working directory
-context.input.session_id; // Session ID
-context.input.transcript_path; // Transcript file path
-context.input.hook_event_name; // Event name
-
-// Tool events (PreToolUse/PostToolUse)
-context.input.tool_name; // Tool name (typed to trigger config)
-context.input.tool_input; // Tool input (typed per tool)
-context.input.tool_response; // Tool output (PostToolUse only)
-```
-
-### shouldRun
-
-Optional conditional execution — boolean or function (sync/async):
-
-```typescript
-shouldRun: () => process.env.HOOKS_ENABLED === "true";
-shouldRun: false; // Disable hook entirely
-```
-
-If it returns `false`, the hook exits with code 0 (skipped silently).
-
-## context.json() Response Structure
-
-Use `context.json()` for advanced control. The structure varies by event — see `references/response-patterns.md` for full details.
-
-**PreToolUse** — control permission and modify input:
-
-```typescript
-return context.json({
-  event: "PreToolUse",
-  output: {
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "allow" | "ask" | "deny",
-      permissionDecisionReason: "Auto-approved by policy",
-      updatedInput: { file_path: "/corrected/path" },
-      additionalContext: "Message for Claude",
-    },
-  },
-});
-```
-
-**PostToolUse** — inject context after tool runs:
-
-```typescript
-return context.json({
-  event: "PostToolUse",
-  output: {
-    hookSpecificOutput: {
-      hookEventName: "PostToolUse",
-      additionalContext: "Additional context for Claude",
-    },
-    suppressOutput: true,
-  },
-});
-```
-
-## plugin.json Configuration
-
-Register hooks in `plugin.json`:
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "../../hooks/my-hook.ts"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-- Use `../..` for plugin-relative paths
-- The `matcher` field filters at event dispatch level; the `trigger` config in `defineHook` filters at code level
-- Hook files must have executable permission (`chmod +x`)
-
-## Custom Tool Types
-
-Extend type definitions for MCP or custom tools via declaration merging:
+## MCP ツールなどの型を足す
 
 ```typescript
 declare module "cc-hooks-ts" {
   interface ToolSchema {
-    my_custom_tool: {
+    mcp__server__tool: {
       input: { query: string };
       response: { result: string };
     };
@@ -222,51 +55,8 @@ declare module "cc-hooks-ts" {
 }
 ```
 
-Then `context.input.tool_input` is typed as `{ query: string }` when triggered for `my_custom_tool`.
+これで `trigger: { PreToolUse: { mcp__server__tool: true } }` の `tool_input` に型が付く。
 
-## Stop Hook Recursion Guard (`stop_hook_active`)
+## Stop hook
 
-When a Stop hook returns `additionalContext` or blocks the stop, Claude may continue processing and eventually stop again — triggering the same Stop hook recursively. To prevent this infinite loop, Claude Code sets `stop_hook_active: true` in the input on the second invocation.
-
-**Always check this flag in Stop hooks:**
-
-```typescript
-const hook = defineHook({
-  trigger: { Stop: true },
-  run: (context) => {
-    if (context.input.stop_hook_active) {
-      return context.success({}); // Skip — already ran once this turn
-    }
-
-    // Your Stop hook logic here
-    return context.success({
-      additionalClaudeContext: "Remember to push before ending",
-    });
-  },
-});
-```
-
-Without this guard, a Stop hook that injects context will cause Claude to resume, stop again, trigger the hook again, and loop indefinitely.
-
-## Best Practices
-
-1. Use `console.error()` for user-visible output — stdout is reserved for hook JSON responses
-2. Implement cooldown for frequently triggered hooks to avoid performance impact
-3. Keep hooks lightweight — hook execution blocks Claude's processing
-4. Design for idempotency — same input should produce same result
-5. Wrap with try-catch — unhandled errors cause hook failures
-6. Guard Stop hooks against recursion — always check `stop_hook_active` (see above)
-
-## References
-
-- [cc-hooks-ts GitHub](https://github.com/sushichan044/cc-hooks-ts)
-- [Claude Code Hooks docs](https://code.claude.com/docs/en/hooks)
-
-## Bundled Resources
-
-<!-- REFERENCES_START — AUTO-GENERATED by inject-references.ts — DO NOT EDIT MANUALLY -->
-
-### References
-
-- `references/response-patterns.md` — Complete context.json() response structures for all hook events — PreToolUse, PostToolUse, UserPromptSubmit, PermissionRequest, Stop, and more
-<!-- REFERENCES_END -->
+Stop hook が継続させる（`decision: "block"` か `additionalContext`）と、Claude が作業を続けたあと再び Stop が発火する。継続中の呼び出しでは入力の `stop_hook_active` が `true` になる。同じ条件で何度も継続させないよう、`stop_hook_active` を見るか、継続回数を自分で数えて上限を設ける。Claude Code 側にも連続 8 回の上限がある。

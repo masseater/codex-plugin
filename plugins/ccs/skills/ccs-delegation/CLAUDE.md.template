@@ -1,17 +1,8 @@
-# CCS Auto-Delegation
+# CCS への委譲
 
-Activate `ccs-delegation` skill for automatic delegation of eligible tasks.
+範囲が明確な作業（typo 修正、テスト追加、単純なリファクタ、JSDoc やドキュメントの更新）は、`ccs:ccs-delegation` skill で CCS のプロファイルに委譲してよい。設計判断・セキュリティ・原因調査・性能改善・破壊的変更はメインで行う。
 
-**Commands:**
-- `/ccs "task"` - Auto-select best profile (glm/kimi/custom)
-- `/ccs:continue "follow-up"` - Continue last session
-- `/ccs --glm "task"` - Force specific profile
-
-**Auto-delegates:** typo fixes, test additions, refactoring, JSDoc, docs updates
-**Override:** Say "don't delegate" to bypass automation
-
-**Examples:**
-- "use ccs to fix typos in README" -> Auto-selects glm
-- "use ccs to analyze architecture" -> Auto-selects kimi
-- "use ccs --glm to add tests" -> Forces glm
-- "use ccs:continue to commit" -> Continues last session
+- `use ccs <task>`: プロファイルを自動で選んで委譲する
+- `use ccs --<profile> <task>`: プロファイルを指定して委譲する
+- `use ccs:continue <follow-up>`: 直前の委譲セッションを続ける
+- 「委譲しないで」と言われた作業は委譲しない

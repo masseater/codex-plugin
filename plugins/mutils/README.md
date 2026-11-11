@@ -13,30 +13,9 @@
 
 ---
 
-## Hooks
+## Hooks・スキル一覧
 
-| イベント     | フック                      | 説明                                 |
-| ------------ | --------------------------- | ------------------------------------ |
-| SessionStart | bun install --production    | 依存関係の自動インストール           |
-| SessionStart | check-context-version       | コンテキストファイルのバージョン確認 |
-| PreToolUse   | block-unsafe-type-assertion | 危険な型アサーションのブロック       |
-| PreToolUse   | block-husky-bypass          | HUSKY=0 による hooks バイパスを阻止  |
-| PostToolUse  | task-history                | TODO/Task 操作履歴を DB に永続化     |
-| Stop         | send-notification           | 完了通知の送信                       |
-
----
-
-## スキル
-
-| スキル                   | 説明                                          |
-| ------------------------ | --------------------------------------------- |
-| setup                    | 初回セットアップ                              |
-| recommended              | おすすめの設定・プラグイン・MCPサーバーを紹介 |
-| pls-auq                  | 効果的な質問の仕方ガイド                      |
-| reflection               | 作業振り返り・知見抽出                        |
-| issue-plan               | GitHub Issueから実装計画を自動生成            |
-| multi-angle-perspectives | 3つの観点から合計6つの提案を生成              |
-| dig                      | 深掘り調査                                    |
+Hooks・スキルの完全な一覧は自動生成され常に最新に保たれている [AGENTS.md](AGENTS.md#components) の Components セクションを参照する。このファイルに個別の一覧を重複して保持しない（重複はドリフトの原因になるため）。
 
 ---
 
@@ -50,13 +29,12 @@ Hooks は `$XDG_STATE_HOME/masseater-plugins/` にログを出力します（デ
 
 mutils から分離された専門プラグイン:
 
-| プラグイン  | 説明                                       |
-| ----------- | ------------------------------------------ |
-| context     | プロジェクトコンテキスト管理               |
-| code-review | PR・コードレビューワークフロー支援         |
-| research    | 調査・分析ツール                           |
-| techstack   | 技術スタック管理・準拠チェック             |
-| cc-hooks-ts | cc-hooks-ts ライブラリガイド・Hook作成支援 |
+| プラグイン  | 説明                                                   |
+| ----------- | ------------------------------------------------------ |
+| context     | プロジェクトコンテキスト管理                           |
+| research    | 調査・分析ツール                                       |
+| devkit      | 技術スタック定義・プロジェクトセットアップ・品質自動化 |
+| cc-hooks-ts | cc-hooks-ts ライブラリガイド・Hook作成支援             |
 
 ## 参考資料
 

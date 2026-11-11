@@ -1,40 +1,43 @@
 /* eslint-disable no-useless-concat -- intentional: split strings to avoid triggering hook self-detection */
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vite-plus/test";
+import { type CapturedHook, hookContext } from "../__tests__/hook-context.ts";
 
 /**
  * Tests for the pure logic in block-unsafe-type-assertion.ts.
- * The functions are not exported, so we replicate the patterns here
- * to verify the regex detection logic independently.
+ * The functions are exported from the hook entry and imported directly here.
  *
- * IMPORTANT: All pattern strings are built via concatenation to avoid
- * triggering the hook's own pattern detection on this file.
+ * IMPORTANT: All pattern strings used as test input are built via string
+ * concatenation to avoid this file itself triggering the hook's own
+ * pattern detection when it is written/edited.
  */
 
-// Build regex patterns from string fragments to avoid hook self-detection
-const FORBIDDEN_PATTERNS = [
-  { pattern: new RegExp("\\b" + "as" + "\\s+" + "unkno" + "wn\\b", "g"), name: "as unkno" + "wn" },
-  { pattern: new RegExp("\\b" + "as" + "\\s+" + "an" + "y\\b", "g"), name: "as an" + "y" },
-  { pattern: new RegExp("\\b" + "as" + "\\s+\\{\\s*\\}", "g"), name: "as {" + "}" },
-  { pattern: new RegExp(":" + "\\s*" + "an" + "y\\b", "g"), name: ": an" + "y" },
-  { pattern: new RegExp("@ts-expect" + "-error", "g"), name: "@ts-expect" + "-error" },
-];
+vi.mock("@r_masseater/cc-plugin-lib", () => ({
+  HookLogger: {
+    fromFile: () => ({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      fatal: vi.fn(),
+      [Symbol.dispose]: vi.fn(),
+    }),
+  },
+  wrapRun: vi.fn((_logger: unknown, fn: unknown) => fn),
+}));
+const captured = vi.hoisted(() => ({ hook: undefined as CapturedHook | undefined }));
+vi.mock("cc-hooks-ts", () => ({
+  defineHook: vi.fn((opts: CapturedHook) => {
+    captured.hook = opts;
+    return opts;
+  }),
+  runHook: vi.fn(),
+}));
 
-function isTypeScriptFile(filePath: string): boolean {
-  return /\.(ts|tsx|mts|cts)$/.test(filePath);
-}
-
-function findForbiddenPatterns(content: string): Array<{ name: string; matches: string[] }> {
-  const found: Array<{ name: string; matches: string[] }> = [];
-
-  for (const { pattern, name } of FORBIDDEN_PATTERNS) {
-    const matches = content.match(pattern);
-    if (matches && matches.length > 0) {
-      found.push({ name, matches });
-    }
-  }
-
-  return found;
-}
+import {
+  findForbiddenPatterns,
+  formatDenyReason,
+  isTypeScriptFile,
+} from "./entry/block-unsafe-type-assertion.ts";
 
 // Helper to build test input strings without triggering the hook
 function buildInput(prefix: string, keyword: string, suffix: string): string {
@@ -173,5 +176,52 @@ describe("findForbiddenPatterns", () => {
     const input = buildInput("const x = value ", "string", ";");
     const result = findForbiddenPatterns(input);
     expect(result).toStrictEqual([]);
+  });
+});
+
+describe("formatDenyReason", () => {
+  test("lists each violation with its count and the alternative", () => {
+    const text = formatDenyReason([{ name: "as " + "any", matches: ["x", "y"] }]);
+    expect(text).toContain("- as " + "any: 2 件");
+    expect(text).toContain("satisfies");
+  });
+});
+
+describe("hook run", () => {
+  const run = (input: unknown) => captured.hook?.run(hookContext(input));
+  const success = { kind: "success", output: {} };
+  const bad = buildInput("const x = y ", "any", ";");
+
+  test("passes when there is no input", () => {
+    expect(run(undefined)).toEqual(success);
+  });
+
+  test("passes non-TypeScript files", () => {
+    expect(run({ tool_name: "Write", tool_input: { file_path: "a.md", content: bad } })).toEqual(
+      success,
+    );
+  });
+
+  test("passes when there is no content", () => {
+    expect(run({ tool_name: "Write", tool_input: { file_path: "a.ts" } })).toEqual(success);
+  });
+
+  test("passes clean content", () => {
+    expect(
+      run({ tool_name: "Write", tool_input: { file_path: "a.ts", content: "const x = 1;" } }),
+    ).toEqual(success);
+  });
+
+  test("denies forbidden content written with Write", () => {
+    const result = run({ tool_name: "Write", tool_input: { file_path: "a.ts", content: bad } });
+    expect(result).toMatchObject({
+      kind: "json",
+      output: { output: { hookSpecificOutput: { permissionDecision: "deny" } } },
+    });
+  });
+
+  test("checks new_string for Edit", () => {
+    const result = run({ tool_name: "Edit", tool_input: { file_path: "a.ts", new_string: bad } });
+    expect(result).toMatchObject({ kind: "json" });
   });
 });

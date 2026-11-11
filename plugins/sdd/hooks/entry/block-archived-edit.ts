@@ -4,8 +4,29 @@
  */
 import { HookLogger, wrapRun } from "@r_masseater/cc-plugin-lib";
 import { defineHook, runHook } from "cc-hooks-ts";
+import { respondToDecision, type PermissionDecision } from "../lib/permission-decision.ts";
 
 using logger = HookLogger.fromFile(import.meta.filename);
+
+export type BlockDecision = PermissionDecision;
+
+/**
+ * specs/_archived/ パスを含むかどうかで編集の許否を判定する
+ * @param filePath - 編集対象のファイルパス
+ * @returns 許可または拒否理由を含む判定結果
+ */
+export function decideBlockArchivedEdit(filePath: string): BlockDecision {
+  // specs/_archived/ パスを含むかチェック
+  if (!filePath.includes("specs/_archived/")) {
+    return { decision: "allow" };
+  }
+
+  return {
+    decision: "deny",
+    reason:
+      "specs/_archived/ はアーカイブ済みの spec で、完了した作業の記録を保つため編集できません。変更が必要なら /sdd:spec init で新しい spec を作ってください。",
+  };
+}
 
 const hook = defineHook({
   trigger: {
@@ -17,26 +38,9 @@ const hook = defineHook({
   run: wrapRun(logger, (context) => {
     const filePath = context.input.tool_input.file_path;
 
-    // specs/_archived/ パスを含むかチェック
-    if (!filePath.includes("specs/_archived/")) {
-      return context.success({});
-    }
+    const result = decideBlockArchivedEdit(filePath);
 
-    return context.json({
-      event: "PreToolUse" as const,
-      output: {
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse" as const,
-          permissionDecision: "deny" as const,
-          permissionDecisionReason: [
-            "specs/_archived/ 内のファイルはアーカイブ済みのため編集禁止です。",
-            "",
-            "WHY: Archived specs must not be modified to preserve the audit trail of completed work.",
-            "FIX: To modify archived content, first unarchive with `/sdd:archive`, or create a new spec instead.",
-          ].join("\n"),
-        },
-      },
-    });
+    return respondToDecision(context, result);
   }),
 });
 

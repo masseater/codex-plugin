@@ -1,50 +1,26 @@
 ---
-name: mutils:task-history
-description: 'This skill should be used when the user asks to "review past work", "過去の作業を確認", "what was done", "TODO履歴", or wants past task and TODO history from previous sessions reviewed.'
-allowed-tools: Bash(./query.ts *), Read
+name: task-history
+description: mutils の task-history hook が記録したタスク・TODO の履歴（TodoWrite / TaskCreate / TaskUpdate）を照会する。過去のセッションで何をしたか、何が未完了のまま残っているかを示す。「前回の続きをやりたい」「前のセッションで残ったタスクを見せて」「過去の作業を振り返って」と頼まれたときに使う。
+allowed-tools: Bash(${CLAUDE_SKILL_DIR}/query.ts), Bash(${CLAUDE_SKILL_DIR}/query.ts *)
 ---
 
-# Task History: Review Past Work
+# task-history
 
-Display task and TODO history persisted by the `task-history` PostToolUse hook.
+履歴はリポジトリの `.agents/mutils/mutils.db` に、セッション ID ごとに記録されている。git リポジトリの中で実行する。
 
-`$ARGUMENTS`
-
-## Usage
-
-Run the query tool to retrieve history:
+## コマンド
 
 ```bash
-./query.ts [options]
+${CLAUDE_SKILL_DIR}/query.ts [options]
 ```
 
-### Options
+- `--open`: セッションごとに未完了のタスクだけを出す。「前回の続き」はこれを使う
+- `--recent N`: 直近 N 件（`--open` では直近 N セッション）。既定 50
+- `--session ID`: セッションを絞る
+- `--status STATUS`: `pending` / `in_progress` / `completed` で絞る
+- `--since DATE`: ISO 形式の日付以降に絞る（例: `--since 2026-01-31`）
 
-- `--recent N` — Show last N events
-  - Default: 50
-- `--session ID` — Filter by session ID
-  - Default: (all)
-- `--status STATUS` — Filter by status (pending, in_progress, completed)
-  - Default: (all)
-- `--since DATE` — Show events since ISO date
-  - Default: (all)
+## 使い分け
 
-### Examples
-
-```bash
-# Recent 50 events (default)
-./query.ts
-
-# Only completed tasks
-./query.ts --status completed
-
-# Events from today
-./query.ts --since 2026-03-24
-```
-
-## How to Present Results
-
-- Group events by session
-- Show timestamp, event type, subject, and status for each event
-- Highlight completed tasks
-- If the user asks to "reflect" or "振り返り", summarize what was accomplished across sessions
+- 前回の続き: `--open` で未完了のタスクを出し、ユーザーにどれを再開するか確認してから、このセッションのタスクリストに登録し直す
+- 振り返り: 既定の出力をセッションごとにまとめ、完了したことと残ったことを要約する

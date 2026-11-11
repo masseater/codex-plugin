@@ -1,133 +1,66 @@
 ---
-name: devkit:standards-audit
-description: This skill should be used when the user asks to "audit project standards", "check standards compliance", "devkit audit", "find standards violations", "are we following devkit standards", "what's not following standards", "compliance report", "規約チェック", "スタンダード監査", or "規約違反を探して". It actively scans code and reports violations. Do NOT use for project scaffolding (use init-project), single-CLI-tool checks (use cli-compliance), or looking up what the standards are (use standards).
-argument-hint: "[path to project or monorepo root (default: cwd) — auto-detects type; audits each workspace independently for monorepos]"
+name: standards-audit
+description: プロジェクト（monorepo なら各 workspace）を devkit の規約と照合し、違反と未導入の推奨事項を一覧で報告する。読み取り専用。「規約チェックして」「devkit の規約に沿っているか監査して」「この CLI ツールが規約どおりか見て」と頼まれたときに使う。
+argument-hint: "[path] [--reference <name>]"
 ---
 
-# Standards Audit
+# standards-audit
 
-Audit a project against devkit standards and report violations with improvement recommendations.
+## 引数
 
-$ARGUMENTS
+- `path`: 監査するプロジェクトのルート、または対象ディレクトリ。省略時は cwd
+- `--reference <name>`: 照合する reference を 1 つに絞る（例: `--reference cli` で CLI ツールの規約だけを見る）
 
-## Step 1: Load Standards and Parse References
+## 手順
 
-1. Invoke `/devkit:standards` using the Skill tool. This loads the SKILL.md content (Philosophy section + Bundled Resources list) into context.
-2. Extract the **Philosophy** section text from the loaded content.
-3. Collect all reference file paths from the Bundled Resources section. These paths are relative to the standards skill directory — resolve each by prepending the standards skill root path.
+1. 機械チェックを実行する。決定的に判定できる項目はこのスクリプトが担う
 
-## Step 2: Detect Project Type
+   ```bash
+   bun ${CLAUDE_SKILL_DIR}/scripts/audit.ts <path>
+   ```
 
-- If `pnpm-workspace.yaml` or `package.json` `workspaces` field exists → add **monorepo** type.
+   出力の `Type:` と見出しから、スコープ（単一プロジェクト、または `(root)` と各 workspace）と種別を読む。種別は依存から判定される: `next` → web、`hono` → backend、`citty` → cli。違反があると exit 1 になるが、失敗ではない
 
-Types are **not mutually exclusive** — a project can be multiple types simultaneously.
+2. スコープごとに照合する reference を決める。reference は `../standards/references/<name>.md` にある
 
-**Monorepo handling:**
+   ```text
+   if --reference が指定された: その reference だけ
+   else:
+     (root) スコープ: ecosystem, quality-automation, documentation, ai-harness, parallel-dev
+     すべてのスコープ: coding-standards, test, observability
+     種別に応じて: web → web, backend → backend, cli → cli
+   ```
 
-1. Parse workspace glob patterns from `pnpm-workspace.yaml` (or `package.json` `workspaces`)
-2. Resolve to concrete workspace directories (skip any that lack `package.json` — log a warning for each)
-3. Detect the type of each workspace independently using the same signal-matching logic
-4. Each workspace is audited as its own scope with its own detected types
+3. 判断が要る照合をする。委譲の単位は「1 スコープ × そのスコープの全 reference」にし、サブエージェントの総数は 8 体までにする。小さい照合まで委譲すると、起動と受け渡しのコストが照合そのものより大きくなるため
 
-## Step 3: Launch Subagents
+   ```text
+   if スコープが 1 つで、照合する reference が 3 つ以下（--reference 指定時など）:
+     このセッションで ../../agents/standards-auditor.md の手順と出力形式に従って照合する
+   else:
+     groups = スコープを最大 8 グループに分ける（スコープが 8 以下なら 1 スコープ 1 グループ、超えたら隣り合う workspace をまとめる）
+     グループごとに devkit:standards-auditor を 1 体起動する（同時に起動するのは 4 体まで）
+   ```
 
-**Dispatch model:** For each audit scope (single project, or each monorepo workspace + root), launch one subagent per applicable reference in parallel.
+   サブエージェントに渡すもの:
+   - グループ内の各スコープのラベル・絶対パス・種別と、そのスコープで照合する reference の名前
+   - `devkit:standards` SKILL.md の Philosophy 節
+   - 照合する reference ファイルの全文（グループ内で重複するものは 1 回だけ）
+   - 手順 1 で同じスコープ・reference について出た指摘（重複して報告させないため）
 
-Use the **`standards-auditor`** agent (`subagent_type: "devkit:standards-auditor"`). Each invocation receives this prompt:
+   サブエージェントがタイムアウトした、または JSON 配列を返さなかった場合は、報告の Warnings に `<scope>: <理由>` を載せる
 
-```
-Audit scope: {scope_label}
-Scope path: {absolute_path_to_scope}
-Scope type: {detected_types}
+4. 手順 1 と 3 の指摘をまとめて報告する
+   - 同じ `file` と `line` の指摘は 1 つにまとめる
+   - スコープ順（`(root)` が先、あとは名前順）、その中でファイルパス順・行番号順に並べる
+   - 各行: `- [<severity> / <confidence>] [<rule>] \`file:line\` — message`（場所が無いものは `(project-level)`）
+   - 末尾に件数の要約。指摘が無ければ「All checks passed.」とだけ書く
 
-## Standards to check
+ファイルは変更しない。修正はユーザーが別に頼んだときに行う。
 
-### Philosophy
-{Philosophy section text from Step 1}
+## 機械チェックの追加
 
-### Reference: {reference_filename}
-{full content of the reference file}
-```
+`${CLAUDE_SKILL_DIR}/scripts/checks/` の下に `<name>/index.ts` を作る。`meta: CheckMeta` と `run(ctx: ProjectContext): Promise<Finding[]>` を export すると `audit.ts` が自動で読み込む。
 
-**Subagent failure handling:** If a subagent times out, returns non-JSON output, or returns JSON that is not an array of the specified shape, add a warning to the report: `[{reference_name}] Subagent failed: {reason}`.
+## Stop hook
 
-## Step 4: Aggregate and Report
-
-Collect all subagent JSON results.
-
-**Deduplication:** If multiple findings share the same `file` + `line`, keep only the one from the alphabetically-first `rule` value. Findings with different `line` values (or different `file` values) are always distinct.
-
-**Rendering rules:**
-
-- `file` + `line` present → render as `` `file:line` ``
-- `file` present, `line` is null → render as `` `file` ``
-- Both null → render as `(project-level)`
-
-**Ordering:** Sort findings by file path (alphabetical), then line number (ascending, nulls last).
-
-**Format for single projects:**
-
-```
-## Standards Audit Report
-
-Project: {path}
-Type: {detected types}
-
-### Violations
-
-- [{rule}] `file:line` — message
-
-### Recommendations
-
-- [{rule}] `file` — message
-
-### Warnings
-
-- [{reference}] Subagent failed: {reason}
-
-Summary: N violations, M recommendations
-```
-
-**Format for monorepos (root first, then workspaces alphabetically):**
-
-```
-## Standards Audit Report
-
-Project: {monorepo root}
-Type: monorepo
-
-### (root)
-
-#### Violations
-- [{rule}] `file:line` — message
-
-### apps/web (web)
-
-#### Recommendations
-- [{rule}] `file` — message
-
-Summary: N violations, M recommendations across K scopes
-```
-
-Omit empty sections (including Warnings if none). If no findings across all scopes, report: "All checks passed."
-
-## Notes
-
-- Report only; do not fix
-- After presenting the report, ask the user if they want to fix any items
-
-## Automated Script
-
-For mechanical checks that run without AI, use the automated audit script:
-
-```bash
-bun skills/standards-audit/scripts/audit.ts [project-path]
-```
-
-Checks config-files, scripts, quality-libs, versions, monorepo, ci, test-structure, code-patterns, documentation and more. Categories expand automatically as new check modules are added.
-
-The script auto-discovers check modules from `scripts/checks/*/index.ts`. To add new checks, create a new directory with an `index.ts` exporting `meta: CheckMeta` and `run(ctx: ProjectContext): Promise<Finding[]>`.
-
-### Stop Hook
-
-Set `DEVKIT_AUDIT_ON_STOP=1` to run the audit automatically when Claude stops. Violations block the stop and force the AI to address them.
+`DEVKIT_AUDIT_ON_STOP=1` のとき、SessionStart で違反の基準値を記録し、Stop でこのセッション中に増えた違反だけを 1 回通知する。全件は `.claude/hooks/quality-check-log/standards-audit.log` に書く。

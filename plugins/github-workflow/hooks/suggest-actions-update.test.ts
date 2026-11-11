@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vite-plus/test";
 
 const { capturedHookDefs, mockReadFileSync } = vi.hoisted(() => ({
   capturedHookDefs: [] as { run: (ctx: Record<string, unknown>) => unknown }[],
@@ -30,16 +30,13 @@ vi.mock("node:fs", () => ({
 }));
 
 import "./entry/suggest-actions-update.ts";
+import { collectUsesValues, parseActionRef, pickMaxMajorVersion } from "./lib/action-ref.ts";
+import { fetchLatestMajorVersion } from "./lib/action-tags.ts";
 import {
-  collectUsesValues,
   extractActionRefs,
-  fetchLatestMajorVersion,
   findOutdatedActions,
   formatSuggestions,
   isGitHubWorkflowFile,
-  parseActionRef,
-  parseMajorVersion,
-  pickMaxMajorVersion,
 } from "./lib/actions-versions.ts";
 
 describe("isGitHubWorkflowFile", () => {
@@ -56,21 +53,21 @@ describe("isGitHubWorkflowFile", () => {
   });
 });
 
-describe("parseMajorVersion", () => {
+describe("pickMaxMajorVersion で見る major version の読み取り", () => {
   test("parses v-prefixed versions", () => {
-    expect(parseMajorVersion("v4")).toBe(4);
-    expect(parseMajorVersion("v3")).toBe(3);
-    expect(parseMajorVersion("v12")).toBe(12);
+    expect(pickMaxMajorVersion(["v4"])).toBe("v4");
+    expect(pickMaxMajorVersion(["v3"])).toBe("v3");
+    expect(pickMaxMajorVersion(["v12"])).toBe("v12");
   });
 
   test("parses versions with minor/patch", () => {
-    expect(parseMajorVersion("v3.5.2")).toBe(3);
-    expect(parseMajorVersion("v4.0.0")).toBe(4);
+    expect(pickMaxMajorVersion(["v3.5.2"])).toBe("v3");
+    expect(pickMaxMajorVersion(["v4.0.0"])).toBe("v4");
   });
 
   test("returns null for invalid versions", () => {
-    expect(parseMajorVersion("main")).toBeNull();
-    expect(parseMajorVersion("abc123")).toBeNull();
+    expect(pickMaxMajorVersion(["main"])).toBeNull();
+    expect(pickMaxMajorVersion(["abc123"])).toBeNull();
   });
 });
 
@@ -372,13 +369,30 @@ describe("findOutdatedActions", () => {
 });
 
 describe("suggest-actions-update hook", () => {
+  const originalSpawn = globalThis.Bun?.spawn;
+
+  afterEach(() => {
+    if (originalSpawn) {
+      (globalThis.Bun as Record<string, unknown>).spawn = originalSpawn;
+    }
+  });
+
+  function mockTags(stdout: string) {
+    if (!globalThis.Bun) {
+      (globalThis as Record<string, unknown>).Bun = {};
+    }
+    (globalThis.Bun as Record<string, unknown>).spawn = vi.fn(() => ({
+      exited: Promise.resolve(0),
+      stdout: new Blob([stdout]).stream(),
+      stderr: new Blob([""]).stream(),
+    }));
+  }
+
   function createMockContext(filePath: string) {
-    const successResult = { type: "success" };
-    const deferResult = { type: "defer" };
     return {
       input: { tool_input: { file_path: filePath } },
-      success: vi.fn(() => successResult),
-      defer: vi.fn(() => deferResult),
+      success: vi.fn(() => ({ type: "success" })),
+      json: vi.fn((value: unknown) => value),
     };
   }
 
@@ -388,56 +402,70 @@ describe("suggest-actions-update hook", () => {
     return hookDef.run;
   }
 
-  test("returns success for non-workflow files", () => {
+  const WORKFLOW_WITH_CHECKOUT_V3 = [
+    "jobs:",
+    "  build:",
+    "    runs-on: ubuntu-latest",
+    "    steps:",
+    "      - uses: actions/checkout@v3",
+  ].join("\n");
+
+  test("returns success for non-workflow files", async () => {
     const ctx = createMockContext("/repo/src/app.ts");
-    const run = getHookRun();
-    run(ctx);
+    await getHookRun()(ctx);
     expect(ctx.success).toHaveBeenCalledWith({});
-    expect(ctx.defer).not.toHaveBeenCalled();
+    expect(ctx.json).not.toHaveBeenCalled();
   });
 
-  test("returns success when file cannot be read", () => {
+  test("returns success when file cannot be read", async () => {
     mockReadFileSync.mockImplementation(() => {
       throw new Error("ENOENT");
     });
 
     const ctx = createMockContext("/repo/.github/workflows/ci.yml");
-    const run = getHookRun();
-    run(ctx);
+    await getHookRun()(ctx);
 
     expect(ctx.success).toHaveBeenCalledWith({});
-    expect(ctx.defer).not.toHaveBeenCalled();
+    expect(ctx.json).not.toHaveBeenCalled();
   });
 
-  test("returns success when no action refs found", () => {
+  test("returns success when no action refs found", async () => {
     mockReadFileSync.mockReturnValue(
       "name: CI\non: push\njobs:\n  build:\n    runs-on: ubuntu-latest",
     );
 
     const ctx = createMockContext("/repo/.github/workflows/ci.yml");
-    const run = getHookRun();
-    run(ctx);
+    await getHookRun()(ctx);
 
     expect(ctx.success).toHaveBeenCalledWith({});
-    expect(ctx.defer).not.toHaveBeenCalled();
+    expect(ctx.json).not.toHaveBeenCalled();
   });
 
-  test("calls defer when action refs are found", () => {
-    mockReadFileSync.mockReturnValue(
-      [
-        "jobs:",
-        "  build:",
-        "    runs-on: ubuntu-latest",
-        "    steps:",
-        "      - uses: actions/checkout@v3",
-      ].join("\n"),
-    );
+  // hook は hooks.json で async 実行されるので、タグの取得を待ってから結果を 1 回だけ返す
+  test("returns suggestions once when a newer major exists", async () => {
+    mockReadFileSync.mockReturnValue(WORKFLOW_WITH_CHECKOUT_V3);
+    mockTags("v4.1.0\nv4\nv3\n");
 
     const ctx = createMockContext("/repo/.github/workflows/ci.yml");
-    const run = getHookRun();
-    run(ctx);
+    await getHookRun()(ctx);
 
-    expect(ctx.defer).toHaveBeenCalled();
+    expect(ctx.json).toHaveBeenCalledTimes(1);
+    expect(ctx.json.mock.calls[0]?.[0]).toMatchObject({
+      output: {
+        hookSpecificOutput: { additionalContext: expect.stringContaining("actions/checkout") },
+      },
+    });
     expect(ctx.success).not.toHaveBeenCalled();
+  });
+
+  test("returns success when all actions are up to date", async () => {
+    mockReadFileSync.mockReturnValue(WORKFLOW_WITH_CHECKOUT_V3);
+    mockTags("v3.1.0\nv3\n");
+
+    const ctx = createMockContext("/repo/.github/workflows/ci.yml");
+    await getHookRun()(ctx);
+
+    expect(ctx.success).toHaveBeenCalledWith({});
+    expect(ctx.json).not.toHaveBeenCalled();
   });
 });

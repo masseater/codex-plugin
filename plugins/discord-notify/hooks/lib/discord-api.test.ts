@@ -1,5 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { DISCORD_MAX_LENGTH, createThread, sendMessage, splitMessage } from "./discord-api.ts";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { createThread, sendMessage, splitMessage } from "./discord-api.ts";
+
+// Discord の 1 メッセージの長さの上限
+const DISCORD_MAX_LENGTH = 2000;
 
 describe("splitMessage", () => {
   it("returns single-element array for short text", () => {
@@ -129,6 +132,32 @@ describe("createThread", () => {
 
     await expect(createThread("ch-1", "msg-1", "token", "name")).rejects.toThrow(
       "Discord createThread failed (404): Not Found",
+    );
+  });
+});
+
+describe("Discord API response validation", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("rejects a sendMessage response without an id", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ message: "ok" }) }),
+    );
+    await expect(sendMessage("ch-1", "token", "hello")).rejects.toThrow(
+      "Discord sendMessage returned a response without an id",
+    );
+  });
+
+  it("rejects a createThread response whose id is not a string", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ id: 1 }) }),
+    );
+    await expect(createThread("ch-1", "msg-1", "token", "name")).rejects.toThrow(
+      "Discord createThread returned a response without an id",
     );
   });
 });

@@ -1,161 +1,89 @@
 ---
-name: mutils:consecutive-review-loop
-description: "This skill should be used when the user asks for 'N回連続レビュー', '3回連続成功', 'サブエージェントで連続レビュー', 'streak review', 'consecutive review', 'review until N passes', 'レビューが連続成功するまで', or wants iterative subagent review where past feedback MUST NOT leak into the next review. Runs a subagent review-and-fix loop until N consecutive passes are achieved, resetting the streak on any failure and invoking each subagent review with a flat, history-free prompt."
-allowed-tools: Agent, Read, Write, Edit, Glob, Grep, TodoWrite, AskUserQuestion
+name: consecutive-review-loop
+description: 履歴を含まない固定プロンプトでサブエージェントにレビューさせ、指摘を直しながら N 回連続で合格するまで繰り返す。「3 回連続でレビューが通るまで回して」「サブエージェントで連続レビュー」と頼まれたときに使う。
+argument-hint: "<レビュー対象> <レビュー観点> [N=3] [合格しきい値=medium]"
+allowed-tools: Agent, Read, Write, Edit, Glob, Grep, AskUserQuestion
 ---
 
-# consecutive-review-loop
+# 連続レビューループ
 
-Run a subagent review-and-fix loop until N **consecutive** passes are achieved. On any failure mid-streak, the counter resets to 0 and the loop restarts from the first attempt. Each subagent review MUST be invoked with a flat, history-free prompt — past feedback MUST NOT be mentioned to the subagent.
+引数: `$ARGUMENTS`
 
-`$ARGUMENTS`
+単発の合格は弱い証拠で、レビュアーの見落としや直前の修正による新しい問題を否定できない。互いに独立したレビューで N 回続けて合格すれば、成果物が健全だという強い証拠になる。独立性を保つため、レビュアーには過去のレビューについて何も伝えない。「前回は X を指摘された」と伝えると、レビュアーがその指摘にアンカリングして新しい目で見なくなる。
 
-## Why The Streak And Flat Prompt Matter
+## パラメータ
 
-A single passing review is weak evidence — the subagent may have missed issues, or the latest fix may have introduced new ones. N consecutive independent passes is much stronger evidence that the artifact is sound.
+- レビュー対象（必須）: ファイルパス、図、設計文書、コードの変更など
+- レビュー観点（必須）: レビュアーに与える 1 つの観点（例: 「このシステム図は実装と一致しているか」）
+- N: 連続合格の回数。既定 3
+- 合格しきい値: この severity 以上の指摘が 0 件なら合格。既定 `medium`（`high` / `medium` / `low` から選ぶ）
+- 試行上限: 既定は N × 3 回。レビュー結果が読めない試行（MALFORMED）が 3 回続いた場合も止める。収束しないループを延々と回さず、人が見直せる状態で終えるため
 
-For the streak to count as independent evidence, each review MUST be conducted by a subagent that has zero knowledge of previous reviews. If the subagent is told "this is the third attempt, previous feedback was X, Y, Z," it will anchor on past issues and stop looking with fresh eyes. The whole point of the loop collapses.
+必須パラメータが引数や会話から分からなければ、ループを始める前に `AskUserQuestion` で聞く。
 
-## Parameters
-
-Resolve these before starting the loop. If `$ARGUMENTS` provides them, use those values; otherwise use defaults or ask the user.
-
-- Review target — yes
-  - Default: —
-  - Meaning: What artifact the subagent reviews (file path, diagram, design doc, code change, etc.)
-- Review focus — yes
-  - Default: —
-  - Meaning: The single observational frame for the subagent (e.g., "Is this system diagram correct?")
-- N (required streak) — no
-  - Default: 3
-  - Meaning: Number of consecutive passes required to finish
-- Pass criterion — no
-  - Default: "no actionable findings"
-  - Meaning: What makes a review count as a pass
-
-IF: any required parameter is missing AND cannot be inferred from `$ARGUMENTS`; THEN MUST: ask the user with `AskUserQuestion` before starting the loop.
-
-## Workflow
-
-### Algorithm (Pseudocode)
+## 手順
 
 ```text
-function consecutiveReviewLoop(target, focus, N = 3, passCriterion = "no actionable findings"):
-    flatPrompt := buildFlatPrompt(target, focus, passCriterion)   # built ONCE, byte-frozen
+flatPrompt  = buildFlatPrompt(target, focus)   # 1 回だけ作り、以後 1 文字も変えない
+findingsLog = create "<対象のベース名>-findings-log.md"（対象と同じ場所か .local-agents/）
+streak = 0; attempts = 0; malformedStreak = 0
+maxAttempts = N * 3
 
-    streak   := 0
-    attempts := 0
+while streak < N:
+  if attempts >= maxAttempts or malformedStreak >= 3:
+    report "STOPPED — {streak}/{N} streak after {attempts} attempts", the findings log path,
+           and the blocking findings from the latest FAIL that remain
+    stop
+  attempts += 1
+  result = spawn new subagent with flatPrompt   # streak・試行回数・過去の指摘・修正内容は渡さない
+  if result has no parseable findings list (crash, timeout, malformed):
+    malformedStreak += 1
+    note "attempt #{attempts}: MALFORMED"; continue   # 合格にも不合格にも数えない
+  malformedStreak = 0
 
-    while streak < N:
-        attempts += 1
+  blocking = findings with severity >= threshold
+  if blocking is empty:
+    streak += 1
+    note "attempt #{attempts}: PASS — streak {streak}/{N}"
+  else:
+    note "attempt #{attempts}: FAIL — streak {streak} → 0"
+    streak = 0                                  # 1 減らすのではなく 0 に戻す
+    for finding in result.findings:              # しきい値未満も含めて全件トリアージする
+      decide valid / invalid / partial, fix valid ones directly with Edit/Write
+      append to findingsLog before the next attempt
+    re-run the artifact's own checks (compile, lint, test, preview) and fix until they pass
 
-        result := spawnSubagent(prompt = flatPrompt, model = "sonnet")
-                    # MUST NOT pass: streak, attempts, prior findings, prior fixes,
-                    #                "this is attempt N", "focus harder on X", etc.
-
-        if result is malformed or subagent crashed:
-            continue                          # do NOT count as PASS, do NOT count as FAIL
-                                              # re-run the same flatPrompt next iteration
-
-        verdict := classify(result, passCriterion)   # → PASS | FAIL
-
-        if verdict == PASS:
-            streak += 1
-            report("attempt #" + attempts + ": PASS — streak " + streak + "/" + N)
-        else:
-            previousStreak := streak
-            streak := 0                       # FULL RESET — not streak -= 1
-            report("attempt #" + attempts + ": FAIL — streak reset "
-                   + previousStreak + " → 0")
-
-            for finding in result.findings:
-                applyFix(finding)              # main agent applies fixes directly
-            reverifyArtifactValid()            # compile / lint / preview as appropriate
-
-    report("DONE — " + N + " consecutive passes in " + attempts + " attempts")
+report "DONE — {N} consecutive passes in {attempts} attempts" and the findings log path
 ```
 
-Two invariants the implementation MUST preserve:
+- 試行ごとの `note` は 1 行にし、次の試行の Agent 呼び出しと同じメッセージに書く。本文だけのメッセージで経過を報告すると、そこでターンが終わってループが途切れる
+- ユーザーがループ中に対象や観点を変えたら、streak を捨てて最初からやり直す
+- レビューはメインエージェントのセルフレビューで代替しない。メインは履歴を知っているので独立性がなくなる
+- レビュアーは Agent ツールの `subagent_type` に `general-purpose` など会話を引き継がない種類を指定して起動し、fork にしない。fork は会話履歴をすべて引き継ぐので、独立性がなくなる
 
-1. `flatPrompt` is computed once and reused byte-for-byte across every `spawnSubagent` call.
-2. The only state that flows between iterations on the subagent side is **none** — the main agent holds `streak` / `attempts` / findings, the subagent sees only the artifact and the focus.
+## 固定プロンプト
 
-### Step 1: Set Up State
+レビュー対象と観点だけを書き、全指摘を severity と confidence 付きで返させる。合否の判定はメイン側が行う。レビュアーに合否を判定させたり「重大なものだけ」と絞らせたりすると、見つけた問題を報告しなくなるため。
 
-Track loop state in a TodoWrite list with three items, updated on every iteration:
+```text
+以下の <成果物の種類> を「<観点>」の観点でレビューしてください。
+見つけた問題はすべて、次の形式の箇条書きで返してください。問題がなければ「指摘なし」と書いてください。
+- [severity: high|medium|low] [confidence: high|medium|low] <場所>: <問題と根拠>
 
-- `streak: <current>/<N>`
-- `attempts: <total attempts so far>`
-- `last result: <pass | fail | n/a>`
+<成果物のパスまたは内容>
+```
 
-MUST: update the TodoWrite list after every subagent call and after every fix pass.
+「これは N 回目」「X は修正済み」「Y に注目して」など、履歴やヒントは書き足さない。
 
-### Step 2: Build The Flat Review Prompt (Once)
+## findings log の形式
 
-Write the exact prompt that will be sent to every subagent review. This prompt:
+追記だけで運用し、不合格の試行ごとに 1 節を足す。合格の試行は記録しない。偽陽性と判断した指摘も理由付きで残す。
 
-- MUST: describe only the review target and the review focus
-- MUST NOT: mention "this is the Nth attempt", "previous feedback", "past iterations", "we have already fixed X", or any history-bearing phrase
-- MUST NOT: include the current streak count or attempt number
-- MUST NOT: hint at known issues or known-good areas
-- SHOULD: ask the subagent to return a structured verdict (PASS / FAIL + findings) so the main agent can classify deterministically
+```markdown
+## Attempt #<n>
 
-Example skeleton (adapt the framing to the actual target):
-
-> "Review the following [artifact-type]. Check whether it is correct / well-formed / consistent. Return a verdict: PASS if there are no actionable findings, FAIL otherwise. If FAIL, list each finding as a separate bullet."
->
-> "[artifact content or path]"
-
-Save this prompt verbatim. MUST: reuse it byte-for-byte on every iteration.
-
-### Step 3: Run The Loop
-
-Repeat until `streak == N`:
-
-1. Spawn a fresh subagent with the verbatim flat prompt from Step 2.
-   - MUST: use `Agent` (subagent) — not inline reasoning by the main agent
-   - MUST: use `model: sonnet` per the project's subagent rules
-   - MUST NOT: add any context about previous iterations, fixes, or findings
-   - MUST NOT: vary the prompt across iterations (no "this time look harder", no "focus on X this round")
-
-2. Classify the result as PASS or FAIL based on the pass criterion.
-
-3. Update streak:
-   - IF: result == PASS; THEN: `streak += 1`
-   - IF: result == FAIL; THEN: `streak = 0` (full reset, even if previous attempts passed)
-
-4. If FAIL: apply fixes for every finding the subagent raised, then continue the loop.
-   - MUST: apply fixes by the main agent directly (Write / Edit), not by delegating to a fix subagent
-   - MUST: re-verify the artifact is in a valid state before the next review (compile / lint / preview as appropriate)
-
-5. Report progress to the user in one line after each iteration:
-   - `attempt #<n>: <PASS|FAIL> — streak <current>/<N>`
-   - IF: FAIL after a non-zero streak; THEN MUST: explicitly note the streak reset (e.g., `streak reset 2 → 0`)
-
-6. Stop condition: `streak == N` → declare success and report total attempts.
-
-### Step 4: Report Outcome
-
-When `streak == N` is reached:
-
-- Report total attempts taken
-- Report the final artifact state
-- MUST NOT: claim success before the N-th consecutive PASS lands
-
-## Rules Summary
-
-- IF: the subagent is being prompted; THEN MUST: send the exact, history-free prompt from Step 2
-- IF: a review fails after one or more passes; THEN MUST: reset streak to 0 (not decrement by 1)
-- IF: the user interrupts or changes the target mid-loop; THEN MUST: abandon the current streak and restart from Step 1
-- MUST NOT: tell the subagent the current streak, attempt index, or what was fixed
-- MUST NOT: skip the fix step on FAIL — every actionable finding must be addressed before the next review
-- MUST NOT: count a "no-op review" (subagent crashed, timed out, or returned malformed output) as a PASS — re-run the same flat prompt instead
-
-## Anti-patterns
-
-- "This is review #3. Previous reviewers said X, Y. Please verify." — Anchors the subagent on past issues; reviews are no longer independent
-- "We've already fixed the diagram arrows. Focus on the labels." — Hides regression risk; the subagent will skip "known-good" areas
-- Counting two passes + one fail + one pass as `streak = 1` — Wrong reset semantics — any fail wipes the streak to 0
-- Tweaking the prompt wording between iterations to "get a better look" — Each iteration must be byte-identical; otherwise the streak is not measuring the same thing
-- Letting the main agent self-review instead of spawning a subagent — Defeats the independence guarantee; the main agent knows the history
-- Declaring success after the first PASS — The whole point is N consecutive — one PASS is not enough
+- 指摘: <レビュアーの指摘文>（severity / confidence）
+  - 妥当性: yes / no / partial — <判断の根拠 1 行>
+  - 修正: <変更した箇所と内容。直さないなら「修正なし」>
+  - 確認: <compile / lint / test などの結果>
+```

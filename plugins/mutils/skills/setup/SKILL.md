@@ -1,47 +1,42 @@
 ---
-name: mutils:setup
-description: 'This skill should be used when the user asks to "set up mutils", "mutilsをセットアップ", "install mutils settings", "mutils setup", or wants recommended mutils references and dependencies applied.'
+name: setup
+description: mutils の個人ルール（assets/AGENTS.md）を `~/AGENTS.md` に同期し、`~/.claude/CLAUDE.md` から読み込まれるようにして、依存をインストールする。
+disable-model-invocation: true
+allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/sync-agents-md.ts *), Bash(bun install), Bash(bun install *)
 ---
 
-# mutilsプラグインのセットアップ
+# setup
 
-mutilsプラグインの推奨設定をユーザー環境に適用します。
+## 1. ~/AGENTS.md を同期する
 
-## 実行手順
+```bash
+${CLAUDE_SKILL_DIR}/scripts/sync-agents-md.ts --src ../../assets/AGENTS.md
+```
 
-### 参照の追加
+スクリプトは `~/AGENTS.md` の `<!-- BEGIN mutils:agents-md -->` 〜 `<!-- END mutils:agents-md -->` の中だけを書き換え、マーカーの外には触れない。マーカー内のユーザー編集は、前回適用した内容（`~/.claude/mutils/setup-baseline-agents-md.md`）を共通祖先とする 3-way merge で mutils 側の更新と両立させる。あわせて `~/.claude/CLAUDE.md` に `@~/AGENTS.md` の import 行が無ければ追加する（CLAUDE.md を持つプロジェクトでは `~/AGENTS.md` が直接は読まれないため）。
 
-同名のファイルに参照行を追加してください:
+出力 JSON の `status` に応じて次のようにする。
 
-- AGENTS.md — `~/AGENTS.md`
-  - 追加する参照: `@${CLAUDE_PLUGIN_DIR}/assets/AGENTS.md`
+```text
+created / appended / unchanged / merged:
+  完了。importAdded が true なら ~/.claude/CLAUDE.md に import 行を足したことも報告する
+needs-baseline（前回の適用記録が無く、マーカー内が配布内容と違う）:
+  files.inside（現在のマーカー内）と files.src（配布内容）の差分を見せ、
+  AskUserQuestion で「配布内容で上書き / 現在の内容を残す / 手でマージする」を聞く
+  決まった内容をファイルに書き、--resolve <file> を付けて再実行する
+conflict（ユーザー編集と配布内容の更新が同じ箇所に当たった）:
+  files.conflict のコンフリクト箇所を見せ、どちらを採るか、または解消した内容をユーザーに決めてもらう
+  解消した内容をファイルに書き、--resolve <file> を付けて再実行する
+```
 
-**注意**:
+`--resolve` で確定したあとも、出力の `importAdded` を報告に含める。
 
-- `${CLAUDE_PLUGIN_DIR}` は plugin-level assets を参照するために使う
-- IF: 追加先ファイルが存在しない; THEN MUST: 新規作成する
-- IF: 既に同じ参照が存在する; THEN MUST: 追加をスキップする
+## 2. 依存をインストールする
 
-### 追加作業
+`../..` から親ディレクトリをたどって `bun.lock` があるディレクトリを探す。見つかったら `bun install --cwd <そのディレクトリ>` を実行する（`cd` と組み合わせると allowed-tools の事前承認に一致しないため）。見つからない場合（plugin キャッシュでは SessionStart hook がインストール済み）は何もしない。
 
-- Bun がインストールされているか確認する。
-- 依存パッケージをインストールする:
-  - `../..` から `bun.lock` が見つかるディレクトリまで上っていき、そこで `bun install` を実行する。
-  - これにより workspace 全体（mutils を含む全プラグイン）の依存関係が一括でインストールされる。
-  - SessionStart hook の `check-install` がインストール不足を警告した場合も同じ手順で復旧する。
-- mutils が生成する `*.mutils_knowledge.md` ファイルが global の gitignore に入っているか確認する。
-  - MUST: `git config --global core.excludesfile` で実際の global ignore ファイルを特定する（`~/.gitignore` が必ず global ignore になるとは限らないため）
-  - IF: global gitignore に入っていない; THEN MUST: ユーザーの許可を得た上で追記する
-- 環境変数 `ENABLE_TOOL_SEARCH=true` が設定されてツール検索ツール機能が有効になっていることを確認する。
+## 3. 報告する
 
-### 完了報告
-
-セットアップが完了したら、以下を報告してください:
-
-- 追加したファイルのパス
-- 追加した参照の内容
-
-## セットアップされる設定ファイル
-
-- AGENTS.md: AI エージェント向けの汎用コンテキストファイル
-- CLAUDE.md: Claude Code 専用のコンテキストファイル
+- `~/AGENTS.md` の同期結果（status）と、merge・解消した場合はどの部分がユーザー編集由来でどの部分が配布内容由来か
+- `~/.claude/CLAUDE.md` に import 行を足したか
+- `bun install` を実行したディレクトリと結果

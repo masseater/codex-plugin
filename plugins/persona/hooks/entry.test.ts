@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test as base, describe, expect, vi } from "vitest";
+import { test as base, describe, expect, vi } from "vite-plus/test";
 
 const { capturedHookDef } = vi.hoisted(() => ({
   capturedHookDef: [] as { run: (ctx: unknown) => unknown }[],
@@ -29,12 +29,23 @@ vi.mock("cc-hooks-ts", () => ({
 }));
 
 import {
-  PLANNER_PROMPT,
+  type Persona,
+  personaPrompt,
+  readInjectedPersona,
   readPersona,
   resolveStateFile,
-  WORKER_PROMPT,
   writePersona,
 } from "./lib/state.ts";
+
+// 登録されている全 persona（state.ts の定義と同じ順）
+const PERSONAS: readonly Persona[] = [
+  "planner",
+  "worker",
+  "idealist",
+  "orchestrator",
+  "sparring",
+  "pathfinder",
+];
 
 await import("./entry/inject-persona.ts");
 await import("./entry/announce-persona.ts");
@@ -42,10 +53,7 @@ await import("./entry/on-exit-plan.ts");
 await import("./entry/cleanup-persona.ts");
 
 const HOOK_NAMES = ["inject", "announce", "onExitPlan", "cleanup"] as const;
-const hookIndex = Object.fromEntries(HOOK_NAMES.map((n, i) => [n, i])) as Record<
-  (typeof HOOK_NAMES)[number],
-  number
->;
+const hookIndex = (name: (typeof HOOK_NAMES)[number]): number => HOOK_NAMES.indexOf(name);
 
 const test = base.extend<{ projectDir: string; sessionId: string }>({
   projectDir: async ({ task: _task }, use) => {
@@ -69,7 +77,7 @@ type MockSuccessResult = { type: "success"; arg: unknown };
 const createCtx = (sessionId: string) => {
   const calls: { json: unknown[]; success: unknown[] } = { json: [], success: [] };
   return {
-    input: { session_id: sessionId },
+    input: { session_id: sessionId, source: "startup" },
     json: vi.fn((arg: unknown) => {
       calls.json.push(arg);
       return { type: "json", arg } satisfies MockJsonResult;
@@ -82,10 +90,20 @@ const createCtx = (sessionId: string) => {
   };
 };
 
-const getRun = (name: keyof typeof hookIndex) => {
-  const def = capturedHookDef[hookIndex[name]];
+const getRun = (name: (typeof HOOK_NAMES)[number]) => {
+  const def = capturedHookDef[hookIndex(name)];
   if (!def) throw new Error(`hook ${name} not captured`);
   return def.run as (ctx: ReturnType<typeof createCtx>) => unknown;
+};
+
+const unsetProjectDir = (fn: () => void) => {
+  const original = process.env.CLAUDE_PROJECT_DIR;
+  delete process.env.CLAUDE_PROJECT_DIR;
+  try {
+    fn();
+  } finally {
+    if (original !== undefined) process.env.CLAUDE_PROJECT_DIR = original;
+  }
 };
 
 describe("inject-persona hook", () => {
@@ -96,8 +114,12 @@ describe("inject-persona hook", () => {
     expect(ctx.json).not.toHaveBeenCalled();
   });
 
-  test("injects PLANNER_PROMPT when state is planner", ({ projectDir, sessionId }) => {
-    writePersona(resolveStateFile(projectDir, sessionId), "planner");
+  test("injects planner prompt on the first prompt after switching", ({
+    projectDir,
+    sessionId,
+  }) => {
+    const stateFile = resolveStateFile(projectDir, sessionId);
+    writePersona(stateFile, "planner");
     const ctx = createCtx(sessionId);
     getRun("inject")(ctx);
     expect(ctx.json).toHaveBeenCalledWith({
@@ -105,33 +127,53 @@ describe("inject-persona hook", () => {
       output: {
         hookSpecificOutput: {
           hookEventName: "UserPromptSubmit",
-          additionalContext: PLANNER_PROMPT,
+          additionalContext: personaPrompt("planner"),
         },
-        suppressOutput: true,
       },
+    });
+    expect(readInjectedPersona(stateFile)).toBe("planner");
+  });
+
+  for (const persona of PERSONAS) {
+    test(`injects ${persona} prompt when state is ${persona}`, ({ projectDir, sessionId }) => {
+      writePersona(resolveStateFile(projectDir, sessionId), persona);
+      const ctx = createCtx(sessionId);
+      getRun("inject")(ctx);
+      expect(ctx.calls.json[0]).toMatchObject({
+        output: { hookSpecificOutput: { additionalContext: personaPrompt(persona) } },
+      });
+    });
+  }
+
+  test("skips injection while the persona is unchanged", ({ projectDir, sessionId }) => {
+    writePersona(resolveStateFile(projectDir, sessionId), "worker");
+    getRun("inject")(createCtx(sessionId));
+
+    const second = createCtx(sessionId);
+    getRun("inject")(second);
+    expect(second.json).not.toHaveBeenCalled();
+    expect(second.success).toHaveBeenCalledWith({});
+  });
+
+  test("injects again after the persona changes", ({ projectDir, sessionId }) => {
+    const stateFile = resolveStateFile(projectDir, sessionId);
+    writePersona(stateFile, "planner");
+    getRun("inject")(createCtx(sessionId));
+
+    writePersona(stateFile, "sparring");
+    const ctx = createCtx(sessionId);
+    getRun("inject")(ctx);
+    expect(ctx.calls.json[0]).toMatchObject({
+      output: { hookSpecificOutput: { additionalContext: personaPrompt("sparring") } },
     });
   });
 
-  test("injects WORKER_PROMPT when state is worker", ({ projectDir, sessionId }) => {
-    writePersona(resolveStateFile(projectDir, sessionId), "worker");
-    const ctx = createCtx(sessionId);
-    getRun("inject")(ctx);
-    const arg = ctx.calls.json[0] as {
-      output: { hookSpecificOutput: { additionalContext: string } };
-    };
-    expect(arg.output.hookSpecificOutput.additionalContext).toBe(WORKER_PROMPT);
-  });
-
   test("no-op when CLAUDE_PROJECT_DIR is unset", ({ sessionId }) => {
-    const original = process.env.CLAUDE_PROJECT_DIR;
-    delete process.env.CLAUDE_PROJECT_DIR;
-    try {
+    unsetProjectDir(() => {
       const ctx = createCtx(sessionId);
       getRun("inject")(ctx);
       expect(ctx.success).toHaveBeenCalledWith({});
-    } finally {
-      if (original !== undefined) process.env.CLAUDE_PROJECT_DIR = original;
-    }
+    });
   });
 });
 
@@ -142,101 +184,149 @@ describe("announce-persona hook", () => {
     expect(ctx.success).toHaveBeenCalledWith({});
   });
 
-  test("emits systemMessage when state is set", ({ projectDir, sessionId }) => {
-    writePersona(resolveStateFile(projectDir, sessionId), "planner");
+  test("announces and re-injects the persona when state is set", ({ projectDir, sessionId }) => {
+    const stateFile = resolveStateFile(projectDir, sessionId);
+    writePersona(stateFile, "planner");
     const ctx = createCtx(sessionId);
     getRun("announce")(ctx);
     expect(ctx.json).toHaveBeenCalledWith({
       event: "SessionStart",
       output: {
         systemMessage: "現在のペルソナ: planner",
-        suppressOutput: true,
+        hookSpecificOutput: {
+          hookEventName: "SessionStart",
+          additionalContext: personaPrompt("planner"),
+        },
       },
+    });
+    expect(readInjectedPersona(stateFile)).toBe("planner");
+  });
+
+  test("re-injects even if the persona was injected before compaction", ({
+    projectDir,
+    sessionId,
+  }) => {
+    writePersona(resolveStateFile(projectDir, sessionId), "worker");
+    getRun("inject")(createCtx(sessionId));
+
+    const ctx = createCtx(sessionId);
+    getRun("announce")(ctx);
+    expect(ctx.calls.json[0]).toMatchObject({
+      output: { hookSpecificOutput: { additionalContext: personaPrompt("worker") } },
     });
   });
 
   test("no-op when CLAUDE_PROJECT_DIR is unset", ({ sessionId }) => {
-    const original = process.env.CLAUDE_PROJECT_DIR;
-    delete process.env.CLAUDE_PROJECT_DIR;
-    try {
+    unsetProjectDir(() => {
       const ctx = createCtx(sessionId);
       getRun("announce")(ctx);
       expect(ctx.success).toHaveBeenCalledWith({});
-    } finally {
-      if (original !== undefined) process.env.CLAUDE_PROJECT_DIR = original;
-    }
+    });
   });
 });
 
 describe("on-exit-plan hook", () => {
-  test("writes worker state and emits notification", ({ projectDir, sessionId }) => {
+  test("switches planner to worker and injects the worker prompt", ({ projectDir, sessionId }) => {
     const stateFile = resolveStateFile(projectDir, sessionId);
+    writePersona(stateFile, "planner");
     const ctx = createCtx(sessionId);
     getRun("onExitPlan")(ctx);
 
     expect(readPersona(stateFile)).toBe("worker");
+    expect(readInjectedPersona(stateFile)).toBe("worker");
     expect(ctx.json).toHaveBeenCalledWith({
       event: "PostToolUse",
       output: {
         systemMessage: "✓ plan承認を検知。ペルソナを worker に切り替えました",
         hookSpecificOutput: {
           hookEventName: "PostToolUse",
-          additionalContext: WORKER_PROMPT,
+          additionalContext: personaPrompt("worker"),
         },
-        suppressOutput: true,
       },
     });
   });
 
-  test("overwrites planner state with worker", ({ projectDir, sessionId }) => {
+  test("does not set a persona when none is set", ({ projectDir, sessionId }) => {
     const stateFile = resolveStateFile(projectDir, sessionId);
-    writePersona(stateFile, "planner");
     const ctx = createCtx(sessionId);
     getRun("onExitPlan")(ctx);
-    expect(readPersona(stateFile)).toBe("worker");
+
+    expect(readPersona(stateFile)).toBeUndefined();
+    expect(ctx.json).not.toHaveBeenCalled();
+    expect(ctx.success).toHaveBeenCalledWith({});
   });
 
+  for (const persona of PERSONAS.filter((p) => p !== "planner")) {
+    test(`keeps ${persona} unchanged`, ({ projectDir, sessionId }) => {
+      const stateFile = resolveStateFile(projectDir, sessionId);
+      writePersona(stateFile, persona);
+      const ctx = createCtx(sessionId);
+      getRun("onExitPlan")(ctx);
+
+      expect(readPersona(stateFile)).toBe(persona);
+      expect(ctx.json).not.toHaveBeenCalled();
+    });
+  }
+
   test("no-op when CLAUDE_PROJECT_DIR is unset", ({ sessionId }) => {
-    const original = process.env.CLAUDE_PROJECT_DIR;
-    delete process.env.CLAUDE_PROJECT_DIR;
-    try {
+    unsetProjectDir(() => {
       const ctx = createCtx(sessionId);
       getRun("onExitPlan")(ctx);
       expect(ctx.success).toHaveBeenCalledWith({});
-    } finally {
-      if (original !== undefined) process.env.CLAUDE_PROJECT_DIR = original;
-    }
+    });
   });
 });
 
 describe("cleanup-persona hook", () => {
-  test("removes existing state file", ({ projectDir, sessionId }) => {
+  const endCtx = (sessionId: string, reason: string) => ({
+    ...createCtx(sessionId),
+    input: { session_id: sessionId, source: "startup", reason },
+  });
+
+  test("removes existing state file when the session ends with /clear", ({
+    projectDir,
+    sessionId,
+  }) => {
     const stateFile = resolveStateFile(projectDir, sessionId);
     writePersona(stateFile, "planner");
+    getRun("inject")(createCtx(sessionId));
     expect(existsSync(stateFile)).toBe(true);
 
-    const ctx = createCtx(sessionId);
+    const ctx = endCtx(sessionId, "clear");
     getRun("cleanup")(ctx);
 
     expect(existsSync(stateFile)).toBe(false);
+    expect(readInjectedPersona(stateFile)).toBeUndefined();
     expect(ctx.success).toHaveBeenCalledWith({});
   });
 
+  test.for(["prompt_input_exit", "resume", "logout", "other"])(
+    "keeps state for a resumable end (%s)",
+    (reason, { projectDir, sessionId }) => {
+      const stateFile = resolveStateFile(projectDir, sessionId);
+      writePersona(stateFile, "worker");
+      getRun("inject")(createCtx(sessionId));
+
+      const ctx = endCtx(sessionId, reason);
+      getRun("cleanup")(ctx);
+
+      expect(readPersona(stateFile)).toBe("worker");
+      expect(readInjectedPersona(stateFile)).toBe("worker");
+      expect(ctx.success).toHaveBeenCalledWith({});
+    },
+  );
+
   test("no-op when state file does not exist", ({ projectDir: _projectDir, sessionId }) => {
-    const ctx = createCtx(sessionId);
+    const ctx = endCtx(sessionId, "clear");
     expect(() => getRun("cleanup")(ctx)).not.toThrow();
     expect(ctx.success).toHaveBeenCalledWith({});
   });
 
   test("no-op when CLAUDE_PROJECT_DIR is unset", ({ sessionId }) => {
-    const original = process.env.CLAUDE_PROJECT_DIR;
-    delete process.env.CLAUDE_PROJECT_DIR;
-    try {
-      const ctx = createCtx(sessionId);
+    unsetProjectDir(() => {
+      const ctx = endCtx(sessionId, "clear");
       getRun("cleanup")(ctx);
       expect(ctx.success).toHaveBeenCalledWith({});
-    } finally {
-      if (original !== undefined) process.env.CLAUDE_PROJECT_DIR = original;
-    }
+    });
   });
 });

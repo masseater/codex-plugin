@@ -1,198 +1,45 @@
-# Troubleshooting
+# CCS 委譲のトラブルシューティング
 
-AI-oriented error resolution guide for CCS delegation issues.
+エラーメッセージや症状から該当する項目を探す。
 
-**Structure**: Quick Reference -> Error Catalog -> Common Resolutions -> Diagnostics -> Recovery
+## 設定
 
-**Cross-references**:
+- `Profile 'X' not configured` / `Settings file not found`: 設定ファイルが無い。`ccs doctor` で不足しているプロファイルを確認する
+- `Invalid API key`（401）: `~/.ccs/<profile>.settings.json` のトークンを確認し、期限切れなら再発行する
+- settings の JSON parse error: `jq . ~/.ccs/<profile>.settings.json` で壊れている箇所を探す
+- `Invalid profile name`: `ccs doctor` で存在するプロファイル名を確認する
 
-- Technical details: `headless-workflow.md`
-- Decision framework: `delegation-guidelines.md`
+## 実行
 
-## Quick Reference
+- `No previous session`: `:continue` の前に `ccs <profile> -p "<task>"` で新規セッションを作る
+- `Missing prompt`: `-p` の直後にプロンプトを引用符で渡す
+- `No profile specified`: `ccs <profile> -p "<task>"` の形で呼ぶ
+- ファイルが見つからない: 委譲はカレントディレクトリで実行される。cwd を確認する
+- 実行が 10 分でタイムアウトする、メモリ不足、SIGTERM: タスクを小さく分ける
 
-**Profile/Config Issues:**
+## セッション
 
-- E-001: "Profile 'X' not configured" -> `ccs doctor`
-- E-002: "Invalid API key" (401) -> Check `~/.ccs/{profile}.settings.json`
-- E-003: "Settings file not found" -> `ccs doctor` to configure
-- E-004: JSON parse error (settings) -> Validate with `jq . ~/.ccs/{profile}.settings.json`
+- セッションファイルが壊れた: `rm ~/.ccs/delegation-sessions.json` で初期化する（全セッションの記録が消える）
+- セッションの期限切れ（30 日超）: 新規の委譲から始める
+- セッション ID が見つからない: `jq '.<profile>' ~/.ccs/delegation-sessions.json` で記録を確認する
+- コスト集計のエラー: 実行には影響しない。気になる場合はセッションを初期化する
 
-**Delegation Issues:**
+## ネットワーク
 
-- D-001: "No previous session" -> Run `ccs {profile} -p "task"` first
-- D-002: "Missing prompt" -> Syntax: `ccs {profile} -p "prompt"`
-- D-003: "No profile specified" -> Syntax: `ccs <profile> -p "task"`
-- D-005: File not found -> Verify CWD (delegation runs in current directory)
+- タイムアウト、エンドポイントに届かない: 接続と settings の `ANTHROPIC_BASE_URL` を確認して再試行する
+- 429（レート制限）: 60 秒待って再試行する
+- SSL / TLS エラー: システムの証明書と、プロキシによる SSL 検査を確認する
 
-**Session Issues:**
+## Claude CLI
 
-- S-001: Session corrupted -> `rm ~/.ccs/delegation-sessions.json`
-- S-002: Session expired -> Start new: `ccs {profile} -p "task"`
+- Claude CLI が無い: Claude Code をインストールする
+- バージョンが古い（stream-json や `--permission-mode` 非対応）: `ccs update` か `ccs sync` で更新し、`claude --version` で確認する
 
-**Network Issues:**
-
-- N-001: Connection timeout -> Check internet/endpoint -> Retry
-- N-002: Rate limit (429) -> Wait 60s -> Retry
-
-**CLI Issues:**
-
-- C-001: Claude CLI not found -> Install from code.claude.com
-- C-002: Outdated version -> Update: `ccs sync` or `ccs update`
-
-## Error Catalog
-
-### Environment/Config Errors
-
-- E-001 — Profile 'X' not configured
-  - Root Cause: Missing settings file
-  - Resolution: `ccs doctor` -> configure manually
-- E-002 — Invalid API key (401)
-  - Root Cause: Token expired/invalid
-  - Resolution: Verify token in settings.json -> regenerate if needed
-- E-003 — Settings file not found
-  - Root Cause: File doesn't exist
-  - Resolution: `ccs doctor` -> shows missing profiles
-- E-004 — JSON parse error (settings)
-  - Root Cause: Malformed JSON
-  - Resolution: Validate: `jq . ~/.ccs/{profile}.settings.json`
-
-### Delegation Execution Errors
-
-- D-001 — No previous session
-  - Root Cause: Using :continue without init
-  - Resolution: Run `ccs {profile} -p "init"` first
-- D-002 — Missing prompt after -p
-  - Root Cause: No argument provided
-  - Resolution: Quote prompt: `ccs {profile} -p "text"`
-- D-003 — No profile specified
-  - Root Cause: Missing profile name
-  - Resolution: Syntax: `ccs <profile> -p "task"`
-- D-004 — Invalid profile name
-  - Root Cause: Profile doesn't exist
-  - Resolution: Check: `ccs doctor` for available profiles
-- D-005 — File not found
-  - Root Cause: CWD mismatch
-  - Resolution: Verify: delegation runs in current directory
-
-### Session Management Errors
-
-- S-001 — Session file corrupted
-  - Root Cause: Malformed JSON
-  - Resolution: `rm ~/.ccs/delegation-sessions.json` -> fresh start
-- S-002 — Session expired
-  - Root Cause: >30 days old
-  - Resolution: Start new: `ccs {profile} -p "task"`
-- S-003 — Session ID mismatch
-  - Root Cause: ID not found
-  - Resolution: Check: `jq '.{profile}' ~/.ccs/delegation-sessions.json`
-- S-004 — Cost aggregation error
-  - Root Cause: Calculation failure
-  - Resolution: Reset session or ignore (doesn't affect execution)
-
-### Network/API Errors
-
-- N-001 — Connection timeout
-  - Root Cause: Network/API unreachable
-  - Resolution: Check: internet, endpoint, firewall -> Retry
-- N-002 — Rate limiting (429)
-  - Root Cause: Too many requests
-  - Resolution: Wait 60s -> Retry
-- N-003 — API endpoint unreachable
-  - Root Cause: Wrong URL in settings
-  - Resolution: Verify ANTHROPIC_BASE_URL in settings.json
-- N-004 — SSL/TLS error
-  - Root Cause: Certificate issue
-  - Resolution: Check system certs, firewall SSL inspection
-
-### Claude CLI Compatibility Errors
-
-- C-001 — Claude CLI not found
-  - Root Cause: Not installed
-  - Resolution: Install from code.claude.com
-- C-002 — Outdated CLI version
-  - Root Cause: Old version
-  - Resolution: Update: `ccs sync` or `ccs update`
-- C-003 — stream-json not supported
-  - Root Cause: Version < required
-  - Resolution: Upgrade CLI: check `claude --version`
-- C-004 — Permission mode unsupported
-  - Root Cause: Old CLI version
-  - Resolution: Upgrade to support --permission-mode
-
-### Timeout/Resource Errors
-
-- T-001 — Execution timeout (10 min)
-  - Root Cause: Task too complex/slow
-  - Resolution: Simplify task or split into smaller tasks
-- T-002 — Memory limit exceeded
-  - Root Cause: Large file processing
-  - Resolution: Reduce scope, process in batches
-- T-003 — Process killed (SIGTERM)
-  - Root Cause: External termination
-  - Resolution: Check system resources, retry
-
-## Common Resolution Patterns
-
-**Profile Validation:**
+## 診断
 
 ```bash
-ccs doctor                          # Check all profiles
-cat ~/.ccs/{profile}.settings.json  # Verify settings
-ccs {profile} "test" 2>&1           # Test execution
-```
-
-**Session Management:**
-
-```bash
-jq . ~/.ccs/delegation-sessions.json              # View all sessions
-jq '.{profile}' ~/.ccs/delegation-sessions.json   # Check specific profile
-rm ~/.ccs/delegation-sessions.json                # Reset (loses all sessions)
-```
-
-**Debug Mode:**
-
-```bash
-export CCS_DEBUG=1
-ccs {profile} -p "task" 2>&1 | tee debug.log  # Capture full output
-```
-
-## Diagnostic Toolkit
-
-**Profile diagnostics:**
-
-```bash
-ccs doctor        # All profiles status
-ccs --version     # CCS version + delegation status
-claude --version  # CLI version (check stream-json support)
-```
-
-**Test delegation flow:**
-
-```bash
-# Simple task
-ccs glm -p "create test.txt with 'hello'"
-
-# Verify session
-jq '.glm.sessionId' ~/.ccs/delegation-sessions.json
-
-# Continue
-ccs glm:continue -p "append 'world' to test.txt"
-
-# Check aggregation
-jq '.glm.turns' ~/.ccs/delegation-sessions.json
-```
-
-## Emergency Recovery
-
-**Reset session state:**
-
-```bash
-rm ~/.ccs/delegation-sessions.json  # Fresh start (loses all sessions)
-```
-
-**Interactive mode (no -p flag):**
-
-```bash
-ccs {profile}  # Opens interactive session
+ccs doctor                                   # 全プロファイルの状態
+ccs --version                                # CCS のバージョン
+CCS_DEBUG=1 ccs <profile> -p "<task>" 2>&1 | tee debug.log   # 詳細ログ
+jq . ~/.ccs/delegation-sessions.json         # セッションの記録
 ```

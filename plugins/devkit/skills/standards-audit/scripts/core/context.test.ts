@@ -1,8 +1,11 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, vi } from "vite-plus/test";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildWorkspaceInfo, detectProjectTypes, parsePnpmWorkspaceYaml } from "./context.ts";
+import { buildWorkspaceInfo } from "./context.ts";
+import { toPackageJsonSubset } from "./package-json.ts";
+import { parsePnpmWorkspaceYaml } from "./pnpm-workspace.ts";
+import { detectProjectTypes } from "./project-types.ts";
 
 function makeTempDir(): string {
   return mkdtempSync(join(tmpdir(), "audit-test-"));
@@ -67,6 +70,18 @@ describe("parsePnpmWorkspaceYaml", () => {
 
   test("returns empty for empty string", () => {
     expect(parsePnpmWorkspaceYaml("")).toEqual([]);
+  });
+});
+
+describe("buildWorkspaceInfo: 壊れた package.json", () => {
+  test("JSON として読めなければ package.json なしとして扱い、エラーを出力する", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const dir = makeTempDir();
+    writeFileSync(join(dir, "package.json"), "{broken");
+
+    expect(buildWorkspaceInfo(dir).scopes[0]!.packageJson).toBeNull();
+    expect(error).toHaveBeenCalledTimes(1);
+    error.mockRestore();
   });
 });
 
@@ -154,5 +169,30 @@ describe("buildWorkspaceInfo", () => {
     const info = buildWorkspaceInfo(dir);
     expect(info.isMonorepo).toBe(true);
     expect(info.scopes.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("toPackageJsonSubset", () => {
+  test("keeps only correctly typed fields", () => {
+    expect(
+      toPackageJsonSubset({
+        name: "pkg",
+        scripts: { test: "vp test", bad: 1 },
+        dependencies: { a: "^1.0.0" },
+        devDependencies: "invalid",
+        workspaces: ["apps/*"],
+      }),
+    ).toStrictEqual({
+      name: "pkg",
+      scripts: { test: "vp test" },
+      dependencies: { a: "^1.0.0" },
+      workspaces: ["apps/*"],
+    });
+  });
+
+  test("ignores non-array workspaces and returns null for non-objects", () => {
+    expect(toPackageJsonSubset({ workspaces: { packages: ["apps/*"] } })).toStrictEqual({});
+    expect(toPackageJsonSubset([])).toBeNull();
+    expect(toPackageJsonSubset(null)).toBeNull();
   });
 });

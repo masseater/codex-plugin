@@ -1,77 +1,50 @@
 ---
-name: sdd:autopilot
-description: 'This skill should be used when the user asks to "run SDD on autopilot", "自動で進めて", "一気に実装", "autopilot", or wants the SDD workflow advanced with minimal human intervention.'
+name: autopilot
+disable-model-invocation: true
+description: SDD の spec を、ユーザーの確認を最小限にして steering の確認から最後の Phase の検証まで自動で進める。
+argument-hint: "[spec 名 | 新しい spec の説明] [開始する Phase 番号]"
 ---
 
-# SDD Autopilot
+# SDD autopilot
 
-タスクを自動で進行するモード。親セッションとして動作し、各コマンドはサブエージェントで実行される。
+引数: `$ARGUMENTS`
 
-## 概要
+ユーザーが見ていない前提で、spec を最後の Phase の検証まで進める。各段階の手順は、それぞれの skill の参照ファイル（`../<skill>/references/*.md`）を読んで自分で実行する。参照ファイルの `<skill-dir>` は `../<skill>`、`<plugin-root>` は `../..` に読み替える。サブエージェントに段階ごと委譲しない。段階の間で文脈を引き継げなくなるため。
 
-autopilot スキルを読み込むと、以下の自動進行モードが有効になる。
+## 進め方
 
-**引数:**
+```text
+if .claude/skills/steering/ does not exist:
+  stop and ask the user to run /sdd:steering           # 方針がないと判断の基準がない
 
-- `spec`: 対象の仕様書名（省略時は対話的に選択/新規作成）
-- `phaseNumber`: 開始Phase番号（省略時は最初から or 中断箇所から再開）
+if $ARGUMENTS names no existing spec:
+  run spec init with $ARGUMENTS as the description
 
-## 動作フロー
+loop:
+  state = spec-state.ts specs <spec>                   # ../status/scripts/spec-state.ts
+  record state.next.command in the task list (TodoWrite, or TaskCreate / TaskUpdate)
+  if state.next.command is "/sdd:archive" or "overview.md の status を completed にする":
+    break
+  if the same next.command repeats 3 times without the state changing:
+    stop and report what is stuck                       # 同じ段階で空回りしている
+  if state.next.command starts with "/sdd:phase plan" and validate spec has not run in this autopilot:
+    run validate spec and fix its findings first       # spec-state.ts は validate spec の実施を記録しないため
+  do the step that state.next.command names, following its reference file
 
-```mermaid
-flowchart TB
-    Parent["親セッション<br/>全体進行管理"]
-
-    subgraph SubAgents["サブエージェント実行"]
-        SA1["spec:init"]
-        SA2["spec:requirements"]
-        SA3["spec:technical"]
-        SA4["research:conduct"]
-        SA5["phase:plan"]
-        SA6["phase:breakdown"]
-        SA7["phase:implement"]
-        SA8["validate"]
-    end
-
-    Parent --> SA1 --> SA2 --> SA3 --> SA4 --> SA5 --> SA6 --> SA7 --> SA8
-    SA8 -->|次Phase| SA6
-    SA8 -->|完了| Parent
+report: 進めた段階、作ったファイル、残った **不明**、止まった理由（あれば）
 ```
 
-## 親セッションの役割
+## 自分で判断してよいこと
 
-1. 進行管理: 全体の状態を把握し、次のコマンドを決定
-2. 判断・回答: サブエージェントで AskUserQuestion が発生した場合、親セッションがユーザー代わりに判断
-3. エラーハンドリング: サブエージェントが失敗した場合のリカバリ
+- 技術的な選択肢: ステアリング（tech.md / structure.md）と調査結果に最もよく合う案を選び、選んだ理由を spec 文書に 1 行書く
+- 参照ファイルが指示する `AskUserQuestion`: 下の「止まる条件」に当たるもの以外はすべて、上の基準に従って自ら決める。決めた内容は最後の報告に含める（例: spec 名、Phase 構成の承認、非機能要件の選択、validate 後の対応方針、品質チェックのコマンド）
+- validate の指摘: high と medium は直し、low は報告に残す
 
-## サブエージェント実行パターン
+## 止まる条件
 
-各コマンドは Task ツールで実行:
+次の場合だけ、作業を止めてユーザーに報告する。それ以外の場面では、報告のために止まらず次の段階へ進む。
 
-```typescript
-// 例: spec:init の実行
-Task({
-  subagent_type: "general-purpose",
-  prompt: "/sdd:spec init ユーザー認証機能",
-  description: "spec:init 実行",
-});
-```
-
-## 自動判断のルール
-
-親セッションがサブエージェントの代わりに判断する際のルール:
-
-- 複数案の選択 — ステアリングドキュメントに最も適合する案を選択
-- 不明点の解消** — 一般的なベストプラクティスに従う、または「**不明」として保留
-- エラー発生 — ログを記録し、次のステップへ進む or 中断
-
-## 用途
-
-- 定型的なタスク: 仕様が明確で判断が少ないタスクを一気に進める
-- プロトタイピング: 素早く骨格を作成
-- 夜間実行: 人がいない間にベース実装を進める
-
-## 注意事項
-
-- 重要な判断が必要な場合は自動進行を中断してユーザーに確認
-- `.claude/skills/steering/` が存在しない場合は先に steering スキルを実行
+- ステアリングがない
+- clarify で扱う `**不明**` が、業務ルールや範囲など、ユーザーの意思決定がないと決められない内容である（技術的な不明は research として自分で調べて決める）
+- 同じ Phase のテスト・型チェックが、直す試みを 2 回しても通らない
+- push・外部サービスへの書き込み・データの削除など、元に戻せない操作が必要になった

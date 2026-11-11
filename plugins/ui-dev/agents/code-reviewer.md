@@ -1,57 +1,42 @@
 ---
 name: code-reviewer
-description: Compare UI implementation code against the screen map and list discrepancies as facts. Does not make judgments. Use when reviewing code quality of UI implementation.
+description: figma-implement skill から起動され、UI の実装コードを screen map と突き合わせて、遷移・状態・バリデーションの過不足を事実として列挙する。
 ---
 
-# Code Reviewer Agent
+# 仕様レビュー（screen map との突き合わせ）
 
-Compares UI implementation code against the screen map and lists discrepancies as facts.
-Does not give fix instructions or make design decisions.
+実装コードと screen map の食い違いを、見つけたものはすべて列挙する。どれを直すかは親が決めるので、重要度による絞り込みはせず、各項目に severity と confidence を付ける。修正方法やデザインの判断は書かない。
 
-## Required Resources
+入力:
 
-Resources the parent should include in the prompt:
+- 対象画面の実装ファイルのパス
+- screen map のパス
+- reviewPrompts（common と code）
+- contextFiles
+- レポートの出力パス
 
-| Resource                      | Purpose                                          |
-| ----------------------------- | ------------------------------------------------ |
-| Screen map (`screen-map.md`)  | Reference for comparison                         |
-| reviewPrompts (common + code) | Review perspective directives                    |
-| contextFiles                  | Additional references such as design system docs |
+## 手順
 
-## Input
+1. screen map の該当画面と共通ルールの節を読む
+2. 実装ファイルを読み、次を突き合わせる
+   - 遷移: screen map の遷移がすべて実装されているか
+   - 状態: エラー・ローディング・成功などの状態がすべてあるか
+   - バリデーション: screen map のルールが実装されているか
+   - 共通ルール: ルーティング・エラー表示・ローディングの共通パターンに従っているか
+   - 残っている TODO コメント
+3. screen map に無い実装は「Not in screen map」として挙げる
+4. reviewPrompts.code の指示があれば、その観点も確認する
+5. レポートを書き、「Review complete.」とだけ返す
 
-- Target screen implementation file paths (multiple)
-- Screen map path
-- reviewPrompts (common + code)
-
-## Procedure
-
-1. Read the relevant screen section from the screen map
-2. Read the implementation files
-3. Compare screen map entries with implementation and list discrepancies
-4. Follow reviewPrompts directives to check additional perspectives
-
-## Comparison Perspectives
-
-- **Transitions**: Are all transitions in the screen map implemented?
-- **States**: Are all states (error, loading, success, etc.) implemented?
-- **Validation**: Are validation rules from the screen map implemented?
-- **Common rules**: Are the screen map's common rules section respected?
-- **Remaining TODOs**: Are there TODO comments left in the code?
-- **Code quality**: Checks based on reviewPrompts.code directives
-
-## Output Format
+## レポート
 
 ```markdown
-## Code Review Results: {screenName}
+## Code Review Results: <screenName>
 
 ### Screen Map Discrepancies
 
-| #   | Category   | Screen Map Entry   | Implementation Status |
-| --- | ---------- | ------------------ | --------------------- |
-| 1   | Transition | Error -> retry     | Not implemented       |
-| 2   | State      | Loading indicator  | Implemented           |
-| 3   | Validation | Email format check | Implemented           |
+- #1 [Transition] Error -> retry: 未実装（severity: high, confidence: high）
+- #2 [State] ローディング表示: 実装済み
 
 ### Remaining TODOs
 
@@ -59,15 +44,9 @@ Resources the parent should include in the prompt:
 
 ### Code Quality
 
-- {Findings based on reviewPrompts.code}
+- <reviewPrompts.code に基づく指摘（severity, confidence 付き）>
 
 ### Confirmed Matches
 
-- {Verified matching points}
+- <一致を確認した点>
 ```
-
-## Important Notes
-
-- Do not judge whether discrepancies "should be fixed." List facts only
-- Report implementations not in the screen map as "Not in screen map"
-- Follow reviewPrompts.code directives if provided

@@ -1,69 +1,35 @@
 # gh-projects Plugin Development Guide
 
 この plugin 配下の変更は Auto Version Bump workflow の patch bump 対象である。
-GitHub Projects を **EPIC - Story - Task** の3階層と依存関係（sub-issue / blocked-by）で運用するためのプラグイン。
 
 ## Overview
 
-このプラグインは「方法論 skill」と「CLI スクリプト」の2層構成。
-
-- **skills/** — EPIC / Story / Task 階層、依存関係、進捗管理の汎用パターンを説明する
-- **scripts/gh-project.ts** — `gh` CLI + GraphQL を薄くラップしたコマンド集（Project CRUD、sub-issue、blocked-by など）
-
-skill は scripts/gh-project.ts を `./scripts/gh-project.ts` で参照する。
+GitHub Projects を EPIC - Story - Task の 3 階層と依存関係（sub-issue / blocked-by）で運用する。方法論は `epic-story-task`、起票から依存登録までは `epic-plan`、棚卸しは `epic-review`、単発の CLI 操作は `cli`。CLI 本体は `scripts/gh-project.ts`（`gh` と GraphQL の薄いラッパー）で、`project` スコープが必要（`gh auth refresh -s project`）。
 
 ## Development Commands
 
 ```bash
 cd plugins/gh-projects
 
-bun run check        # lint
-bun run check:fix    # auto-fix
-bun run typecheck    # type check
+vp run check         # fmt・lint・型検査（vp check）
+vp run typecheck     # type check
 ```
 
-## Prerequisite
+## 設計判断
 
-`scripts/gh-project.ts` を使うには `gh` CLI と `project` スコープが必要:
-
-```bash
-gh auth refresh -s project
-```
-
-## Design Principles
-
-- **リポジトリ非依存**: 特定の Project 番号 / Field 名 / Issue 内容を skill に書かない。サンプルは `<owner>/<repo>` プレースホルダで示す
-- **GitHub 標準機能のみ**: Sub-issue / Issue Dependencies / Projects (v2) を使う。サードパーティ拡張に依存しない
-- **方法論と道具の分離**: skill は「何をどう判断するか」、CLI は「どう実行するか」を担当する
-
-## Model Invocation Policy
-
-<!-- BEGIN:model-invocation-policy -->
-
-以下の skill は `disable-model-invocation: true` を付与しない。設計判断: ユーザーが自然文で依頼する主要ワークフロー、または AI がタスク遂行中に自律参照すべき実行リファレンスである。これらの `description` には自然文 trigger、または実行リファレンスとしての参照理由を定義する。
-
-- `gh-projects:cli`
-- `gh-projects:create-epic`
-- `gh-projects:decompose-epic`
-- `gh-projects:epic-story-task`
-- `gh-projects:plan-dependencies`
-- `gh-projects:review-progress`
-
-上記以外の skill は、明示呼び出し・内部参照・手動操作・低レベルユーティリティとして扱い、`disable-model-invocation: true` を維持する。disabled skill の `description` には広い自然文 trigger を定義しない。
-
-<!-- END:model-invocation-policy -->
+- skill に特定の Project 番号・Field 名・Issue 内容を書かない。例は `<owner>/<repo>` のプレースホルダで示す
+- GitHub 標準機能（sub-issue、Issue Dependencies、Projects v2）だけを使う
+- Issue body のテンプレートは `assets/issue-body-templates.md` に一本化し、skill からは `./assets/...` で参照する。複数箇所に置くと内容がずれるため
+- 呼び出し制御: `epic-plan` と `cli` は Issue の起票・リンク・依存登録・Status 変更という GitHub 上に残る操作をする。実行タイミングをユーザーが決めるので `disable-model-invocation: true` にしている。`cli` の「落とし穴」は `epic-plan` と `epic-review` からファイルとして直接読ませる。`epic-story-task`（方法論）と `epic-review`（読み取り。Status の変更は承認を得てから）は model invocation を許可する
+- Issue のタイトルと本文は英語で書く（github-workflow の `create-issue` と同じ方針）。テンプレートも英語にしている
 
 ## Components
 
 <!-- BEGIN:component-list (auto-generated, do not edit) -->
 
-| Type  | Name                          | Description                                                                                                                                                                                                                                                                                                                                                     |
-| ----- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| skill | gh-projects:cli               | This skill should be used when the user asks to operate GitHub Projects through the plugin CLI, "GitHub Projects CLI", "Project CRUD", "sub-issue を操作", "blocked-by を設定", or needs the gh-project.ts execution reference for Project, sub-issue, and dependency operations.                                                                               |
-| skill | gh-projects:create-epic       | 新しい EPIC issue を起票し、GitHub Project に登録するワークフロー。Use when the user asks to "create an EPIC", "start a new EPIC", "EPIC を作成", "新しい EPIC を起票", "プロジェクトに EPIC を立てたい", or wants to bootstrap a top-level initiative.                                                                                                         |
-| skill | gh-projects:decompose-epic    | EPIC を「全体リリース Story」と「機能別 検証 Story」に分解し、sub-issue でリンク・blocked-by を張って Project に追加するワークフロー。Use when the user asks to "break down an EPIC", "decompose into stories", "EPIC を分解", "Story に切り分けたい", or has an EPIC that needs decomposition.                                                                 |
-| skill | gh-projects:epic-story-task   | EPIC - Story - Task の3階層と依存関係で GitHub Projects を運用するための方法論。Use when the user asks to "set up EPIC story task workflow", "design issue hierarchy", "configure project for EPIC story task", "EPIC Story Task で運用したい", "issue 階層を設計", "GitHub Project を立ち上げ", or wants conceptual guidance on this issue-management pattern. |
-| skill | gh-projects:plan-dependencies | Story / Task 間の blocked-by 依存関係を設計・登録するワークフロー。Use when the user asks to "set blocked-by", "add dependency", "issue の前後関係を設定", "依存関係を整理", "blocking 関係", or wants to model ordering constraints between issues.                                                                                                            |
-| skill | gh-projects:review-progress   | EPIC 単位で sub-issue / blocked-by / Project status を棚卸しし、進捗・滞留・次に着手すべき Task をレポートするワークフロー。Use when the user asks to "review progress", "EPIC の進捗を確認", "棚卸し", "what's next", "次に何をやる", "blockers を確認", or wants a status snapshot of an EPIC.                                                                |
+- **skill** `cli`: gh-projects の CLI（gh-project.ts）で Projects v2 の item・Status、sub-issue、blocked-by を 1 件ずつ操作する。
+- **skill** `epic-plan`: EPIC の起票から、全体リリース Story と機能別 検証 Story への分解、sub-issue 化、Project への追加、blocked-by の登録までを、各段で承認を取りながら行う。
+- **skill** `epic-review`: EPIC 配下の Story / Task を sub-issue・blocked-by・Project の Status から棚卸しする。着手可能・ブロック中・滞留・Need Review に分類し、次のアクションを提案する。棚卸しは読み取りだけで行い、Status などの変更は承認を得てから別途実行する。「EPIC の進捗を確認して」「次に何をやるか教えて」「ブロッカーを確認して」と頼まれたときに使う。
+- **skill** `epic-story-task`: GitHub Projects を EPIC - Story - Task の 3 階層と sub-issue / blocked-by の依存関係で運用する方法論。GitHub Issue / Projects で EPIC・Story・Task の階層を設計するとき、Story の分け方・Issue body の書き方・close の扱いを判断するときに使う。
 
 <!-- END:component-list -->

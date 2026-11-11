@@ -34,34 +34,53 @@ function isPdf(filePath: string): boolean {
   return extname(filePath).toLowerCase() === ".pdf";
 }
 
-async function analyzeImage(ai: GoogleGenAI, imagePath: string, prompt?: string): Promise<string> {
-  const image = await loadImageAsBase64(imagePath);
+type InlineImage = { data: string; mimeType: string };
 
-  const defaultPrompt = isPdf(imagePath)
-    ? `Analyze this PDF document in detail. Describe:
-1. Document structure and content summary
-2. Key information and data points
-3. Visual elements (tables, charts, images if any)
-4. Overall purpose and intended audience`
-    : `Analyze this image in detail. Describe:
-1. What is shown in the image
-2. Key visual elements (colors, layout, typography if any)
-3. Overall impression and purpose`;
-
+/**
+ * Gemini にプロンプトと画像を渡して文章を生成させる
+ * @param ai Gemini のクライアント
+ * @param prompt 指示文
+ * @param images 添付する画像
+ * @param emptyText 生成結果が空のときに返す文
+ * @returns 生成された文章
+ */
+async function generate(
+  ai: GoogleGenAI,
+  prompt: string,
+  images: InlineImage[],
+  emptyText: string,
+): Promise<string> {
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: [
       {
         role: "user",
-        parts: [
-          { text: prompt ?? defaultPrompt },
-          { inlineData: { data: image.data, mimeType: image.mimeType } },
-        ],
+        parts: [{ text: prompt }, ...images.map((image) => ({ inlineData: image }))],
       },
     ],
   });
+  return response.text ?? emptyText;
+}
 
-  return response.text ?? "No analysis generated";
+const PDF_ANALYSIS_PROMPT = `Analyze this PDF document in detail. Describe:
+1. Document structure and content summary
+2. Key information and data points
+3. Visual elements (tables, charts, images if any)
+4. Overall purpose and intended audience`;
+
+const IMAGE_ANALYSIS_PROMPT = `Analyze this image in detail. Describe:
+1. What is shown in the image
+2. Key visual elements (colors, layout, typography if any)
+3. Overall impression and purpose`;
+
+async function analyzeImage(ai: GoogleGenAI, imagePath: string, prompt?: string): Promise<string> {
+  const image = await loadImageAsBase64(imagePath);
+  const defaultPrompt = isPdf(imagePath) ? PDF_ANALYSIS_PROMPT : IMAGE_ANALYSIS_PROMPT;
+  return generate(ai, prompt ?? defaultPrompt, [image], "No analysis generated");
+}
+
+function fileTypeOf(imagePath1: string, imagePath2: string): string {
+  return isPdf(imagePath1) || isPdf(imagePath2) ? "documents" : "images";
 }
 
 async function compareImages(
@@ -70,12 +89,9 @@ async function compareImages(
   imagePath2: string,
   prompt?: string,
 ): Promise<string> {
-  const [image1, image2] = await Promise.all([
-    loadImageAsBase64(imagePath1),
-    loadImageAsBase64(imagePath2),
-  ]);
+  const images = await Promise.all([loadImageAsBase64(imagePath1), loadImageAsBase64(imagePath2)]);
 
-  const fileType = isPdf(imagePath1) || isPdf(imagePath2) ? "documents" : "images";
+  const fileType = fileTypeOf(imagePath1, imagePath2);
   const defaultPrompt = `Compare these two ${fileType} in detail:
 
 File 1: ${basename(imagePath1)}
@@ -87,21 +103,29 @@ Analyze and report:
 3. Which elements changed and how
 4. Overall assessment of the changes`;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: [
-      {
-        role: "user",
-        parts: [
-          { text: prompt ?? defaultPrompt },
-          { inlineData: { data: image1.data, mimeType: image1.mimeType } },
-          { inlineData: { data: image2.data, mimeType: image2.mimeType } },
-        ],
-      },
-    ],
-  });
+  return generate(ai, prompt ?? defaultPrompt, images, "No comparison generated");
+}
 
-  return response.text ?? "No comparison generated";
+function requireApiKey(): string {
+  const apiKey = env.GOOGLE_API_KEY ?? env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.error("Error: GOOGLE_API_KEY or GEMINI_API_KEY environment variable is not set");
+    process.exit(1);
+  }
+  return apiKey;
+}
+
+function runAnalysis(
+  ai: GoogleGenAI,
+  args: { input: string; compare?: string | undefined; prompt?: string | undefined },
+): Promise<string> {
+  return args.compare
+    ? compareImages(ai, args.input, args.compare, args.prompt)
+    : analyzeImage(ai, args.input, args.prompt);
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 const main = defineCommand({
@@ -127,30 +151,14 @@ const main = defineCommand({
     },
   },
   async run({ args }) {
-    const apiKey = env.GOOGLE_API_KEY ?? env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error("Error: GOOGLE_API_KEY or GEMINI_API_KEY environment variable is not set");
-      process.exit(1);
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-    const imagePath1 = args.input;
-    const imagePath2 = args.compare;
-    const customPrompt = args.prompt;
-
+    const ai = new GoogleGenAI({ apiKey: requireApiKey() });
     try {
-      if (imagePath2) {
-        const analysis = await compareImages(ai, imagePath1, imagePath2, customPrompt);
-        console.log(analysis);
-      } else {
-        const analysis = await analyzeImage(ai, imagePath1, customPrompt);
-        console.log(analysis);
-      }
+      console.log(await runAnalysis(ai, args));
     } catch (error) {
-      console.error("Error:", error instanceof Error ? error.message : String(error));
+      console.error("Error:", errorMessage(error));
       process.exit(1);
     }
   },
 });
 
-runMain(main);
+await runMain(main);

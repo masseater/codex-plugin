@@ -1,7 +1,7 @@
 {
   "name": "persona",
-  "version": "0.0.6",
-  "description": "planner / worker カスタムペルソナの切替プラグイン。UserPromptSubmit で最小プロンプトを注入し、詳細指針は skill で参照",
+  "version": "0.0.24",
+  "description": "複数のカスタムペルソナ（planner / worker / idealist ほか）を切り替えるプラグイン。切替時と compact / resume 時だけ最小プロンプトを注入し、詳細指針は personas/ のガイドを参照",
   "author": {
     "name": "masseater",
     "url": "https://github.com/masseater"
@@ -15,8 +15,8 @@
   ],
   "interface": {
     "displayName": "Persona",
-    "shortDescription": "planner / worker カスタムペルソナの切替プラグイン。UserPromptSubmit で最小プロンプトを注入し、詳細指針は skill で参照",
-    "longDescription": "planner / worker カスタムペルソナの切替プラグイン。UserPromptSubmit で最小プロンプトを注入し、詳細指針は skill で参照",
+    "shortDescription": "複数のカスタムペルソナ（planner / worker / idealist ほか）を切り替えるプラグイン。切替時と compact / resume 時だけ最小プロンプトを注入し、詳細指針は personas/ のガイドを参照",
+    "longDescription": "複数のカスタムペルソナ（planner / worker / idealist ほか）を切り替えるプラグイン。切替時と compact / resume 時だけ最小プロンプトを注入し、詳細指針は personas/ のガイドを参照",
     "developerName": "masseater",
     "category": "Productivity"
   },

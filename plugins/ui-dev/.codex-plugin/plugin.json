@@ -1,7 +1,7 @@
 {
   "name": "ui-dev",
-  "version": "0.0.32",
-  "description": "Figma x AI UI implementation workflow",
+  "version": "0.0.41",
+  "description": "Figma × AI による UI 実装ワークフロー",
   "author": {
     "name": "masseater",
     "url": "https://github.com/masseater"
@@ -15,8 +15,8 @@
   ],
   "interface": {
     "displayName": "Ui Dev",
-    "shortDescription": "Figma x AI UI implementation workflow",
-    "longDescription": "Figma x AI UI implementation workflow",
+    "shortDescription": "Figma × AI による UI 実装ワークフロー",
+    "longDescription": "Figma × AI による UI 実装ワークフロー",
     "developerName": "masseater",
     "category": "Productivity"
   },

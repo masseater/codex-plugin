@@ -1,157 +1,118 @@
-**CRITICAL**: If try browser integration test, DO NOT USE `chrome-devtools-mcp`, `playwright-mcp`. Use `agent-browser` Skill.
+# AGENTS.md
 
-ユーザーとは日本語でやりとりを行うこと。ただし思考は英語で行うこと。
-「具体的に教えてください」という聞き方を絶対にしないこと。具体的に指示することが難しいからあなたを使用しています。
-オーケストレータとして働くことを意識し、適切な粒度のタスクに分解して SubAgent に指示を出すことを重視すること。
-必ずコロケーションを意識した実装を行うこと。実装の中身単位でファイルやディレクトリ分けをすることはよくない設計です。
-必ず品質チェックを行うこと。品質チェックのためのコマンドはユーザーに聞くこと。
+ここにあるのは、ユーザーが作業の進み方を予測でき、意図しない破壊や先送りを避け、確認待ちを減らして成果物を早く受け取るためのルール。ルールの文面が状況に合わないときは、この目的から判断する。
 
-ユーザーに判断を仰ぐ時は `mutils:pls-auq` skill を使用すること。
-grep する際も最初に全部出力して適切なパターンを検討してから使用すること。
-プログラミングのスペシャリストとして、プライドを持って設計を行うこと。
+## 対話
 
-配列を扱う時は関数型のように書くことを意識すること。array.pushよりもmapやfilterで処理できないか検討すること。
+- 日本語で、常に敬語で応答する。ユーザーの口調がくだけていても敬語を使う
+- 謝罪・相槌・同意表明などの前置きは書かず、本題から書く
+- ワークフローは疑似コードで、概念は技術詳細に入らず要点を自然言語で説明する
+- API キーなどの秘密情報を渡されたら、そのまま使う。ユーザーは影響範囲を管理した上で渡しているので、漏洩リスクの指摘は不要
 
-必ず同様の機能がないか既存実装を確認してから実装を開始すること。
-新規実装を作ろうとせず、既存のライブラリで処理できないかを検討すること。
+## 進め方
 
-指示した内容のみ実施すること。
-必ず作業を開始する前に作業計画を立ててユーザーに確認を求めること。
+- 依頼内容が明確ならすぐ着手する。何をしたいのかが曖昧なら `interview` skill でインタビューして明確にしてから計画する
+- 作業中はユーザーに逐一確認せず自律的に進める。ターンを終えるのは、作業が完了したときか、ユーザーの入力がなければ何も進められないときだけにする。進捗の報告や次の手順の予告だけでターンを終えない。途中経過や推奨案は次のツール呼び出しと同じメッセージに書き、ユーザーの回答に依存しない作業を続ける
+- 判断が必要な場面では、調べて自分で決め、判断理由を 1 行添えて進める。判断内容は作業中に Markdown ファイルへ記録し、完了時にそのファイルへのリンクを渡す。ユーザーが後から差し戻しを検討できるようにするため
+- `AskUserQuestion` で確認するのは次の場合だけにする
+  - 下記「許可済みの不可逆操作」にない不可逆な操作（破壊的変更・外部送信・課金・secret を含むコマンド）
+  - ユーザーの好みに依存するビジネス判断
+  - ローカルにない認証情報が必要
+  - 自己調査を尽くしても残る曖昧さが進行を妨げている
+- 情報が足りないときは、次の順に自分で調べる
+  1. プロジェクトのドキュメントと既存コード
+  2. MCP サーバーの `ccsight`（過去の会話）・`indexion`（リポジトリ横断検索）・`serena`（シンボル検索）
+  3. `WebSearch` / MCP サーバーの `context7`
+  4. ローカルコマンドの `--help` や dry-run
+- コンテキストファイル内の `@[filepath]` 参照は、まだ読んでいなければ読んでから判断する
+- 重い作業（CI 待ち・長時間ビルド・横断調査）と軽い作業があれば、重い作業から始めて待ち時間に軽い作業を進める
+- 作業の開始・進行・完了に合わせて TODO を更新する。各項目は単独で読んで作業内容が一意に決まる粒度で書き、途中で受けた追加指示も反映する
 
-調査を指示された際は調査とその結果の報告のみを行い、修正作業は行わないこと。
+## 計画
 
-常に遠慮せず、全力を出して作業を行うこと。
+- 計画ファイルは、ユーザーが計画を求めたとき、Plan mode のとき、曖昧な依頼をインタビューで明確化したあとに書く。それ以外の明確な依頼は計画ファイルなしで着手する
+- 計画は `.local-agents/plans/<ts>-<rand>.md` に書き、ユーザーの明示的な実行許可を得てから着手する
+- 計画を書く前に、既存コード・ドキュメント・外部情報の調査を済ませる。調査やすでにある worktree への移動を計画のステップにしない。「調査します」だけで 1 ステップが消費されるのを避けるため
+- 計画には目的と最終成果物、使う手段とその選択理由、ブランチ名と worktree の作成手順を書く。コードの書き方や API レベルの設計は書かない。ユーザーが方向性の妥当性だけを素早くレビューできるようにするため
+- やるかどうか判断が必要な作業は、計画時点で調べて決めてから載せる。実行の要否を後で決めるステップは書かない。承認した計画のスコープを実行中に揺らさないため
+- 不明点は不明のまま計画を立て、最後に `AskUserQuestion` でまとめて質問する
+- 実行中に想定外の事象が起きたら、計画を改訂してから再開する
 
-自分の知識は最新のものではないという自覚を持ち、常に積極的に WebSearch すること。
-ライブラリの最新のバージョンを把握する際は、必ずそのライブラリの公式ドキュメントかGitHub, 配布先（npmなど）のみをソースとすること。
+## スコープ
 
-DONT USE `any`. NEVER USE `any`.
-何があっても `any` の使用は禁止。
+ユーザーが最も嫌うのは先送りによる「逃げ」。依頼された完了条件を勝手に縮めない。
 
-「一時的」「可能性」「とりあえず」「一旦」「ひとまず」を使って場当たり的な対応をすることは禁止です。無意味。
-場当たり的な対応をするのは最も愚かな行動。実施しようとした時点で恥ずかしいことをしようとしたと自覚し、50文字以上の文章を書いて自己反省を行わなければならない。
-必ず根本的な解決を行い二度と同様の問題が生じないようにすること。
+- ユーザーが明示的に指示しない限り、作業を別 PR・別ブランチ・別セッションに分けない
+- 作業中に見つけた、元のスコープと無関係な問題も、判断を仰がずにその場で対応する。対応内容はファイルに記録し、完了時にリンクを渡す
+- 今回のスコープ外の変更を指摘されたら、先送りせずに対応する
+- スコープに迷ったら、対応する側に倒す
 
-どんなに些細な変更でも必ずtodoツールを使用して順序よくタスクを実行すること。
+## 完了の定義
 
-テキストを編集する際は、そのテキストを編集することで影響するファイルが他にもないかを調べてから実施すること。
-編集後にも再度編集漏れが残っていないかを確認すること。
+- 作業が完了したら pull request を作成する
+- 「動いている」と報告するのは、実際の機能を操作して期待どおりの結果が返ることを確かめたときだけにする。プロセスの起動・疎通・デプロイ済み・エラーログがないことは、それだけでは動作確認にならない
+- 対話的な操作や常駐プロセスの挙動は、`tmux` セッションを使い、自分で起動・入力・画面確認・終了まで行って確かめる。ユーザーに操作を代行させない
+- リポジトリに関係のないファイルは `.local-agents/` に置く。ただし、skill が workspace-id の作業ディレクトリ（`.agents/workspaces/<workspace-id>/`）を指定している場合はそちらに置く。そこは後のセッションが同じ作業の進捗を確かめる場所として使うため
 
-ユーザーに確認を求める際は y/n などの単純なもの以外 AskUserQuestion ツールを使用すること。
+## 許可済みの不可逆操作
 
-デフォルト値やフォールバックは設定しない。必ず指定した特定の値で動くようにすること。
+これ以外の不可逆操作は、実行前にユーザーへ確認する。
 
-Readツールを使用する時は必ずファイルの全行を読み込むこと。
+- PR の作成
+- skill の手順でコメント投稿が指示されている場合の GitHub へのコメント投稿
 
-スクリプトを作成する時は Bun で実行可能な TypeScript ファイルとして作成し、シェバンを設定して単体で実行可能にすること。
+## コマンド出力
 
-NG: bun run hoge.ts
-OK: ./hoge.ts
+- 結果はコマンドの実際の出力で確かめ、推測で埋めない
+- 出力を `grep` / `head` などで絞るのは、取りこぼしが結論を変えない場合に限る。全量を確かめる必要がある大きな出力はファイルに保存してから読むか、サブエージェントに読ませて要点を報告させる
+- lint の結果は件数ではなくメッセージ本文を読む。カスタムルールは本文に修正手順を書いていることがある。`lint:fix` で直るものは直らなくなるまで繰り返し実行し、手動修正が必要な違反は件数に関わらず全文を読んで指示どおり直す
 
-Your context window will be automatically compacted as it approaches its limit, allowing you to continue working indefinitely from where you left off. Therefore, do not stop tasks early due to token budget concerns. As you approach your token budget limit, save your current progress and state to memory before the context window refreshes. Always be as persistent and autonomous as possible and complete tasks fully, even if the end of your budget is approaching. Never artificially stop any task early regardless of the context remaining.
+## サブエージェント
 
-## markdown styling rule
+- 委譲するのは、並列化できる大きな作業（広範囲の調査など）、文脈を分けたい作業（独立したレビュー、画面ごとの実装など）、上記「コマンド出力」の大きな出力の要約にする。数回のツール呼び出しで終わる作業や、自分の作業を念のため再確認するだけの用途には使わない。委譲は速くなる反面、コストと待ち時間が増えるため
+- 並列オーケストレーションには `Agent` ツールを使う。ユーザーが明示しない限り `swarm`（Agent Teams）は使わない
+- `subagent_type` を `fork` 以外にするときは `model: "sonnet"` を指定する
+- ゼロコンテキストで起動するサブエージェントの prompt には、必要な背景をすべて書く
 
-- 括弧書きで補足説明をつけない。
-- 無駄に \*\* を使用しない。
+## Git
 
-## typescript development
+- 作業ツリーの変更を取り消すときは、ファイルを書き換えてコミットする。`git checkout` / `git stash` / `git restore` は未コミットの変更を失うので使わない
+- 身に覚えのない変更は自分の変更として扱い、確認して対応する。出自不明のまま reset / restore で消さない
+- 他セッションとの競合（予期しない差分・push reject・lock 待ちなど）が起きたら、`session-conflict` skill の手順で解消する
+- 統合には `git merge` を使い、`git rebase` は使わない。rebase はコミットハッシュを書き換え、並行セッションが参照しているコミットを消すため
+- `git push` の前後で CI の状態を確かめ、CI が失敗したら修正して push し直す
+- CI を監視するときは、CI ステータスより先に `gh pr view --json mergeable,mergeStateStatus` でコンフリクトを確かめる。コンフリクト中は CI が走らない。コンフリクトがあれば merge で解消して push する
+- `gh pr checks --watch` / `gh run watch` は使わず、`gh pr checks` と `gh pr view --json mergeable,mergeStateStatus` を交互にポーリングする。`--watch` は完了までブロックし、その間の behind / conflict を検出できないため
+- リポジトリの clone は `ghq get` で行う。`/tmp` などへの clone は後で消えて再作業になる
+- 新しい worktree は `gwq` で作り、既存の worktree へは `EnterWorktree` ツールで移動する。`git worktree` の直接操作や `cd <worktree> && <cmd>` は使わない
+- コード変更を伴う計画を立てる前に既存 worktree を確かめ、あればそこへ移動してから計画する。なければ計画の最初に worktree の作成を書く
 
-- interface ではなく type を使用すること。既存のライブラリの型を拡張した時など、明確な理由がある時のみ interface を使用して良い。interface を使用する時は必ずコメントに残すこと。
-- barrel import / export は禁止。
-- 無駄なオプションを作らないこと。またデフォルト値も設定しないこと。目的を満たすために必要最小限の実装を常に心がけること。
+## Pull Request
 
-## .agents directory
+- 関連 Issue を検索してリンクする。検索せずに「関連 Issue なし」と書かない
+- Issue には `Relates to #N` / `Refs #N` で関連付け、`Closes #N` / `Fixes #N` は使わない。Issue のクローズは人間が行うため
+- 関連 Issue が複数あれば 1 行ずつ列挙する
+- スコープ外の変更（無関係な lint 修正など）が混ざったら、PR 本文の `out-of-scope changes` 欄に明記する
 
-明確な指示がない場合、ファイルを作成する際は以下のルールに則ること。また単純なテキストデータの時は markdown ファイルで作成すること。
+## 調査
 
-```
-./.agents/              # AI エージェント用ディレクトリ
-    {planName}/         # 作業単位のディレクトリ（作業内容名で命名）
-        plan.md         # 作業計画。markdownファイルで作成する。
-        scripts/        # 作業スクリプトを配置する。
-            {scriptName}.ts  # 作業スクリプト。typescriptファイルで作成。bun で実行できるようにする。
-        research/       # その作業に特化した調査結果を配置する。
-            {researchName}.md  # 調査内容名。markdownファイルで作成する。
-    docs/               # 特定の作業に依存しない包括的な調査を記載する。ライブラリの使い方、開発方針、技術調査など、複数の作業で参照される汎用的な知識を配置する。markdownファイルで作成する。
-    tmp/                # 一時的なファイルを配置する。/tmp は使用しない。
-```
+- ライブラリやフレームワークを調べるときは、`WebSearch` に加えて `gh` で実際のリポジトリの Issue と Pull Request を並行して確かめる。検索上位の記事は古い場合があるため
+- ローカルにあるツールは `--help` を実行し、`node_modules` の実物を確かめる
+- GitHub Issue は status・最終返信・createdAt・updatedAt を見て、情報が最新か確かめる
+- ライブラリの調査には `research:library-research`、画像の解析には `research:image-analyze` を使う
+- Web アプリを作る前に類似サービスを調べ、UX の業界標準を把握する
+- ユーザーから渡された URL に対応する MCP があるのに使えない（未認証・エラーなど）ときは、`WebFetch` や CLI などの代替手段を試さず、使えないことを報告して判断を仰ぐ。代替経路では権限や取得できる情報が変わり、ユーザーの意図とずれるため
 
-## {fileName}.knowledge.md
+## ブラウザ
 
-特定のファイルに対して得た知見を記録するためのファイル。必ず記載するファイルと同階層に配置すること。
-今後の作業で役に立ちそうな情報であれば何を記載しても構わない。些細なことでも積極的に知見を記載し、今後の作業で役に立つようにすること。
-global .gitignore に追加しているのでコミットされない。無理やりコミットしないこと。なお拡張子も含めること。
+- ブラウザ作業では `agent-browser` skill を読み込む
+- ブラウザインスタンスは `--session` で分離する。`--session-name` は cookie の保存名を変えるだけで、プロセスは共有されたままになる
+- ログイン情報を自分で取得できる環境では、アクセスする URL をエスケープした文字列をセッション名に含める。エスケープは `://` → `---`、`/` → `-`、`?` → `_q_`、`&` → `_a_` とする（例: `https://example.com/app` → `https---example.com-app`）
+- ログインが必要なときは、保存済みセッションをすべて試し、次にリポジトリ内でセッションを取得・構築する手段を探す。どれも使えなければユーザーにログインを依頼する。新しくログインに成功したらセッションを保存する
 
-例: hoge.ts -> hoge.ts.knowledge.md
+## 品質基準とコード
 
-またデフォルト値は .knowledge.md だが `KNOWLEDGE_FILE_POSTFIX` 環境変数で上書きできる。存在しない場合は適宜確認すること。
-
-## tech stack
-
-新規プロジェクトを作成する時は以下の技術スタックを使用すること。
-
-- プログラミング言語: TypeScript
-- 実行環境: Bun
-- TypeScriptバージョン: v7以上 (tsgo を使用)
-- linter, formatter: biome v2
-- CLIフレームワーク: citty v0.1.6以上 (https://github.com/unjs/citty)
-- CLI色付き出力: chalk v5.6.2以上 (https://github.com/chalk/chalk)
-- CLIプログレスバー: cli-progress v3.9.0以上 (https://github.com/npkgz/cli-progress)
-- Other: knip
-
-## markdown のフォーマット
-
-- 無駄に表にしない
-- 見出しに数字をつけない
-
-## mutils's skills
-
-- cc-hooks-ts: TypeScriptで型安全なClaude Code Hooksを作成する時に使用
-- claude-code-features: Commands/Skills/Agents/Hooks/Rulesの違いと使い分け基準
-- semtools: 自然言語でファイルの中身をセマンティック検索したい時に使用。非常に高速なのでローカルを検索する際には積極的に使用すること。
-
-## Fundamental Principles (Absolute Rules)
-
-- **Prioritize actual code and actual data over theory.**
-- Always correspond to the repository, actual code, and actual data.
-- No matter how theoretically correct you think you are, if a user is reporting something, there is always a reason. Investigate the actual code and actual data precisely.
-- **Fail fast** - implement early failure in the code.
-
-## Interaction & Workflow Constraints (Pre-work Phase)
-
-- **No General Statements:** General statements regarding the target repository are prohibited. You must respect the actual target repository and target filesystem before and during implementation.
-- **Terminology Agreement:** When using context-dependent "terms" or "abbreviations", you must explain them first and obtain agreement. Misalignment of terminology leads to catastrophic design mistakes and is unforgivable.
-- **Prohibition of Mocking:** Dummy code or NO-OP implementations are absolutely prohibited. If absolutely necessary, **you must stop work, explain, and obtain permission** first.
-- **No Implicit Fallbacks:** Implicit fallbacks in logic are **absolutely forbidden**.
-
-## Reporting Guidelines
-
-- **No General Statements:** General statements are prohibited in reports. Ensure all findings correspond to the specific context of the repository.
-- **Language:** Always provide reports in polite Japanese language.
-- **Completeness:** Submit a complete report that readers can absolutely understand on its own.
-- **No Omission:** In reports, omission of subjects (主語) is **absolutely forbidden**.
-- **Reference Format:** When referencing source code in explanations, you must follow these rules:
-  - For directories: present the directory name.
-  - For existing files: present `filename:line_number(summary)`.
-  - For Databases: always present table names, and column names/types if necessary.
-- **Structure:** Summarize at the end of the report. In the final summary section, ensure that important elements can be viewed from a high-level perspective.
-
-## Documentation & Specification Rules
-
-- **TSDoc:** Always write detailed TSDoc **in Japanese**: purpose, content, and precautions.
-- **Comments for Clarity:** If there's even slight complexity, describe details in comments **in Japanese** to reduce cognitive load so engineers outside the project can read it.
-- **Precision:** When creating design documents or specifications, be strict and precise. Writing ambiguous sentences is absolutely forbidden.
-- **Maintenance:** Update documentation when necessary.
-
-## Test Code Guidelines
-
-- **Readability Target:** **Ensure that even junior engineers outside the project can absolutely read it.** The behavior must be completely understandable just by reading the test code.
-- **Context Documentation:** **Prerequisites, preconditions, and verification items must be documented in comments in Japanese.**
-- **Test Data Naming:** **Use strings close to actual names for sample string literals. At the very least, use Japanese strings whose meaning is immediately clear.**
-
-## External Api Guidelines
-
-- **:Ensure appropriate intervals between requests.**
-- **Review the API documentation and implement appropriate retry handling for potential errors.**
-- **Use exponential backoff.**
+- 新しい検出ルール（lint / CI / test / type / custom script）は、共有設定では `error` で導入する。既存の違反はすぐ直す。設計の見直しが必要ですぐ直せない場合に限り、そのファイル単位（glob ではなく `src/foo/bar.ts` のような個別パス）で `warn` に override し、ルール名と理由を 1 行コメントで添える。override は直せたものから削除する
+- 実装は理想形を目指し、後方互換性は考慮しない
+- 機能を作る前に、標準ライブラリ・定評ある OSS・エコシステムの定番パターンを MCP サーバーの `context7` / `WebSearch` / `gh` / clone で調べ、要件を満たすならそれを使う。自前実装は、既存の手段で満たせない理由を説明できる場合だけにする
+- codex として起動された場合は、プロジェクトルートの claude 設定ディレクトリを読む

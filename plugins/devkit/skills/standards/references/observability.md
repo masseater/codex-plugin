@@ -1,73 +1,51 @@
 ---
-description: Observability policy — logging, metrics, tracing, error tracking, and AI agent access
+description: 可観測性の方針 — ログ・メトリクス・トレース・エラートラッキングと、AI エージェントからのログ参照
 ---
 
-# Observability Policy
+# 可観測性の方針
 
-Inherits from Standards Philosophy. This document defines **goals and preferred standards** (OpenTelemetry), not step-by-step configuration guides.
+設定手順ではなく、目標と採用する標準（OpenTelemetry）を定める。
 
-## Three Pillars
+本番のサービスはログ・メトリクス・トレースの 3 つをすべて出す。どれかが欠けると死角ができ、障害調査が後手になる。
 
-All production services must emit **logs**, **metrics**, and **traces**. Omitting any pillar creates blind spots that make debugging reactive instead of proactive.
+## ログ
 
-## Logging
+### 計装する層
 
-### Instrumentation Layer
+- HTTP リクエスト・レスポンス: メソッド、パス、ステータス、所要時間、リクエスト ID
+- DB クエリ: クエリ種別、テーブル、所要時間、行数
+- 外部 API 呼び出し: エンドポイント、ステータス、所要時間、リトライ回数
+- ビジネスロジック: 状態遷移と分岐の結果。上の層で拾えないときだけ
 
-- HTTP requests/responses — Method, path, status, duration, request ID
-- Database queries — Query type, table, duration, row count
-- External API calls — Endpoint, status, duration, retry count
-- Business logic — State transitions, decision branch outcomes — only when the layers above cannot cover it
+### ルール
 
-### Log Level Policy
+- ログは構造化 JSON にし、スキーマは OpenTelemetry Logs のデータモデルに従う
+- 本番のログは stdout に出し、ルーティングは実行環境に任せる（12-factor の XI）
+- ローカル開発ではターミナルのスクロールで消えないよう、ファイルにも書く
+- secret・トークン・パスワード・個人情報は出さない。マスキングは logger の設定で行う
+- すべてのリクエストにリクエスト ID を持たせる。middleware で生成し、下流の呼び出しすべてに伝播させる
 
-- fatal — Process cannot continue — crash imminent
-- error — Operation failed — requires attention but process survives
-- warn — Unexpected condition that was handled — may indicate a deeper issue
-- info — Significant business events — request completed, job processed, user action
-- debug — Diagnostic detail — off in production by default
-- trace — Extremely verbose — only enabled for targeted debugging
+## メトリクス
 
-### Rules
+- すべてのサービスでリクエスト数・エラー率・レイテンシのパーセンタイル（RED メソッド）を出す
+- 業務メトリクスは運用判断に直接使うものだけ追加する
+- 計装は OpenTelemetry Metrics API で行い、プラットフォーム標準のメトリクス基盤に送る
 
-- All logs must be structured JSON — never unstructured string concatenation
-- Follow OpenTelemetry Logs data model as the schema standard
-- Production logs go to stdout — the execution environment handles routing (12-factor, Factor XI)
-- Local development additionally writes to files so logs survive terminal scrollback
-- Never log secrets, tokens, passwords, or PII — configure redaction at the logger level
-- Every request must carry a request ID — generate at the middleware layer and propagate through all downstream calls
+## トレース
 
-## Metrics
+- サービス間の呼び出しはすべてトレースコンテキスト（W3C Trace Context / `traceparent` ヘッダ）を伝播させる
+- OpenTelemetry Tracing SDK を使い、手動の span を足す前に HTTP・DB・メッセージングの自動計装を入れる
+- 突き合わせのため、すべてのトレースにログ側のリクエスト ID を含める
 
-- Counter — Request counts, error counts, events
-- Histogram — Latency distributions, response sizes
-- Gauge — Queue depth, active connections, resource usage
+## エラートラッキング
 
-- Expose request rate, error rate, and latency percentiles (RED method) for every service
-- Track custom business metrics where they directly inform operational decisions
-- Use OpenTelemetry Metrics API as the instrumentation standard — export to the platform's native metrics backend
+- 未処理例外と明示的なエラー報告は、専用のエラートラッキングサービスに送る
+- エラーはグルーピング・重複排除してアラートを出す。ログ検索では代わりにならない
+- スタックトレースが元のソースを指すよう、source map をアップロードする
 
-## Tracing
+## ログの参照
 
-- All cross-service calls must propagate trace context (W3C Trace Context / `traceparent` header)
-- Use OpenTelemetry Tracing SDK — auto-instrument HTTP, DB, and messaging layers before adding manual spans
-- Every trace must include the request ID from the logging layer for cross-correlation
-
-## Error Tracking
-
-- All unhandled exceptions and explicit error reports must flow to a dedicated error tracking service
-- Errors must be grouped, deduplicated, and trigger alerts — raw log search is not a substitute
-- Source maps must be uploaded so stack traces point to original source
-
-## Log Access
-
-### Deploy Logs
-
-- Configure log drains to the platform's native log viewer before launch, not after an incident
-- Logs must be searchable by structured JSON fields — time range, severity, request ID, trace ID, user ID
-
-### AI Agent Access
-
-- Provide CLI commands or MCP tools that let AI agents query recent logs
-- AI agents must be able to filter by time range, severity, request ID, and trace ID without manual intervention
-- Scope AI access appropriately — production logs may contain sensitive data even after redaction
+- ログの転送先（log drain）は、インシデント後でなくリリース前にプラットフォーム標準のログビューアへ設定する
+- 時間範囲・重要度・リクエスト ID・トレース ID・ユーザー ID など構造化 JSON のフィールドで検索できるようにする
+- AI エージェントが最近のログを照会できる CLI コマンドか MCP ツールを用意し、時間範囲・重要度・リクエスト ID・トレース ID で人手を介さず絞り込めるようにする
+- 本番ログはマスキング後も機微な情報を含みうるので、AI からのアクセス範囲を絞る
