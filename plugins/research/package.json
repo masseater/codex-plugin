@@ -13,7 +13,7 @@
     "citty": "^0.2.0",
     "pixelmatch": "^8.0.0",
     "sharp": "^0.34.5",
-    "simple-git": "^3.30.0",
+    "simple-git": "^4.0.0",
     "valibot": "^1.2.0",
     "yaml": "^2.8.2"
   },
